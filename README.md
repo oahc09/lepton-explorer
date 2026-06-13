@@ -17,8 +17,8 @@ A fully usable file manager matching Win11 Explorer's layout and behavior:
   drag-to-reorder, context-menu "open in new tab"
 - **Multi-window** — `Ctrl+N` new window, `Ctrl+W` close (last tab/window closes the app)
 - **File operations** — new folder/file, rename (`F2`, inline), copy, cut/paste (recursive,
-  cross-volume, auto-rename on collision), delete-to-recycle, permanent delete (`Shift+Del`),
-  open-in-default-app, **undo/redo** (`Ctrl+Z`/`Y`)
+  cross-volume, **replace/skip/keep-both conflict dialog** on collision), delete-to-recycle,
+  permanent delete (`Shift+Del`), open-in-default-app, **undo/redo** (`Ctrl+Z`/`Y`)
 - **Selection** — click / `Ctrl` / `Shift` / `Ctrl+A`, arrow-key navigation (`↑↓`+`Enter`),
   rubber-band marquee in icon views
 - **Richness** — image thumbnails + system file-type icons (`SHGetFileInfo`), **live
@@ -78,6 +78,6 @@ The wire contract is camelCase (locked by a regression test).
 ## Known limitations
 
 - Delete is not undoable (recycle-bin restore is unreliable across the `trash` crate).
-- Copy/move are synchronous (no streaming progress); collisions auto-rename (no replace/skip modal).
+- Copy/move are synchronous (no streaming progress bar).
 - "Show more options" context-menu item is a placeholder (real shell menu not wired).
 - §11 visual zero-deviation acceptance requires real Win11 baseline screenshots (user step).
