@@ -8,7 +8,7 @@ interface ViewState {
   setSort: (field: SortField) => void; // click a column header
 }
 
-export const useViewStore = create<ViewState>((set, get) => ({
+export const useViewStore = create<ViewState>((set) => ({
   viewMode: 'details',
   sort: { field: 'name', asc: true },
   setViewMode: (m) => set({ viewMode: m }),
