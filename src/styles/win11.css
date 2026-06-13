@@ -98,3 +98,7 @@ body { font-family: var(--font); font-size: 14px; background: var(--bg); color: 
 .list-item:hover { background: var(--hover-bg); }
 .list-item.selected { background: var(--select-bg); }
 .list-name { font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+.content-row { border-bottom: 1px solid var(--border); }
+.content-row:hover { background: var(--hover-bg); }
+.content-row.selected { background: var(--select-bg); }
