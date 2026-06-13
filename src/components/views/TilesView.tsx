@@ -32,6 +32,15 @@ export function TilesView({ entries }: { entries: Entry[] }) {
     window.addEventListener('winfinder:scroll', onScroll as EventListener);
     return () => window.removeEventListener('winfinder:scroll', onScroll as EventListener);
   }, []);
+
+  useEffect(() => {
+    const onScrollTo = (ev: Event) => {
+      const idx = (ev as CustomEvent<number>).detail;
+      v.scrollToIndex(Math.floor(idx / perRow), { align: 'auto' });
+    };
+    window.addEventListener('winfinder:scroll-to-index', onScrollTo as EventListener);
+    return () => window.removeEventListener('winfinder:scroll-to-index', onScrollTo as EventListener);
+  }, [v]);
   return (
     <div className="tiles" ref={parentRef} style={{ overflow: 'auto', height: '100%', padding: 8 }}>
       <div style={{ height: `${v.getTotalSize()}px`, position: 'relative' }}>

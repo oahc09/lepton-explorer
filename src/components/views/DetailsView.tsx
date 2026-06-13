@@ -37,6 +37,15 @@ export function DetailsView({ entries, renamingPath, onRenameCommit }: { entries
     return () => window.removeEventListener('winfinder:scroll', onScroll as EventListener);
   }, []);
 
+  useEffect(() => {
+    const onScrollTo = (ev: Event) => {
+      const idx = (ev as CustomEvent<number>).detail;
+      rowVirtualizer.scrollToIndex(idx, { align: 'auto' });
+    };
+    window.addEventListener('winfinder:scroll-to-index', onScrollTo as EventListener);
+    return () => window.removeEventListener('winfinder:scroll-to-index', onScrollTo as EventListener);
+  }, [rowVirtualizer]);
+
   const startResize = (key: 'name' | 'date' | 'type' | 'size', e: React.MouseEvent) => {
     e.preventDefault(); e.stopPropagation();
     const startX = e.clientX;

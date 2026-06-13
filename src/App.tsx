@@ -24,6 +24,7 @@ import { useSelectionStore } from './state/selectionStore';
 import type { Entry } from './types';
 import { HomeView } from './components/views/HomeView';
 import { VIEW_SHORTCUTS } from './shortcuts';
+import { openItem } from './utils/open';
 
 export default function App() {
   const path = useLocationStore((s) => s.path);
@@ -39,6 +40,8 @@ export default function App() {
   const previewEntry = sel.length === 1 ? shownEntries.find((e) => e.path === sel[0]) ?? null : null;
   const entryRef = useRef(entries);
   entryRef.current = entries;
+  const shownRef = useRef(shownEntries);
+  shownRef.current = shownEntries;
   const ops = useFileOps();
   const opsRef = useRef(ops);
   opsRef.current = ops;
@@ -106,6 +109,30 @@ export default function App() {
       if (e.ctrlKey && (e.key === 'e' || e.key === 'E' || e.key === 'f' || e.key === 'F') && !e.shiftKey) { e.preventDefault(); window.dispatchEvent(new CustomEvent('winfinder:focus-search')); return; }
       const tag = (e.target as HTMLElement)?.tagName;
       if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
+      const list = shownRef.current;
+      if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+        e.preventDefault();
+        if (!list.length) return;
+        const cur = useSelectionStore.getState().focusIndex;
+        let next = cur < 0 ? 0 : cur + (e.key === 'ArrowDown' ? 1 : -1);
+        next = Math.max(0, Math.min(list.length - 1, next));
+        const item = list[next];
+        useSelectionStore.getState().select([item]);
+        useSelectionStore.getState().setFocus(next);
+        window.dispatchEvent(new CustomEvent('winfinder:scroll-to-index', { detail: next }));
+        return;
+      }
+      if (e.key === 'Enter' && !e.altKey) {
+        const sel = useSelectionStore.getState().selected;
+        if (sel.length === 1) {
+          const it = list.find((en) => en.path === sel[0]);
+          if (it) {
+            if (it.isDir) useLocationStore.getState().navigate(it.path);
+            else openItem(it.path);
+          }
+        }
+        return;
+      }
       if (e.altKey && (e.key === 'p' || e.key === 'P')) { e.preventDefault(); useViewStore.getState().togglePreview(); return; }
       if (e.ctrlKey && e.shiftKey && VIEW_SHORTCUTS[e.key]) {
         e.preventDefault();

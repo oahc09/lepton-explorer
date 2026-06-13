@@ -37,6 +37,15 @@ export function IconsView({ entries, size = 'large', renamingPath, onRenameCommi
     return () => window.removeEventListener('winfinder:scroll', onScroll as EventListener);
   }, []);
 
+  useEffect(() => {
+    const onScrollTo = (ev: Event) => {
+      const idx = (ev as CustomEvent<number>).detail;
+      rowV.scrollToIndex(Math.floor(idx / s.perRow), { align: 'auto' });
+    };
+    window.addEventListener('winfinder:scroll-to-index', onScrollTo as EventListener);
+    return () => window.removeEventListener('winfinder:scroll-to-index', onScrollTo as EventListener);
+  }, [rowV, s.perRow]);
+
   return (
     <div className="icons" ref={parentRef} style={{ overflow: 'auto', height: '100%' }}>
       <div style={{ height: `${rowV.getTotalSize()}px`, position: 'relative' }}>
