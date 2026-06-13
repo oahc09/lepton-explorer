@@ -1,5 +1,5 @@
 import { useVirtualizer } from '@tanstack/react-virtual';
-import { useRef } from 'react';
+import { useEffect, useRef } from 'react';
 import type { Entry, IconSize } from '../../types';
 import { useSelectionStore } from '../../state/selectionStore';
 import { useLocationStore } from '../../state/locationStore';
@@ -24,6 +24,18 @@ export function IconsView({ entries, size = 'large', renamingPath, onRenameCommi
   const showExtensions = useViewStore((s) => s.showExtensions);
   const rowCount = Math.ceil(entries.length / s.perRow);
   const rowV = useVirtualizer({ count: rowCount, getScrollElement: () => parentRef.current, estimateSize: () => s.tileH, overscan: 8 });
+
+  useEffect(() => {
+    const onScroll = (ev: Event) => {
+      const el = parentRef.current;
+      if (!el) return;
+      const key = (ev as CustomEvent<string>).detail;
+      if (key === 'Home') el.scrollTop = 0;
+      if (key === 'End') el.scrollTop = el.scrollHeight;
+    };
+    window.addEventListener('winfinder:scroll', onScroll as EventListener);
+    return () => window.removeEventListener('winfinder:scroll', onScroll as EventListener);
+  }, []);
 
   return (
     <div className="icons" ref={parentRef} style={{ overflow: 'auto', height: '100%' }}>

@@ -1,5 +1,5 @@
 import { useVirtualizer } from '@tanstack/react-virtual';
-import { useRef } from 'react';
+import { useEffect, useRef } from 'react';
 import type { Entry } from '../../types';
 import { useViewStore } from '../../state/viewStore';
 import { useSelectionStore } from '../../state/selectionStore';
@@ -24,6 +24,18 @@ export function DetailsView({ entries, renamingPath, onRenameCommit }: { entries
   const arrow = (field: 'name' | 'modified' | 'type' | 'size') =>
     sort.field === field ? (sort.asc ? ' ▲' : ' ▼') : '';
   const cols = `${colWidths.name}px ${colWidths.date}px ${colWidths.type}px ${colWidths.size}px`;
+
+  useEffect(() => {
+    const onScroll = (ev: Event) => {
+      const el = parentRef.current;
+      if (!el) return;
+      const key = (ev as CustomEvent<string>).detail;
+      if (key === 'Home') el.scrollTop = 0;
+      if (key === 'End') el.scrollTop = el.scrollHeight;
+    };
+    window.addEventListener('winfinder:scroll', onScroll as EventListener);
+    return () => window.removeEventListener('winfinder:scroll', onScroll as EventListener);
+  }, []);
 
   const startResize = (key: 'name' | 'date' | 'type' | 'size', e: React.MouseEvent) => {
     e.preventDefault(); e.stopPropagation();

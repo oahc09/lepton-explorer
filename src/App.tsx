@@ -170,6 +170,10 @@ export default function App() {
         window.dispatchEvent(new CustomEvent('winfinder:rename', { detail: selected[0] }));
         return;
       }
+      if (e.key === 'Home' || e.key === 'End') {
+        window.dispatchEvent(new CustomEvent('winfinder:scroll', { detail: e.key }));
+        return;
+      }
       if (e.key === 'Enter' && e.altKey) {
         e.preventDefault();
         if (selected.length === 1) {
@@ -208,7 +212,7 @@ export default function App() {
           )}
         </main>
       </div>
-      <StatusBar count={entries.length} />
+      <StatusBar count={shownEntries.length} />
       <ContextMenu entries={shownEntries} />
       {propsEntry && <PropertiesDialog entry={propsEntry} onClose={() => setPropsEntry(null)} />}
     </div>

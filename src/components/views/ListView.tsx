@@ -1,5 +1,5 @@
 import { useVirtualizer } from '@tanstack/react-virtual';
-import { useRef } from 'react';
+import { useEffect, useRef } from 'react';
 import type { Entry } from '../../types';
 import { useSelectionStore } from '../../state/selectionStore';
 import { useLocationStore } from '../../state/locationStore';
@@ -17,6 +17,18 @@ export function ListView({ entries }: { entries: Entry[] }) {
   const navigate = useLocationStore((s) => s.navigate);
   const showExtensions = useViewStore((s) => s.showExtensions);
   const v = useVirtualizer({ count: entries.length, getScrollElement: () => parentRef.current, estimateSize: () => ROW_H, overscan: 30 });
+
+  useEffect(() => {
+    const onScroll = (ev: Event) => {
+      const el = parentRef.current;
+      if (!el) return;
+      const key = (ev as CustomEvent<string>).detail;
+      if (key === 'Home') el.scrollTop = 0;
+      if (key === 'End') el.scrollTop = el.scrollHeight;
+    };
+    window.addEventListener('winfinder:scroll', onScroll as EventListener);
+    return () => window.removeEventListener('winfinder:scroll', onScroll as EventListener);
+  }, []);
   return (
     <div className="list" ref={parentRef} style={{ overflow: 'auto', height: '100%', padding: '4px 8px' }}>
       <div style={{ height: `${v.getTotalSize()}px`, position: 'relative' }}>
