@@ -74,6 +74,7 @@ export function IconsView({ entries, size = 'large', renamingPath, onRenameCommi
                   onDrop={(e) => { if (item.isDir) { e.preventDefault(); void dropInto(item.path, e.ctrlKey); } }}
                   onClick={(ev) => handleClick(ev, item, entries, sel)}
                   onDoubleClick={() => { if (item.isDir) navigate(item.path); else openItem(item.path); }}
+                  onAuxClick={(e) => { if (e.button === 1 && item.isDir) { e.preventDefault(); useLocationStore.getState().addTab(item.path); } }}
                 >
                   <div className="tile-icon"><Thumbnail entry={item} size={s.font} /></div>
                   {renamingPath === item.path ? (

@@ -56,6 +56,7 @@ export function ContextMenu({ entries }: { entries: Entry[] }) {
   return (
     <ul className="context-menu" style={{ left: pos.x, top: pos.y }}>
       {hasSel && item('打开', () => selEntries.forEach((e) => (e.isDir ? useLocationStore.getState().navigate(e.path) : openItem(e.path))))}
+      {item('在新标签页中打开', () => { const en = selEntries[0]; if (en?.isDir) useLocationStore.getState().addTab(en.path); }, !(sel.length === 1 && selEntries[0]?.isDir))}
       {item('新建文件夹', () => ops.newFolder(path))}
       {item('剪切', () => useClipboardStore.getState().cut(selEntries), !hasSel)}
       {item('复制', () => useClipboardStore.getState().copy(selEntries), !hasSel)}

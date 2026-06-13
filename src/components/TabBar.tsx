@@ -22,6 +22,7 @@ export function TabBar() {
           key={t.id}
           className={`tab${t.id === activeId ? ' active' : ''}`}
           onClick={() => setActive(t.id)}
+          onAuxClick={(e) => { if (e.button === 1) { e.preventDefault(); void onClose(t.id); } }}
         >
           <span className="tab-title">📁 {t.title}</span>
           <button

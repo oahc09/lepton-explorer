@@ -64,6 +64,7 @@ export function ListView({ entries }: { entries: Entry[] }) {
               onDrop={(e) => { if (item.isDir) { e.preventDefault(); void dropInto(item.path, e.ctrlKey); } }}
               onClick={(ev) => handleClick(ev, item, entries, sel)}
               onDoubleClick={() => { if (item.isDir) navigate(item.path); else openItem(item.path); }}
+              onAuxClick={(e) => { if (e.button === 1 && item.isDir) { e.preventDefault(); useLocationStore.getState().addTab(item.path); } }}
             >
               <span className="list-icon"><Thumbnail entry={item} size={16} /></span>
               <span className="list-name">{displayName(item, showExtensions)}</span>

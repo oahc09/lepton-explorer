@@ -3,6 +3,7 @@ import { useEffect, useRef } from 'react';
 import type { Entry } from '../../types';
 import { useViewStore } from '../../state/viewStore';
 import { useSelectionStore } from '../../state/selectionStore';
+import { useLocationStore } from '../../state/locationStore';
 import { formatDate, formatSize } from '../../utils/format';
 import { displayName } from '../../utils/display';
 import { useSorted, handleClick, useOpen } from './detailsHelpers';
@@ -88,6 +89,7 @@ export function DetailsView({ entries, renamingPath, onRenameCommit }: { entries
               onDrop={(e) => { if (item.isDir) { e.preventDefault(); void dropInto(item.path, e.ctrlKey); } }}
               onClick={(ev) => handleClick(ev, item, sorted, sel)}
               onDoubleClick={() => { if (item.isDir) onOpen(item); else openItem(item.path); }}
+              onAuxClick={(e) => { if (e.button === 1 && item.isDir) { e.preventDefault(); useLocationStore.getState().addTab(item.path); } }}
             >
               <span className="col-name"><span className="row-icon" aria-hidden><Thumbnail entry={item} size={16} /></span>{renamingPath === item.path ? (
                 <input
