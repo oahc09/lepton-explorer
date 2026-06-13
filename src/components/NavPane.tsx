@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import type { SpecialFolder, Drive } from '../types';
 import { useLocationStore } from '../state/locationStore';
+import { dropInto } from '../utils/drop';
 
 export function NavPane() {
   const [folders, setFolders] = useState<SpecialFolder[]>([]);
@@ -28,12 +29,12 @@ export function NavPane() {
       {expanded && (
         <div className="nav-group">
           {folders.filter((f) => f.key !== 'home').map((f) => (
-            <button key={f.key} className="nav-item nav-child" onClick={() => navigate(f.path)}>
+            <button key={f.key} className="nav-item nav-child" onClick={() => navigate(f.path)} onDragOver={(e) => { e.preventDefault(); e.dataTransfer.dropEffect = e.ctrlKey ? 'copy' : 'move'; }} onDrop={(e) => { e.preventDefault(); void dropInto(f.path, e.ctrlKey); }}>
               <span aria-hidden>📂</span><span>{f.name}</span>
             </button>
           ))}
           {drives.map((d) => (
-            <button key={d.letter} className="nav-item nav-child" onClick={() => navigate(d.path)}>
+            <button key={d.letter} className="nav-item nav-child" onClick={() => navigate(d.path)} onDragOver={(e) => { e.preventDefault(); e.dataTransfer.dropEffect = e.ctrlKey ? 'copy' : 'move'; }} onDrop={(e) => { e.preventDefault(); void dropInto(d.path, e.ctrlKey); }}>
               <span aria-hidden>💽</span><span>{d.letter}</span>
             </button>
           ))}

@@ -7,6 +7,8 @@ import { useViewStore } from '../../state/viewStore';
 import { handleClick } from './detailsHelpers';
 import { openItem } from '../../utils/open';
 import { displayName } from '../../utils/display';
+import { setDragged } from '../../utils/drag';
+import { dropInto } from '../../utils/drop';
 import { Thumbnail } from '../Thumbnail';
 
 const SIZES: Record<IconSize, { tileW: number; tileH: number; font: number; perRow: number; nameMax: number }> = {
@@ -60,6 +62,16 @@ export function IconsView({ entries, size = 'large', renamingPath, onRenameCommi
                   data-path={item.path}
                   className={`tile${sel.selected.includes(item.path) ? ' selected' : ''}`}
                   style={{ width: s.tileW, height: s.tileH - 8 }}
+                  draggable
+                  onDragStart={(e) => {
+                    const selPaths = useSelectionStore.getState().selected;
+                    const paths = selPaths.includes(item.path) ? selPaths : [item.path];
+                    setDragged(paths);
+                    e.dataTransfer.effectAllowed = 'copyMove';
+                    e.dataTransfer.setData('text/plain', paths.join('\n'));
+                  }}
+                  onDragOver={(e) => { if (item.isDir) { e.preventDefault(); e.dataTransfer.dropEffect = e.ctrlKey ? 'copy' : 'move'; } }}
+                  onDrop={(e) => { if (item.isDir) { e.preventDefault(); void dropInto(item.path, e.ctrlKey); } }}
                   onClick={(ev) => handleClick(ev, item, entries, sel)}
                   onDoubleClick={() => { if (item.isDir) navigate(item.path); else openItem(item.path); }}
                 >

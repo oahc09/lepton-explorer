@@ -8,6 +8,8 @@ import { formatDate, formatSize } from '../../utils/format';
 import { handleClick } from './detailsHelpers';
 import { openItem } from '../../utils/open';
 import { displayName } from '../../utils/display';
+import { setDragged } from '../../utils/drag';
+import { dropInto } from '../../utils/drop';
 import { Thumbnail } from '../Thumbnail';
 
 const ROW_H = 56;
@@ -50,6 +52,16 @@ export function ContentView({ entries }: { entries: Entry[] }) {
               data-path={item.path}
               className={`content-row${selected ? ' selected' : ''}`}
               style={{ position: 'absolute', top: 0, left: 0, width: '100%', transform: `translateY(${vi.start}px)`, height: ROW_H, display: 'flex', alignItems: 'center', gap: 12, padding: '0 16px' }}
+              draggable
+              onDragStart={(e) => {
+                const selPaths = useSelectionStore.getState().selected;
+                const paths = selPaths.includes(item.path) ? selPaths : [item.path];
+                setDragged(paths);
+                e.dataTransfer.effectAllowed = 'copyMove';
+                e.dataTransfer.setData('text/plain', paths.join('\n'));
+              }}
+              onDragOver={(e) => { if (item.isDir) { e.preventDefault(); e.dataTransfer.dropEffect = e.ctrlKey ? 'copy' : 'move'; } }}
+              onDrop={(e) => { if (item.isDir) { e.preventDefault(); void dropInto(item.path, e.ctrlKey); } }}
               onClick={(ev) => handleClick(ev, item, entries, sel)}
               onDoubleClick={() => { if (item.isDir) navigate(item.path); else openItem(item.path); }}
             >
