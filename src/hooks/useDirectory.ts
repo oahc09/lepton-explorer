@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import type { Entry } from '../types';
 
-export function useDirectory(path: string) {
+export function useDirectory(path: string, refreshKey?: unknown) {
   const [entries, setEntries] = useState<Entry[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -19,7 +19,7 @@ export function useDirectory(path: string) {
       })
       .finally(() => { if (!cancelled) setLoading(false); });
     return () => { cancelled = true; };
-  }, [path]);
+  }, [path, refreshKey]);
 
   return { entries, loading, error };
 }

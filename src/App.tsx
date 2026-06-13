@@ -32,7 +32,7 @@ export default function App() {
   const path = useLocationStore((s) => s.path);
   const navigate = useLocationStore((s) => s.navigate);
   const [refreshKey, setRefreshKey] = useState(0);
-  const { entries, loading, error } = useDirectory(path);
+  const { entries, loading, error } = useDirectory(path, refreshKey);
   const searchResults = useSearchStore((s) => s.results);
   const showHidden = useViewStore((s) => s.showHidden);
   const visibleEntries = entries.filter((e) => showHidden || !e.isHidden);
@@ -55,6 +55,10 @@ export default function App() {
   const [fs, setFs] = useState(false);
 
   useEffect(() => { getCurrentWindow().setFullscreen(fs).catch(() => {}); }, [fs]);
+
+  // Clear selection when the active path (tab) changes; selection is global, so without this
+  // switching tabs would leave stale selection that could act on the wrong folder.
+  useEffect(() => { useSelectionStore.getState().clear(); }, [path]);
 
   const onRenameCommit = (newName: string) => {
     if (renamingPath && newName.trim()) ops.renameEntry(renamingPath, newName.trim());
