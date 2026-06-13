@@ -4,8 +4,9 @@ import type { Entry } from '../../types';
 import { useSelectionStore } from '../../state/selectionStore';
 import { useLocationStore } from '../../state/locationStore';
 import { formatDate, formatSize } from '../../utils/format';
-import { icon, handleClick } from './detailsHelpers';
+import { handleClick } from './detailsHelpers';
 import { openItem } from '../../utils/open';
+import { Thumbnail } from '../Thumbnail';
 
 const ROW_H = 56;
 
@@ -27,7 +28,7 @@ export function ContentView({ entries }: { entries: Entry[] }) {
               onClick={(ev) => handleClick(ev, item, entries, sel)}
               onDoubleClick={() => { if (item.isDir) navigate(item.path); else openItem(item.path); }}
             >
-              <span style={{ fontSize: 36 }}>{icon(item)}</span>
+              <span><Thumbnail entry={item} size={36} /></span>
               <span style={{ display: 'flex', flexDirection: 'column', overflow: 'hidden', flex: 1 }}>
                 <span style={{ fontSize: 13 }}>{item.name}</span>
                 <span style={{ fontSize: 12, color: 'var(--text-sub)' }}>{item.typeLabel}{item.isDir ? '' : ` · ${formatSize(item.size)}`}{item.modified ? ` · ${formatDate(item.modified)}` : ''}</span>

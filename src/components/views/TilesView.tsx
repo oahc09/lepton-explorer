@@ -4,8 +4,9 @@ import type { Entry } from '../../types';
 import { useSelectionStore } from '../../state/selectionStore';
 import { useLocationStore } from '../../state/locationStore';
 import { formatSize } from '../../utils/format';
-import { icon, handleClick } from './detailsHelpers';
+import { handleClick } from './detailsHelpers';
 import { openItem } from '../../utils/open';
+import { Thumbnail } from '../Thumbnail';
 
 const TILE_H = 76;
 const perRow = 4;
@@ -33,7 +34,7 @@ export function TilesView({ entries }: { entries: Entry[] }) {
                     onClick={(ev) => handleClick(ev, item, entries, sel)}
                     onDoubleClick={() => { if (item.isDir) navigate(item.path); else openItem(item.path); }}
                   >
-                    <span style={{ fontSize: 40 }}>{icon(item)}</span>
+                    <span><Thumbnail entry={item} size={40} /></span>
                     <span style={{ display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
                       <span className="tile2-name" style={{ fontSize: 13 }}>{item.name}</span>
                       <span style={{ fontSize: 12, color: 'var(--text-sub)' }}>{item.isDir ? '文件夹' : `${formatSize(item.size)} · ${item.typeLabel}`}</span>

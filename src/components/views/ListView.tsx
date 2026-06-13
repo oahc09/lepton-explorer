@@ -3,8 +3,9 @@ import { useRef } from 'react';
 import type { Entry } from '../../types';
 import { useSelectionStore } from '../../state/selectionStore';
 import { useLocationStore } from '../../state/locationStore';
-import { icon, handleClick } from './detailsHelpers';
+import { handleClick } from './detailsHelpers';
 import { openItem } from '../../utils/open';
+import { Thumbnail } from '../Thumbnail';
 
 const ROW_H = 22;
 
@@ -27,7 +28,7 @@ export function ListView({ entries }: { entries: Entry[] }) {
               onClick={(ev) => handleClick(ev, item, entries, sel)}
               onDoubleClick={() => { if (item.isDir) navigate(item.path); else openItem(item.path); }}
             >
-              <span className="list-icon" style={{ fontSize: 16 }}>{icon(item)}</span>
+              <span className="list-icon"><Thumbnail entry={item} size={16} /></span>
               <span className="list-name">{item.name}</span>
             </div>
           );
