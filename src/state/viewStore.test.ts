@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { useViewStore } from './viewStore';
 
-beforeEach(() => useViewStore.setState({ viewMode: 'details', sort: { field: 'name', asc: true } }));
+beforeEach(() => useViewStore.setState({ viewMode: 'details', sort: { field: 'name', asc: true }, colWidths: { name: 600, date: 180, type: 160, size: 110 } }));
 
 describe('viewStore', () => {
   it('setViewMode updates mode', () => {
@@ -17,5 +17,11 @@ describe('viewStore', () => {
     useViewStore.getState().sort = { field: 'name', asc: false };
     useViewStore.getState().setSort('size');
     expect(useViewStore.getState().sort).toEqual({ field: 'size', asc: true });
+  });
+  it('setColWidth updates the width and clamps to min 40', () => {
+    useViewStore.getState().setColWidth('date', 250);
+    expect(useViewStore.getState().colWidths.date).toBe(250);
+    useViewStore.getState().setColWidth('size', 10);
+    expect(useViewStore.getState().colWidths.size).toBe(40);
   });
 });

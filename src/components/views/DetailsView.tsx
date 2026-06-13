@@ -17,16 +17,29 @@ export function DetailsView({ entries, renamingPath, onRenameCommit }: { entries
   const sel = useSelectionStore();
   const onOpen = useOpen();
   const sort = useViewStore((s) => s.sort);
+  const colWidths = useViewStore((s) => s.colWidths);
+  const setColWidth = useViewStore((s) => s.setColWidth);
   const arrow = (field: 'name' | 'modified' | 'type' | 'size') =>
     sort.field === field ? (sort.asc ? ' ▲' : ' ▼') : '';
+  const cols = `${colWidths.name}px ${colWidths.date}px ${colWidths.type}px ${colWidths.size}px`;
+
+  const startResize = (key: 'name' | 'date' | 'type' | 'size', e: React.MouseEvent) => {
+    e.preventDefault(); e.stopPropagation();
+    const startX = e.clientX;
+    const startW = colWidths[key];
+    const onMove = (ev: MouseEvent) => setColWidth(key, startW + (ev.clientX - startX));
+    const onUp = () => { window.removeEventListener('mousemove', onMove); window.removeEventListener('mouseup', onUp); };
+    window.addEventListener('mousemove', onMove);
+    window.addEventListener('mouseup', onUp);
+  };
 
   return (
     <div className="details" ref={parentRef} style={{ overflow: 'auto', height: '100%' }}>
-      <div className="details-header">
-        <button className={sort.field === 'name' ? 'col-name active-sort' : 'col-name'} onClick={() => useViewStore.getState().setSort('name')}>名称{arrow('name')}</button>
-        <button className={sort.field === 'modified' ? 'col-date active-sort' : 'col-date'} onClick={() => useViewStore.getState().setSort('modified')}>修改日期{arrow('modified')}</button>
-        <button className={sort.field === 'type' ? 'col-type active-sort' : 'col-type'} onClick={() => useViewStore.getState().setSort('type')}>类型{arrow('type')}</button>
-        <button className={sort.field === 'size' ? 'col-size active-sort' : 'col-size'} onClick={() => useViewStore.getState().setSort('size')}>大小{arrow('size')}</button>
+      <div className="details-header" style={{ display: 'grid', gridTemplateColumns: cols }}>
+        <div className="col-head"><button className={sort.field === 'name' ? 'col-name active-sort' : 'col-name'} onClick={() => useViewStore.getState().setSort('name')}>名称{arrow('name')}</button><div className="col-resizer" onMouseDown={(e) => startResize('name', e)} /></div>
+        <div className="col-head"><button className={sort.field === 'modified' ? 'col-date active-sort' : 'col-date'} onClick={() => useViewStore.getState().setSort('modified')}>修改日期{arrow('modified')}</button><div className="col-resizer" onMouseDown={(e) => startResize('date', e)} /></div>
+        <div className="col-head"><button className={sort.field === 'type' ? 'col-type active-sort' : 'col-type'} onClick={() => useViewStore.getState().setSort('type')}>类型{arrow('type')}</button><div className="col-resizer" onMouseDown={(e) => startResize('type', e)} /></div>
+        <div className="col-head"><button className={sort.field === 'size' ? 'col-size active-sort' : 'col-size'} onClick={() => useViewStore.getState().setSort('size')}>大小{arrow('size')}</button><div className="col-resizer" onMouseDown={(e) => startResize('size', e)} /></div>
       </div>
       <div style={{ height: `${rowVirtualizer.getTotalSize()}px`, position: 'relative' }}>
         {rowVirtualizer.getVirtualItems().map((vi) => {
@@ -37,7 +50,7 @@ export function DetailsView({ entries, renamingPath, onRenameCommit }: { entries
               key={item.path}
               data-path={item.path}
               className={`details-row${selected ? ' selected' : ''}`}
-              style={{ position: 'absolute', top: 0, left: 0, width: '100%', transform: `translateY(${vi.start}px)`, height: ROW_H }}
+              style={{ position: 'absolute', top: 0, left: 0, width: '100%', transform: `translateY(${vi.start}px)`, height: ROW_H, display: 'grid', gridTemplateColumns: cols }}
               onClick={(ev) => handleClick(ev, item, sorted, sel)}
               onDoubleClick={() => { if (item.isDir) onOpen(item); else openItem(item.path); }}
             >
