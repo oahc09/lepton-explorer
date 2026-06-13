@@ -1,10 +1,8 @@
 import { useEffect, useState } from 'react';
 import { getCurrentWindow } from '@tauri-apps/api/window';
-import { useLocationStore } from '../state/locationStore';
+import { TabBar } from './TabBar';
 
 export function TitleBar() {
-  const path = useLocationStore((s) => s.path);
-  const title = path ? path.replace(/\\/g, ' › ') : 'WinFinder';
   const [maximized, setMaximized] = useState(false);
   const win = getCurrentWindow();
 
@@ -17,9 +15,7 @@ export function TitleBar() {
 
   return (
     <header className="title-bar" data-tauri-drag-region>
-      <div className="title-tabs" data-tauri-drag-region>
-        <span className="tab" data-tauri-drag-region>📁 {title || '主页'}</span>
-      </div>
+      <TabBar />
       <div className="window-controls">
         <button className="wc wc-min" onClick={() => win.minimize()} title="最小化">—</button>
         <button className="wc wc-max" onClick={() => win.toggleMaximize()} title="最大化">{maximized ? '🗗' : '🗖'}</button>

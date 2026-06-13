@@ -146,3 +146,12 @@ body { font-family: var(--font); font-size: 14px; background: var(--bg); color: 
 .preview-pane { width: 280px; border-left: 1px solid var(--border); background: var(--pane-bg); padding: 16px; overflow: auto; display: flex; flex-direction: column; gap: 12px; }
 .preview-thumb { display: flex; align-items: center; justify-content: center; min-height: 140px; }
 .preview-name { font-size: 13px; word-break: break-word; font-weight: 600; }
+
+.tabbar { display: flex; align-items: center; gap: 2px; flex: 1; height: 100%; padding: 0 4px; overflow-x: auto; }
+.tab { display: flex; align-items: center; gap: 6px; height: 32px; padding: 0 8px 0 12px; border-radius: 6px; background: rgba(255,255,255,0.05); color: var(--text); cursor: pointer; font-size: 12px; max-width: 200px; }
+.tab.active { background: rgba(255,255,255,0.12); }
+.tab-title { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.tab-close { background: transparent; border: 0; color: var(--text-sub); cursor: pointer; font-size: 11px; border-radius: 4px; width: 18px; height: 18px; }
+.tab-close:hover { background: rgba(0,0,0,0.15); color: var(--text); }
+.tab-add { background: transparent; border: 0; color: var(--text); cursor: pointer; font-size: 16px; width: 30px; height: 30px; border-radius: 6px; }
+.tab-add:hover { background: var(--hover-bg); }

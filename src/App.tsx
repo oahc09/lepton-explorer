@@ -110,6 +110,34 @@ export default function App() {
       if (e.ctrlKey && (e.key === 'e' || e.key === 'E' || e.key === 'f' || e.key === 'F') && !e.shiftKey) { e.preventDefault(); window.dispatchEvent(new CustomEvent('winfinder:focus-search')); return; }
       const tag = (e.target as HTMLElement)?.tagName;
       if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
+      if (e.ctrlKey && !e.shiftKey && (e.key === 't' || e.key === 'T')) {
+        e.preventDefault();
+        useLocationStore.getState().addTab('');
+        return;
+      }
+      if (e.ctrlKey && !e.shiftKey && (e.key === 'w' || e.key === 'W')) {
+        e.preventDefault();
+        const ok = useLocationStore.getState().closeTab(useLocationStore.getState().activeId);
+        if (!ok) getCurrentWindow().close();
+        return;
+      }
+      if (e.ctrlKey && e.key === 'Tab') {
+        e.preventDefault();
+        const { tabs, activeId, setActive } = useLocationStore.getState();
+        const i = tabs.findIndex((t) => t.id === activeId);
+        const ni = e.shiftKey ? (i - 1 + tabs.length) % tabs.length : (i + 1) % tabs.length;
+        setActive(tabs[ni].id);
+        return;
+      }
+      if (e.ctrlKey && !e.shiftKey && /^[1-9]$/.test(e.key)) {
+        const idx = parseInt(e.key, 10) - 1;
+        const { tabs, setActive } = useLocationStore.getState();
+        if (tabs[idx]) {
+          e.preventDefault();
+          setActive(tabs[idx].id);
+        }
+        return;
+      }
       const list = shownRef.current;
       if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
         e.preventDefault();
@@ -157,7 +185,6 @@ export default function App() {
         return;
       }
       if (e.ctrlKey && !e.shiftKey && (e.key === 'n' || e.key === 'N')) { e.preventDefault(); newWindow(); return; }
-      if (e.ctrlKey && !e.shiftKey && (e.key === 'w' || e.key === 'W')) { e.preventDefault(); getCurrentWindow().close(); return; }
       if (e.ctrlKey && !e.shiftKey && (e.key === 'a' || e.key === 'A')) {
         e.preventDefault();
         useSelectionStore.getState().select(entryRef.current);

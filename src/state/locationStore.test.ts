@@ -1,7 +1,19 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { useLocationStore, parentOf } from './locationStore';
 
-beforeEach(() => useLocationStore.setState({ path: '', backStack: [], forwardStack: [] }));
+function resetStore() {
+  const { setState } = useLocationStore;
+  // create a brand-new single-tab state
+  setState({
+    path: '',
+    backStack: [],
+    forwardStack: [],
+    tabs: [{ id: 't0', title: '主页', path: '', backStack: [], forwardStack: [] }],
+    activeId: 't0',
+  });
+}
+
+beforeEach(resetStore);
 
 describe('parentOf', () => {
   it('returns the parent directory', () => {
@@ -40,5 +52,31 @@ describe('locationStore navigation', () => {
     s.navigate('C:\\Users\\caosh');
     expect(s.up()).toBe(true);
     expect(useLocationStore.getState().path).toBe('C:\\Users');
+  });
+});
+
+describe('tabs', () => {
+  beforeEach(resetStore);
+  it('addTab adds and activates', () => {
+    const id = useLocationStore.getState().addTab('C:\\Users');
+    expect(useLocationStore.getState().tabs.length).toBe(2);
+    expect(useLocationStore.getState().activeId).toBe(id);
+    expect(useLocationStore.getState().path).toBe('C:\\Users');
+  });
+  it('closeTab switches active to neighbor and returns true; false on last', () => {
+    useLocationStore.getState().addTab('C:\\A');
+    const b = useLocationStore.getState().addTab('C:\\B');
+    expect(useLocationStore.getState().closeTab(b)).toBe(true);
+    expect(useLocationStore.getState().tabs.length).toBe(2);
+    // close all remaining -> false
+    useLocationStore.getState().closeTab(useLocationStore.getState().activeId);
+    expect(useLocationStore.getState().closeTab(useLocationStore.getState().activeId)).toBe(false);
+  });
+  it('setActive switches path to that tab', () => {
+    useLocationStore.getState().navigate('C:\\X');
+    useLocationStore.getState().addTab('C:\\Y');
+    expect(useLocationStore.getState().path).toBe('C:\\Y');
+    useLocationStore.getState().setActive('t0');
+    expect(useLocationStore.getState().path).toBe('C:\\X');
   });
 });
