@@ -87,6 +87,10 @@ body { font-family: var(--font); font-size: 14px; background: var(--bg); color: 
 .tile-icon { font-size: 40px; }
 .tile-name { font-size: 12px; text-align: center; max-width: 90px; word-break: break-word; }
 
+.tile2:hover { background: var(--hover-bg); }
+.tile2.selected { background: var(--select-bg); }
+.tile2-name { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
 .status-bar { height: var(--statusbar-h); display: flex; align-items: center; justify-content: space-between; padding: 0 14px; background: var(--pane-bg); border-top: 1px solid var(--border); font-size: 12px; color: var(--text-sub); }
 .view-toggle { border: 1px solid var(--border); background: var(--main-bg); color: var(--text); padding: 4px 10px; border-radius: 6px; cursor: pointer; }
 .view-select { height: 32px; border: 1px solid var(--border); background: var(--main-bg); color: var(--text); border-radius: 6px; padding: 0 8px; font-size: 13px; cursor: pointer; }
