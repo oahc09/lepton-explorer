@@ -270,4 +270,32 @@ mod tests {
             assert!(dst.is_file(), "symlink should be copied as a file");
         }
     }
+
+    #[test]
+    fn copy_items_into_missing_dest_returns_error() {
+        let d = tempdir().unwrap();
+        let src = d.path().join("a.txt"); fs::write(&src, "x").unwrap();
+        let r = copy_items(&[src.to_str().unwrap().to_string()], d.path().join("nope").to_str().unwrap());
+        assert!(r.is_err());
+    }
+
+    #[test]
+    fn move_items_auto_renames_on_collision() {
+        let d = tempdir().unwrap();
+        let src = d.path().join("a.txt"); fs::write(&src, "1").unwrap();
+        let dest = d.path().join("dest"); fs::create_dir(&dest).unwrap();
+        // first move
+        let m1 = move_items(&[src.to_str().unwrap().to_string()], dest.to_str().unwrap()).unwrap();
+        assert!(dest.join("a.txt").is_file());
+        // recreate source and move again -> collision -> a (1).txt
+        fs::write(&src, "2").unwrap();
+        let m2 = move_items(&[src.to_str().unwrap().to_string()], dest.to_str().unwrap()).unwrap();
+        assert!(dest.join("a (1).txt").is_file());
+        assert!(m2[0].1.ends_with("a (1).txt"));
+    }
+
+    #[test]
+    fn delete_permanent_on_missing_is_error() {
+        assert!(delete_permanent(&["Z:/no/such/file".to_string()]).is_err());
+    }
 }

@@ -233,4 +233,29 @@ mod tests {
         fs::write(d.path().join("sub").join("b.txt"), "ab").unwrap();
         assert_eq!(folder_size(d.path().to_str().unwrap()).unwrap(), 7);
     }
+
+    #[test]
+    fn search_with_empty_query_returns_all_entries() {
+        let d = tempdir().unwrap();
+        fs::write(d.path().join("a.txt"), "x").unwrap();
+        fs::write(d.path().join("b.md"), "y").unwrap();
+        let hits = search(d.path().to_str().unwrap(), "").unwrap();
+        assert!(hits.iter().any(|e| e.name == "a.txt"));
+        assert!(hits.iter().any(|e| e.name == "b.md"));
+    }
+
+    #[test]
+    fn folder_size_empty_dir_is_zero() {
+        let d = tempdir().unwrap();
+        assert_eq!(folder_size(d.path().to_str().unwrap()).unwrap(), 0);
+    }
+
+    #[test]
+    fn folder_size_ignores_subdir_entry_sizes_but_sums_their_files() {
+        let d = tempdir().unwrap();
+        fs::create_dir_all(d.path().join("s")).unwrap();
+        fs::write(d.path().join("s").join("x"), "123").unwrap(); // 3
+        fs::write(d.path().join("top"), "12").unwrap();            // 2
+        assert_eq!(folder_size(d.path().to_str().unwrap()).unwrap(), 5);
+    }
 }
