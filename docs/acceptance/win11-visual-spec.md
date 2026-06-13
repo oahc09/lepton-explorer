@@ -8,7 +8,7 @@
 | 令牌 | 浅色 | 深色 | WinFinder 当前 (`win11.css`) |
 |---|---|---|---|
 | 字体 | Segoe UI Variable Text, 14px | 同 | `--font: "Segoe UI Variable","Segoe UI"...` ✅ |
-| 默认强调色（系统） | `#0067C0` | `#60CDFF` | `--accent: #0067c0` / `#60cdff` ✅ |
+| 默认强调色（系统） | `#0078D4`(实测) | `#60CDFF` | `--accent: #0078d4` / `#60cdff` ✅ |
 | 文本 | `#1A1A1A`(`#202020` 用于标题) | `#FFFFFF` | `--text: #1a1a1a` / `#fff` ✅ |
 | 次要文本 | `#666666`(实测) | `#C5C5C5` | `--text-sub: #666666` / `#c5c5c5` ✅ |
 | 背景（客户端区） | `#F0F0F0`(实测) | `#202020` | `--bg: #f0f0f0` ✅ |
