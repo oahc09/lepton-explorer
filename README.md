@@ -12,7 +12,7 @@ A fully usable file manager matching Win11 Explorer's layout and behavior:
   (switch via the View ▾ flyout, the status-bar slider, or `Ctrl+Shift+1–8`)
 - **Navigation** — breadcrumb (segment click + edit mode), This PC + Quick access nav pane,
   back/forward/up, refresh (`F5`), `Backspace`=back, address focus (`Ctrl+L`/`Alt+D`/`F4`),
-  **Home page** with special folders + recent files
+  pane-focus cycling (`F6`/`Shift+F6`), **Home page** with special folders + recent files
 - **Tabs** — `Ctrl+T`/`W`/`Tab`/`1–9`, middle-click folder=open-in-new-tab, middle-click tab=close,
   drag-to-reorder, context-menu "open in new tab"
 - **Multi-window** — `Ctrl+N` new window, `Ctrl+W` close (last tab/window closes the app)
