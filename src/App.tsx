@@ -25,6 +25,7 @@ import type { Entry } from './types';
 import { HomeView } from './components/views/HomeView';
 import { VIEW_SHORTCUTS } from './shortcuts';
 import { openItem } from './utils/open';
+import { newWindow } from './utils/window';
 
 export default function App() {
   const path = useLocationStore((s) => s.path);
@@ -155,6 +156,8 @@ export default function App() {
         }
         return;
       }
+      if (e.ctrlKey && !e.shiftKey && (e.key === 'n' || e.key === 'N')) { e.preventDefault(); newWindow(); return; }
+      if (e.ctrlKey && !e.shiftKey && (e.key === 'w' || e.key === 'W')) { e.preventDefault(); getCurrentWindow().close(); return; }
       if (e.ctrlKey && !e.shiftKey && (e.key === 'a' || e.key === 'A')) {
         e.preventDefault();
         useSelectionStore.getState().select(entryRef.current);
