@@ -9,7 +9,7 @@ A replica of the **Windows 11 File Explorer**, built with **Tauri v2** (Rust bac
 A fully usable file manager matching Win11 Explorer's layout and behavior:
 
 - **8 view modes** — extra-large / large / medium / small icons, list, details, tiles, content
-  (switch via the View ▾ flyout, the status-bar slider, or `Ctrl+Shift+1–8`)
+  (switch via the View ▾ flyout, the status-bar slider, `Ctrl+Shift+1–8`, or `Ctrl+scroll`)
 - **Navigation** — breadcrumb (segment click + edit mode), This PC + Quick access nav pane,
   back/forward/up, refresh (`F5`), `Backspace`=back, address focus (`Ctrl+L`/`Alt+D`/`F4`),
   pane-focus cycling (`F6`/`Shift+F6`), **Home page** with special folders + recent files
