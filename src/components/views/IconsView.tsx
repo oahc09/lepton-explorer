@@ -1,5 +1,5 @@
 import { useVirtualizer } from '@tanstack/react-virtual';
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { Entry, IconSize } from '../../types';
 import { useSelectionStore } from '../../state/selectionStore';
 import { useLocationStore } from '../../state/locationStore';
@@ -27,6 +27,43 @@ export function IconsView({ entries, size = 'large', renamingPath, onRenameCommi
   const rowCount = Math.ceil(entries.length / s.perRow);
   const rowV = useVirtualizer({ count: rowCount, getScrollElement: () => parentRef.current, estimateSize: () => s.tileH, overscan: 8 });
 
+  const [marquee, setMarquee] = useState<{ x: number; y: number; w: number; h: number } | null>(null);
+
+  const startMarquee = (e: React.MouseEvent) => {
+    // Only start when pressing on empty space (not on a tile or its children).
+    if ((e.target as HTMLElement).closest('.tile')) return;
+    if (e.button !== 0) return;
+    const x0 = e.clientX;
+    const y0 = e.clientY;
+    setMarquee({ x: x0, y: y0, w: 0, h: 0 });
+    useSelectionStore.getState().clear();
+    const onMove = (ev: MouseEvent) => {
+      const x = Math.min(ev.clientX, x0);
+      const y = Math.min(ev.clientY, y0);
+      const w = Math.abs(ev.clientX - x0);
+      const h = Math.abs(ev.clientY - y0);
+      setMarquee({ x, y, w, h });
+      const tiles = parentRef.current?.querySelectorAll<HTMLElement>('.tile[data-path]');
+      if (!tiles) return;
+      const hit: Entry[] = [];
+      tiles.forEach((el) => {
+        const r = el.getBoundingClientRect();
+        if (r.right >= x && r.left <= x + w && r.bottom >= y && r.top <= y + h) {
+          const en = entries.find((en2) => en2.path === el.dataset.path);
+          if (en) hit.push(en);
+        }
+      });
+      useSelectionStore.getState().select(hit);
+    };
+    const onUp = () => {
+      setMarquee(null);
+      window.removeEventListener('mousemove', onMove);
+      window.removeEventListener('mouseup', onUp);
+    };
+    window.addEventListener('mousemove', onMove);
+    window.addEventListener('mouseup', onUp);
+  };
+
   useEffect(() => {
     const onScroll = (ev: Event) => {
       const el = parentRef.current;
@@ -49,7 +86,7 @@ export function IconsView({ entries, size = 'large', renamingPath, onRenameCommi
   }, [rowV, s.perRow]);
 
   return (
-    <div className="icons" ref={parentRef} style={{ overflow: 'auto', height: '100%' }}>
+    <div className="icons" ref={parentRef} style={{ overflow: 'auto', height: '100%' }} onMouseDown={startMarquee}>
       <div style={{ height: `${rowV.getTotalSize()}px`, position: 'relative' }}>
         {rowV.getVirtualItems().map((vi) => {
           const start = vi.index * s.perRow;
@@ -100,6 +137,21 @@ export function IconsView({ entries, size = 'large', renamingPath, onRenameCommi
           );
         })}
       </div>
+      {marquee && (
+        <div
+          style={{
+            position: 'fixed',
+            left: marquee.x,
+            top: marquee.y,
+            width: marquee.w,
+            height: marquee.h,
+            background: 'rgba(0,120,215,0.15)',
+            border: '1px solid var(--accent)',
+            pointerEvents: 'none',
+            zIndex: 500,
+          }}
+        />
+      )}
     </div>
   );
 }
