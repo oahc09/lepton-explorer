@@ -145,7 +145,7 @@ export function IconsView({ entries, size = 'large', renamingPath, onRenameCommi
             top: marquee.y,
             width: marquee.w,
             height: marquee.h,
-            background: 'rgba(0,120,215,0.15)',
+            background: 'var(--accent-fill)',
             border: '1px solid var(--accent)',
             pointerEvents: 'none',
             zIndex: 500,
