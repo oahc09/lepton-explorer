@@ -22,6 +22,8 @@ import { useFileOps } from './hooks/useFileOps';
 import { useHistoryStore } from './state/historyStore';
 import { useClipboardStore } from './state/clipboardStore';
 import { useSelectionStore } from './state/selectionStore';
+import { usePinnedStore } from './state/pinnedStore';
+import { useRecentStore } from './state/recentStore';
 import type { Entry } from './types';
 import { HomeView } from './components/views/HomeView';
 import { VIEW_SHORTCUTS } from './shortcuts';
@@ -106,6 +108,19 @@ export default function App() {
     });
     return () => { un.then((u) => u()); };
   }, [path]);
+
+  // Live cross-window sync: when another window writes pinned/recent to localStorage,
+  // rehydrate the persisted stores here so changes reflect immediately. The `storage`
+  // event only fires in OTHER windows/tabs — never the one that made the change — which
+  // is exactly the cross-window propagation we want (the writing window is already current).
+  useEffect(() => {
+    const onStorage = (e: StorageEvent) => {
+      if (e.key === 'winfinder-pinned') void usePinnedStore.persist.rehydrate();
+      if (e.key === 'winfinder-recent') void useRecentStore.persist.rehydrate();
+    };
+    window.addEventListener('storage', onStorage);
+    return () => window.removeEventListener('storage', onStorage);
+  }, []);
 
   // Ctrl+Shift+1..8 → view mode switch (Win11 mapping).
   useEffect(() => {
