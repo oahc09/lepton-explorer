@@ -16,7 +16,7 @@ A fully usable file manager matching Win11 Explorer's layout and behavior:
 - **Tabs** — `Ctrl+T`/`W`/`Tab`/`1–9`, middle-click folder=open-in-new-tab, middle-click tab=close,
   drag-to-reorder, context-menu "open in new tab"
 - **Multi-window** — `Ctrl+N` new window, `Ctrl+W` close (last tab/window closes the app)
-- **File operations** — new folder/file, rename (`F2`, inline), copy (with a **progress dialog**),
+- **File operations** — new folder/file, rename (`F2`, inline), copy (with a **cancelable progress dialog**),
   cut/paste (recursive, cross-volume, **replace/skip/keep-both conflict dialog** on collision),
   delete-to-recycle, permanent delete (`Shift+Del`), open-in-default-app, **undo/redo** (`Ctrl+Z`/`Y`)
 - **Selection** — click / `Ctrl` / `Shift` / `Ctrl+A`, arrow-key navigation (`↑↓`+`Enter`),
