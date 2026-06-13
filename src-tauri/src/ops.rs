@@ -1,5 +1,23 @@
 use std::fs;
 use std::path::{Path, PathBuf};
+use std::sync::atomic::{AtomicBool, Ordering};
+
+/// Global cancel flag for the in-flight tracked copy. Set by `request_copy_cancel`
+/// (the Cancel button), checked between top-level sources in `copy_items_tracked`.
+/// A single flag suffices: concurrent tracked copies are not supported (rare).
+static COPY_CANCELLED: AtomicBool = AtomicBool::new(false);
+
+pub fn reset_copy_cancel() {
+    COPY_CANCELLED.store(false, Ordering::SeqCst);
+}
+
+pub fn request_copy_cancel() {
+    COPY_CANCELLED.store(true, Ordering::SeqCst);
+}
+
+pub fn is_copy_cancelled() -> bool {
+    COPY_CANCELLED.load(Ordering::SeqCst)
+}
 
 /// How to handle a name collision when copying/moving into a destination that
 /// already contains an item of the same name. Mirrors the Win11 "Replace or
@@ -155,21 +173,27 @@ pub fn count_files(sources: &[String]) -> usize {
 }
 
 /// Like `copy_items_with_strategy`, but invokes `on_file(current, total, path)`
-/// as each file is written — used to drive a progress indicator.
-pub fn copy_items_tracked<F>(
+/// as each file is written — used to drive a progress indicator. `is_cancelled`
+/// is polled between top-level sources; returning true stops the copy early.
+pub fn copy_items_tracked<F, C>(
     sources: &[String],
     dest_dir: &str,
     strategy: ConflictStrategy,
+    is_cancelled: C,
     mut on_file: F,
 ) -> std::io::Result<Vec<String>>
 where
     F: FnMut(usize, usize, &Path),
+    C: Fn() -> bool,
 {
     let dest = Path::new(dest_dir);
     let total = count_files(sources);
     let mut current = 0usize;
     let mut out = Vec::new();
     for s in sources {
+        if is_cancelled() {
+            break; // Cancel pressed: stop, keep files copied so far.
+        }
         let src = Path::new(s);
         let target = match resolve_target(src, dest, strategy) {
             Some(t) => t,
@@ -605,6 +629,7 @@ mod tests {
             &[sub.to_string_lossy().to_string()],
             dest.to_str().unwrap(),
             ConflictStrategy::Rename,
+            || false,
             |cur, total, p| {
                 calls.push((cur, total, p.file_name().unwrap().to_string_lossy().to_string()));
             },
@@ -617,5 +642,45 @@ mod tests {
         assert_eq!(calls[1].0, 2);
         assert!(dest.join("sub").join("a.txt").is_file());
         assert!(dest.join("sub").join("b.txt").is_file());
+    }
+
+    #[test]
+    fn copy_items_tracked_stops_immediately_when_pre_cancelled() {
+        let d = tempdir().unwrap();
+        let dest = d.path().join("dest"); fs::create_dir(&dest).unwrap();
+        let s1 = d.path().join("a.txt"); fs::write(&s1, "1").unwrap();
+        let s2 = d.path().join("b.txt"); fs::write(&s2, "2").unwrap();
+        // `is_cancelled` always true → the loop breaks before copying anything.
+        let out = copy_items_tracked(
+            &[s1.to_string_lossy().to_string(), s2.to_string_lossy().to_string()],
+            dest.to_str().unwrap(),
+            ConflictStrategy::Rename,
+            || true,
+            |_, _, _| {},
+        )
+        .unwrap();
+        assert!(out.is_empty(), "pre-cancelled → nothing copied");
+        assert!(!dest.join("a.txt").exists());
+    }
+
+    #[test]
+    fn copy_items_tracked_cancels_between_sources() {
+        let d = tempdir().unwrap();
+        let dest = d.path().join("dest"); fs::create_dir(&dest).unwrap();
+        let s1 = d.path().join("a.txt"); fs::write(&s1, "1").unwrap();
+        let s2 = d.path().join("b.txt"); fs::write(&s2, "2").unwrap();
+        // Flip a local flag while copying the first source; the loop breaks before s2.
+        let cancelled = std::cell::Cell::new(false);
+        let out = copy_items_tracked(
+            &[s1.to_string_lossy().to_string(), s2.to_string_lossy().to_string()],
+            dest.to_str().unwrap(),
+            ConflictStrategy::Rename,
+            || cancelled.get(),
+            |_, _, _| { cancelled.set(true); },
+        )
+        .unwrap();
+        assert_eq!(out.len(), 1, "first source copied, then cancelled");
+        assert!(dest.join("a.txt").is_file());
+        assert!(!dest.join("b.txt").exists(), "second source not copied after cancel");
     }
 }

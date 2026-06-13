@@ -1,5 +1,6 @@
 import { useEffect } from 'react';
 import { listen } from '@tauri-apps/api/event';
+import { invoke } from '@tauri-apps/api/core';
 import { useProgressStore } from '../state/progressStore';
 
 /**
@@ -30,6 +31,7 @@ export function ProgressModal() {
         <div className="progress-bar"><div className="progress-fill" style={{ width: `${pct}%` }} /></div>
         <p className="progress-file" title={file}>{file || '准备中…'}</p>
         <p className="progress-count">{current} / {total} 项（{pct}%）</p>
+        <div className="modal-actions"><button className="cmd" onClick={() => invoke('cancel_copy')}>取消</button></div>
       </div>
     </div>
   );

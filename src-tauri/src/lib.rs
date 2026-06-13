@@ -70,7 +70,9 @@ fn copy_with_progress(
 ) -> Result<Vec<String>> {
     // Copy file-by-file, emitting "fs-copy-progress" {current,total,file} per file
     // so the frontend can render a progress dialog. Runs on a background thread.
-    ops::copy_items_tracked(&sources, &dest, strategy, |current, total, path| {
+    // `cancel_copy` sets a flag checked between top-level sources.
+    ops::reset_copy_cancel();
+    ops::copy_items_tracked(&sources, &dest, strategy, ops::is_copy_cancelled, |current, total, path| {
         let file = path
             .file_name()
             .map(|f| f.to_string_lossy().to_string())
@@ -78,6 +80,11 @@ fn copy_with_progress(
         let _ = app.emit("fs-copy-progress", CopyProgress { current, total, file });
     })
     .map_err(AppError::from)
+}
+
+#[tauri::command]
+fn cancel_copy() {
+    ops::request_copy_cancel();
 }
 
 #[tauri::command]
@@ -151,6 +158,7 @@ pub fn run() {
             copy_items,
             copy_items_with_strategy,
             copy_with_progress,
+            cancel_copy,
             move_items,
             move_items_with_strategy,
             check_conflicts,
