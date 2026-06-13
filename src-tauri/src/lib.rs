@@ -2,6 +2,7 @@ pub mod error;
 pub mod fs_ops;
 pub mod ops;
 pub mod special;
+pub mod thumbnails;
 pub mod watch;
 
 use error::{AppError, Result};
@@ -61,6 +62,11 @@ fn watch_directory(app: tauri::AppHandle, path: String) {
     watch::watch_directory(app, path);
 }
 
+#[tauri::command]
+fn get_thumbnail(path: String, size: u32) -> Option<String> {
+    thumbnails::get_thumbnail(&path, size)
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -77,7 +83,8 @@ pub fn run() {
             move_items,
             delete_to_trash,
             delete_permanent,
-            watch_directory
+            watch_directory,
+            get_thumbnail
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
