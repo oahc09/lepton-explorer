@@ -17,3 +17,8 @@ export function pathSegments(p: string): { name: string; path: string }[] {
   });
   return segs;
 }
+
+export function joinPath(dir: string, name: string): string {
+  const d = dir.replace(/[\\/]+$/, '');
+  return d + '\\' + name;
+}
