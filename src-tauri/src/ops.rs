@@ -285,7 +285,7 @@ mod tests {
         let src = d.path().join("a.txt"); fs::write(&src, "1").unwrap();
         let dest = d.path().join("dest"); fs::create_dir(&dest).unwrap();
         // first move
-        let m1 = move_items(&[src.to_str().unwrap().to_string()], dest.to_str().unwrap()).unwrap();
+        let _m1 = move_items(&[src.to_str().unwrap().to_string()], dest.to_str().unwrap()).unwrap();
         assert!(dest.join("a.txt").is_file());
         // recreate source and move again -> collision -> a (1).txt
         fs::write(&src, "2").unwrap();
