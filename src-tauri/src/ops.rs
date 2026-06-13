@@ -19,9 +19,14 @@ pub fn unique_path(dst: &Path) -> PathBuf {
     if !dst.exists() {
         return dst.to_path_buf();
     }
+    // If `dst` has no parent (e.g. a bare filename / root), avoid building a
+    // relative path via `Path::new("").join(...)`; return `dst` itself.
+    let parent = match dst.parent() {
+        Some(p) if !p.as_os_str().is_empty() => p,
+        _ => return dst.to_path_buf(),
+    };
     let stem = dst.file_stem().map(|s| s.to_string_lossy().to_string()).unwrap_or_default();
     let ext = dst.extension().map(|e| format!(".{}", e.to_string_lossy())).unwrap_or_default();
-    let parent = dst.parent().unwrap_or_else(|| Path::new(""));
     let mut n = 1;
     loop {
         let cand = parent.join(format!("{} ({}){}", stem, n, ext));
@@ -33,13 +38,36 @@ pub fn unique_path(dst: &Path) -> PathBuf {
 }
 
 fn copy_recursive(src: &Path, dst: &Path) -> std::io::Result<()> {
-    if src.is_dir() {
+    copy_recursive_inner(src, dst, &mut std::collections::HashSet::new())
+}
+
+fn copy_recursive_inner(
+    src: &Path,
+    dst: &Path,
+    visited: &mut std::collections::HashSet<PathBuf>,
+) -> std::io::Result<()> {
+    // If `src` is itself a symlink (to a dir or file), do NOT dereference+recurse;
+    // copy it as a single unit (copies the target's content). This avoids following
+    // symlink-to-dir entries into a different tree / cycle.
+    if fs::symlink_metadata(src)
+        .map(|m| m.file_type().is_symlink())
+        .unwrap_or(false)
+    {
+        fs::copy(src, dst).map(|_| ())
+    } else if src.is_dir() {
+        // Guard against symlink/junction cycles: canonicalize this directory and
+        // skip if we've already copied it.
+        if let Ok(canon) = fs::canonicalize(src) {
+            if !visited.insert(canon) {
+                return Ok(());
+            }
+        }
         fs::create_dir_all(dst)?;
         for entry in fs::read_dir(src)? {
             let entry = entry?;
             let from = entry.path();
             let to = dst.join(entry.file_name());
-            copy_recursive(&from, &to)?;
+            copy_recursive_inner(&from, &to, visited)?;
         }
         Ok(())
     } else {
@@ -77,8 +105,11 @@ pub fn move_items(sources: &[String], dest_dir: &str) -> std::io::Result<Vec<(St
         let old = src.to_string_lossy().to_string();
         match fs::rename(src, &target) {
             Ok(()) => {}
-            Err(e) if e.raw_os_error() == Some(18) => {
-                // EXDEV (cross-device link) — copy then delete source.
+            Err(e) if e.raw_os_error() == Some(17)
+                    || e.raw_os_error() == Some(18)
+                    || e.kind() == std::io::ErrorKind::CrossesDevices => {
+                // Cross-device link: Windows ERROR_NOT_SAME_DEVICE (errno 17),
+                // Linux EXDEV (errno 18), or Rust's CrossesDevices kind. Copy then delete.
                 copy_recursive(src, &target)?;
                 remove_recursive(src)?;
             }
@@ -194,5 +225,49 @@ mod tests {
         let f = d.path().join("totrash.txt"); fs::write(&f, "x").unwrap();
         let _ = delete_to_trash(&[f.to_str().unwrap().to_string()]);
         assert!(!f.exists(), "file should be moved to recycle bin");
+    }
+
+    #[test]
+    fn unique_path_appends_suffix_on_collision() {
+        let d = tempdir().unwrap();
+        let existing = d.path().join("a.txt");
+        fs::write(&existing, "x").unwrap();
+        let np = unique_path(&existing);
+        assert!(np.ends_with("a (1).txt"), "got: {:?}", np);
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn unique_path_returns_dst_when_parent_is_a_drive_root() {
+        // A path whose parent is the drive root (e.g. "C:\\file") still has a parent,
+        // so this targets the no-parent guard via a bare filename existing in cwd
+        // is fragile. Instead verify the root itself: "C:\\" has no parent.
+        let root = Path::new("C:\\");
+        // We can't make "C:\\" not-exist; but parent() is None here, so regardless of
+        // exists the guard returns dst. Call unique_path and assert it returns root.
+        // Note: root.exists() is true, so the guard path is exercised.
+        let np = unique_path(root);
+        assert_eq!(np, Path::new("C:\\"), "got: {:?}", np);
+    }
+
+    #[test]
+    fn copy_recursive_handles_symlink_without_recurse() {
+        // Requires symlink creation privileges; on Windows this may need elevation.
+        // We only exercise the path when creation succeeds; otherwise skip silently.
+        let d = tempdir().unwrap();
+        let real = d.path().join("real.txt");
+        fs::write(&real, "payload").unwrap();
+        let link = d.path().join("link.txt");
+        #[cfg(unix)]
+        let created = std::os::unix::fs::symlink(&real, &link).is_ok();
+        #[cfg(windows)]
+        let created = std::os::windows::fs::symlink_file(&real, &link).is_ok();
+        #[cfg(not(any(unix, windows)))]
+        let created = false;
+        if created {
+            let dst = d.path().join("copied.txt");
+            copy_recursive(&link, &dst).unwrap();
+            assert!(dst.is_file(), "symlink should be copied as a file");
+        }
     }
 }

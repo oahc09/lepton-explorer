@@ -1,56 +1,35 @@
 use notify::{Config, RecommendedWatcher, RecursiveMode, Watcher};
+use std::path::Path;
 use std::sync::Mutex;
-use std::thread;
-use std::time::{Duration, Instant};
 use tauri::{AppHandle, Emitter};
 
-#[allow(dead_code)]
-pub struct WatcherState(pub Mutex<()>);
+pub struct WatcherState(pub Mutex<Option<RecommendedWatcher>>);
 
 impl WatcherState {
     pub fn new() -> Self {
-        Self(Mutex::new(()))
+        Self(Mutex::new(None))
     }
 }
 
-/// Spawn a watcher thread for `path`. Emits `fs-changed` with the watched path as payload,
-/// debounced (~300ms of quiet). Each call spawns a fresh watcher; the frontend filters events
-/// whose payload path != the current path, so stale watchers are harmless.
-pub fn watch_directory(app: AppHandle, path: String) {
+/// Watch `path`. Replaces any previous watcher (dropping it stops its events).
+/// Emits `fs-changed` with the watched path as payload on each change.
+pub fn watch_directory(app: AppHandle, path: String, state: &WatcherState) {
     let app_handle = app.clone();
     let watched = path.clone();
-    thread::spawn(move || {
-        let (tx, rx) = std::sync::mpsc::channel();
-        let mut watcher: RecommendedWatcher = match Watcher::new(
-            move |res: notify::Result<notify::Event>| {
-                let _ = tx.send(res);
-            },
-            Config::default(),
-        ) {
-            Ok(w) => w,
-            Err(_) => return,
-        };
-        if watcher
-            .watch(std::path::Path::new(&watched), RecursiveMode::NonRecursive)
-            .is_err()
-        {
-            return;
-        }
-        let mut last: Option<Instant> = None;
-        loop {
-            match rx.recv_timeout(Duration::from_millis(150)) {
-                Ok(_) => last = Some(Instant::now()),
-                Err(std::sync::mpsc::RecvTimeoutError::Timeout) => {
-                    if let Some(t) = last {
-                        if t.elapsed() >= Duration::from_millis(150) {
-                            let _ = app_handle.emit("fs-changed", watched.clone());
-                            last = None;
-                        }
-                    }
-                }
-                Err(std::sync::mpsc::RecvTimeoutError::Disconnected) => break,
-            }
-        }
-        // `watcher` dropped here → stops watching for this path.
-    });
+    let mut watcher: RecommendedWatcher = match Watcher::new(
+        move |_res: notify::Result<notify::Event>| {
+            // notify invokes this on its own thread; emit directly. Rapid events
+            // may emit multiple times; the frontend coalesces via refreshKey bumps.
+            let _ = app_handle.emit("fs-changed", watched.clone());
+        },
+        Config::default(),
+    ) {
+        Ok(w) => w,
+        Err(_) => return,
+    };
+    let _ = watcher.watch(Path::new(&path), RecursiveMode::NonRecursive);
+    // Replace the previous watcher (dropped here → its callback thread stops).
+    if let Ok(mut g) = state.0.lock() {
+        *g = Some(watcher);
+    }
 }

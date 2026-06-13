@@ -68,8 +68,8 @@ fn list_drives() -> Vec<special::Drive> {
 }
 
 #[tauri::command]
-fn watch_directory(app: tauri::AppHandle, path: String) {
-    watch::watch_directory(app, path);
+fn watch_directory(app: tauri::AppHandle, path: String, state: tauri::State<'_, watch::WatcherState>) {
+    watch::watch_directory(app, path, &state);
 }
 
 #[tauri::command]

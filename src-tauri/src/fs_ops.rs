@@ -55,6 +55,15 @@ fn entry_from(name: &str, path: &str, meta: &fs::Metadata) -> Entry {
     #[cfg(not(windows))]
     let is_hidden = name.starts_with('.');
 
+    #[cfg(windows)]
+    let is_system = {
+        use std::os::windows::fs::MetadataExt;
+        const FILE_ATTRIBUTE_SYSTEM: u32 = 0x4;
+        (meta.file_attributes() & FILE_ATTRIBUTE_SYSTEM) != 0
+    };
+    #[cfg(not(windows))]
+    let is_system = false;
+
     let type_label = type_label_for(name, ft.is_dir());
 
     Entry {
@@ -68,7 +77,7 @@ fn entry_from(name: &str, path: &str, meta: &fs::Metadata) -> Entry {
         type_label,
         ext,
         is_hidden,
-        is_system: false,
+        is_system,
         is_read_only: meta.permissions().readonly(),
     }
 }
@@ -77,6 +86,12 @@ pub fn search(root: &str, query: &str) -> std::io::Result<Vec<Entry>> {
     let q = query.to_lowercase();
     let mut out = Vec::new();
     let mut stack: Vec<std::path::PathBuf> = vec![std::path::PathBuf::from(root)];
+    // Cycle guard: canonicalized paths we've already walked, to avoid infinite
+    // recursion through symlink/junction loops (e.g. A->B, B->A).
+    let mut visited: std::collections::HashSet<std::path::PathBuf> = std::collections::HashSet::new();
+    if let Ok(canon_root) = fs::canonicalize(root) {
+        visited.insert(canon_root);
+    }
     while let Some(dir) = stack.pop() {
         let rd = match fs::read_dir(&dir) { Ok(r) => r, Err(_) => continue };
         for de in rd.flatten() {
@@ -86,7 +101,13 @@ pub fn search(root: &str, query: &str) -> std::io::Result<Vec<Entry>> {
             if name.to_lowercase().contains(&q) {
                 out.push(entry_from(&name, &path, &meta));
             }
-            if meta.is_dir() { stack.push(de.path()); }
+            if meta.is_dir() {
+                if let Ok(canon) = fs::canonicalize(de.path()) {
+                    if visited.insert(canon) {
+                        stack.push(de.path());
+                    }
+                }
+            }
         }
     }
     out.sort_by(|a, b| b.is_dir.cmp(&a.is_dir).then_with(|| a.name.to_lowercase().cmp(&b.name.to_lowercase())));
@@ -96,11 +117,24 @@ pub fn search(root: &str, query: &str) -> std::io::Result<Vec<Entry>> {
 pub fn folder_size(path: &str) -> std::io::Result<u64> {
     let mut total: u64 = 0;
     let mut stack: Vec<std::path::PathBuf> = vec![std::path::PathBuf::from(path)];
+    // Cycle guard against symlink/junction loops.
+    let mut visited: std::collections::HashSet<std::path::PathBuf> = std::collections::HashSet::new();
+    if let Ok(canon_root) = fs::canonicalize(path) {
+        visited.insert(canon_root);
+    }
     while let Some(dir) = stack.pop() {
         let rd = match fs::read_dir(&dir) { Ok(r) => r, Err(_) => continue };
         for de in rd.flatten() {
             let meta = match de.metadata() { Ok(m) => m, Err(_) => continue };
-            if meta.is_dir() { stack.push(de.path()); } else { total += meta.len(); }
+            if meta.is_dir() {
+                if let Ok(canon) = fs::canonicalize(de.path()) {
+                    if visited.insert(canon) {
+                        stack.push(de.path());
+                    }
+                }
+            } else {
+                total += meta.len();
+            }
         }
     }
     Ok(total)
