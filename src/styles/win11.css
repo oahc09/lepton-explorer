@@ -1,22 +1,22 @@
 :root {
   --font: "Segoe UI Variable", "Segoe UI", system-ui, sans-serif;
   --titlebar-h: 40px;
-  --toolbar-h: 44px;
-  --statusbar-h: 28px;
+  --toolbar-h: 40px;
+  --statusbar-h: 24px;
   --navpane-w: 240px;
 }
 /* Light theme (default) */
 :root, .theme-light {
-  --bg: #f3f3f3;
-  --pane-bg: #fbfbfb;
+  --bg: #f0f0f0;
+  --pane-bg: #f8f8f8;
   --main-bg: #ffffff;
   --text: #1a1a1a;
-  --text-sub: #6e6e6e;
-  --border: #e5e5e5;
+  --text-sub: #666666;
+  --border: #dcdcdc;
   --accent: #0067c0;
   --accent-text: #ffffff;
-  --select-bg: #cfe4f7;
-  --hover-bg: #f0f0f0;
+  --select-bg: #cde6f9;
+  --hover-bg: #f3f3f3;
   --header-bg: #f5f5f5;
 }
 /* Dark theme */
@@ -51,11 +51,11 @@ body { font-family: var(--font); font-size: 14px; background: var(--bg); color: 
 
 .toolbar-row { height: var(--toolbar-h); display: flex; align-items: center; gap: 8px; padding: 0 12px; }
 .toolbar { display: flex; gap: 4px; }
-.toolbar button { width: 36px; height: 36px; border: 0; background: transparent; color: var(--text); border-radius: 6px; font-size: 16px; cursor: pointer; }
+.toolbar button { width: 36px; height: 36px; border: 0; background: transparent; color: var(--text); border-radius: 4px; font-size: 16px; cursor: pointer; }
 .toolbar button:hover:not(:disabled) { background: var(--hover-bg); }
 .toolbar button:disabled { color: var(--text-sub); opacity: 0.5; cursor: default; }
 
-.breadcrumb { flex: 1; height: 32px; display: flex; align-items: center; background: rgba(255,255,255,0.7); border: 1px solid var(--border); border-radius: 6px; padding: 0 8px; gap: 2px; }
+.breadcrumb { flex: 1; height: 32px; display: flex; align-items: center; background: var(--main-bg); border: 1px solid var(--border); border-radius: 6px; padding: 0 8px; gap: 2px; }
 .theme-dark .breadcrumb { background: rgba(255,255,255,0.05); }
 .breadcrumb .crumb { background: transparent; border: 0; color: var(--text); cursor: pointer; font-size: 13px; padding: 2px 4px; border-radius: 4px; }
 .breadcrumb .crumb:hover { background: var(--hover-bg); }
@@ -98,7 +98,7 @@ body { font-family: var(--font); font-size: 14px; background: var(--bg); color: 
 
 .status-bar { height: var(--statusbar-h); display: flex; align-items: center; justify-content: space-between; padding: 0 14px; background: var(--pane-bg); border-top: 1px solid var(--border); font-size: 12px; color: var(--text-sub); }
 .view-slider { width: 140px; vertical-align: middle; }
-.view-toggle { border: 1px solid var(--border); background: var(--main-bg); color: var(--text); padding: 4px 10px; border-radius: 6px; cursor: pointer; }
+.view-toggle { border: 1px solid var(--border); background: var(--main-bg); color: var(--text); padding: 4px 10px; border-radius: 4px; cursor: pointer; }
 
 .list-item:hover { background: var(--hover-bg); }
 .list-item.selected { background: var(--select-bg); }
@@ -108,8 +108,8 @@ body { font-family: var(--font); font-size: 14px; background: var(--bg); color: 
 .content-row:hover { background: var(--hover-bg); }
 .content-row.selected { background: var(--select-bg); }
 
-.command-bar { display: flex; gap: 6px; padding: 6px 12px; border-bottom: 1px solid var(--border); background: var(--pane-bg); }
-.cmd { height: 32px; padding: 0 12px; border: 1px solid var(--border); background: var(--main-bg); color: var(--text); border-radius: 6px; cursor: pointer; font-size: 13px; }
+.command-bar { display: flex; gap: 6px; padding: 6px 12px; border-bottom: 1px solid var(--border); background: var(--main-bg); }
+.cmd { height: 32px; padding: 0 12px; border: 1px solid var(--border); background: var(--main-bg); color: var(--text); border-radius: 4px; cursor: pointer; font-size: 13px; }
 .cmd:hover:not(:disabled) { background: var(--hover-bg); }
 .cmd:disabled { opacity: 0.5; cursor: default; }
 
