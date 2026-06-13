@@ -173,6 +173,9 @@ export default function App() {
       const tag = (e.target as HTMLElement)?.tagName;
       if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
       if (e.key === 'Backspace') { e.preventDefault(); useLocationStore.getState().back(); return; }
+      if (e.altKey && !e.ctrlKey && !e.shiftKey && e.key === 'ArrowLeft') { e.preventDefault(); useLocationStore.getState().back(); return; }
+      if (e.altKey && !e.ctrlKey && !e.shiftKey && e.key === 'ArrowRight') { e.preventDefault(); useLocationStore.getState().forward(); return; }
+      if (e.altKey && !e.ctrlKey && !e.shiftKey && e.key === 'ArrowUp') { e.preventDefault(); useLocationStore.getState().up(); return; }
       if (e.ctrlKey && !e.shiftKey && (e.key === 't' || e.key === 'T')) {
         e.preventDefault();
         useLocationStore.getState().addTab('');
