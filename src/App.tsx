@@ -20,7 +20,7 @@ import { useFileOps } from './hooks/useFileOps';
 import { useHistoryStore } from './state/historyStore';
 import { useClipboardStore } from './state/clipboardStore';
 import { useSelectionStore } from './state/selectionStore';
-import type { Entry, ViewMode } from './types';
+import type { Entry } from './types';
 import { HomeView } from './components/views/HomeView';
 import { VIEW_SHORTCUTS } from './shortcuts';
 
@@ -33,7 +33,6 @@ export default function App() {
   const shownEntries = searchResults ?? entries;
   const entryRef = useRef(entries);
   entryRef.current = entries;
-  const viewMode = useViewStore((s) => s.viewMode);
   const ops = useFileOps();
   const opsRef = useRef(ops);
   opsRef.current = ops;
@@ -187,20 +186,6 @@ export default function App() {
       <TitleBar />
       <div className="toolbar-row">
         <Toolbar onRefresh={() => setRefreshKey((k) => k + 1)} />
-        <select
-          className="view-select"
-          value={viewMode}
-          onChange={(ev) => useViewStore.getState().setViewMode(ev.target.value as ViewMode)}
-        >
-          <option value="extra-large">超大图标</option>
-          <option value="large">大图标</option>
-          <option value="medium">中等图标</option>
-          <option value="small">小图标</option>
-          <option value="list">列表</option>
-          <option value="details">详细信息</option>
-          <option value="tiles">平铺</option>
-          <option value="content">内容</option>
-        </select>
         <CommandBar entries={shownEntries} />
         <Breadcrumb />
         {path !== '' && <SearchBox />}
