@@ -13,6 +13,7 @@ import { PropertiesDialog } from './components/PropertiesDialog';
 import { CommandBar } from './components/CommandBar';
 import { SearchBox } from './components/SearchBox';
 import { PreviewPane } from './components/PreviewPane';
+import { DetailsPane } from './components/DetailsPane';
 import { useLocationStore } from './state/locationStore';
 import { useSearchStore } from './state/searchStore';
 import { useViewStore } from './state/viewStore';
@@ -37,6 +38,7 @@ export default function App() {
   const visibleEntries = entries.filter((e) => showHidden || !e.isHidden);
   const shownEntries = searchResults ?? visibleEntries;
   const previewPane = useViewStore((s) => s.previewPane);
+  const detailsPane = useViewStore((s) => s.detailsPane);
   const sel = useSelectionStore((s) => s.selected);
   const previewEntry = sel.length === 1 ? shownEntries.find((e) => e.path === sel[0]) ?? null : null;
   const entryRef = useRef(entries);
@@ -162,6 +164,7 @@ export default function App() {
         }
         return;
       }
+      if (e.altKey && e.shiftKey && (e.key === 'p' || e.key === 'P')) { e.preventDefault(); useViewStore.getState().toggleDetails(); return; }
       if (e.altKey && (e.key === 'p' || e.key === 'P')) { e.preventDefault(); useViewStore.getState().togglePreview(); return; }
       if (e.ctrlKey && e.shiftKey && VIEW_SHORTCUTS[e.key]) {
         e.preventDefault();
@@ -278,6 +281,7 @@ export default function App() {
           )}
         </main>
         {previewPane && <PreviewPane entry={previewEntry} />}
+        {detailsPane && <DetailsPane entry={previewEntry} />}
       </div>
       <StatusBar count={shownEntries.length} />
       <ContextMenu entries={shownEntries} />
