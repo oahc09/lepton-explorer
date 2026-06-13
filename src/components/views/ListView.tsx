@@ -4,6 +4,7 @@ import type { Entry } from '../../types';
 import { useSelectionStore } from '../../state/selectionStore';
 import { useLocationStore } from '../../state/locationStore';
 import { icon, handleClick } from './detailsHelpers';
+import { openItem } from '../../utils/open';
 
 const ROW_H = 22;
 
@@ -24,7 +25,7 @@ export function ListView({ entries }: { entries: Entry[] }) {
               className={`list-item${selected ? ' selected' : ''}`}
               style={{ position: 'absolute', top: 0, left: 0, transform: `translateY(${vi.start}px)`, height: ROW_H, display: 'flex', alignItems: 'center', gap: 6, padding: '0 6px' }}
               onClick={(ev) => handleClick(ev, item, entries, sel)}
-              onDoubleClick={() => item.isDir && navigate(item.path)}
+              onDoubleClick={() => { if (item.isDir) navigate(item.path); else openItem(item.path); }}
             >
               <span className="list-icon" style={{ fontSize: 16 }}>{icon(item)}</span>
               <span className="list-name">{item.name}</span>

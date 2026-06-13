@@ -5,6 +5,7 @@ import { useViewStore } from '../../state/viewStore';
 import { useSelectionStore } from '../../state/selectionStore';
 import { formatDate, formatSize } from '../../utils/format';
 import { useSorted, handleClick, icon, useOpen } from './detailsHelpers';
+import { openItem } from '../../utils/open';
 
 const ROW_H = 32;
 
@@ -36,7 +37,7 @@ export function DetailsView({ entries }: { entries: Entry[] }) {
               className={`details-row${selected ? ' selected' : ''}`}
               style={{ position: 'absolute', top: 0, left: 0, width: '100%', transform: `translateY(${vi.start}px)`, height: ROW_H }}
               onClick={(ev) => handleClick(ev, item, sorted, sel)}
-              onDoubleClick={() => onOpen(item)}
+              onDoubleClick={() => { if (item.isDir) onOpen(item); else openItem(item.path); }}
             >
               <span className="col-name"><span className="row-icon" aria-hidden>{icon(item)}</span><span className="name">{item.name}</span></span>
               <span className="col-date">{formatDate(item.modified)}</span>

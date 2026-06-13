@@ -103,3 +103,8 @@ body { font-family: var(--font); font-size: 14px; background: var(--bg); color: 
 .content-row { border-bottom: 1px solid var(--border); }
 .content-row:hover { background: var(--hover-bg); }
 .content-row.selected { background: var(--select-bg); }
+
+.command-bar { display: flex; gap: 6px; padding: 6px 12px; border-bottom: 1px solid var(--border); background: var(--pane-bg); }
+.cmd { height: 32px; padding: 0 12px; border: 1px solid var(--border); background: var(--main-bg); color: var(--text); border-radius: 6px; cursor: pointer; font-size: 13px; }
+.cmd:hover:not(:disabled) { background: var(--hover-bg); }
+.cmd:disabled { opacity: 0.5; cursor: default; }

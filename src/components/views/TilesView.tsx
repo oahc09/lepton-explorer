@@ -5,6 +5,7 @@ import { useSelectionStore } from '../../state/selectionStore';
 import { useLocationStore } from '../../state/locationStore';
 import { formatSize } from '../../utils/format';
 import { icon, handleClick } from './detailsHelpers';
+import { openItem } from '../../utils/open';
 
 const TILE_H = 76;
 const perRow = 4;
@@ -30,7 +31,7 @@ export function TilesView({ entries }: { entries: Entry[] }) {
                     className={`tile2${selected ? ' selected' : ''}`}
                     style={{ width: 220, height: TILE_H - 8, display: 'flex', alignItems: 'center', gap: 10, padding: '6px 10px', borderRadius: 4 }}
                     onClick={(ev) => handleClick(ev, item, entries, sel)}
-                    onDoubleClick={() => item.isDir && navigate(item.path)}
+                    onDoubleClick={() => { if (item.isDir) navigate(item.path); else openItem(item.path); }}
                   >
                     <span style={{ fontSize: 40 }}>{icon(item)}</span>
                     <span style={{ display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>

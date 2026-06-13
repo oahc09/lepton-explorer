@@ -4,6 +4,7 @@ import type { Entry, IconSize } from '../../types';
 import { useSelectionStore } from '../../state/selectionStore';
 import { useLocationStore } from '../../state/locationStore';
 import { icon, handleClick } from './detailsHelpers';
+import { openItem } from '../../utils/open';
 
 const SIZES: Record<IconSize, { tileW: number; tileH: number; font: number; perRow: number; nameMax: number }> = {
   'extra-large': { tileW: 160, tileH: 136, font: 72, perRow: 4, nameMax: 150 },
@@ -34,7 +35,7 @@ export function IconsView({ entries, size = 'large' }: { entries: Entry[]; size?
                   className={`tile${sel.selected.includes(item.path) ? ' selected' : ''}`}
                   style={{ width: s.tileW, height: s.tileH - 8 }}
                   onClick={(ev) => handleClick(ev, item, entries, sel)}
-                  onDoubleClick={() => item.isDir && navigate(item.path)}
+                  onDoubleClick={() => { if (item.isDir) navigate(item.path); else openItem(item.path); }}
                 >
                   <div className="tile-icon" style={{ fontSize: s.font }}>{icon(item)}</div>
                   <div className="tile-name" style={{ maxWidth: s.nameMax }}>{item.name}</div>

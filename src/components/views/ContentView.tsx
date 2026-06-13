@@ -5,6 +5,7 @@ import { useSelectionStore } from '../../state/selectionStore';
 import { useLocationStore } from '../../state/locationStore';
 import { formatDate, formatSize } from '../../utils/format';
 import { icon, handleClick } from './detailsHelpers';
+import { openItem } from '../../utils/open';
 
 const ROW_H = 56;
 
@@ -24,7 +25,7 @@ export function ContentView({ entries }: { entries: Entry[] }) {
               className={`content-row${selected ? ' selected' : ''}`}
               style={{ position: 'absolute', top: 0, left: 0, width: '100%', transform: `translateY(${vi.start}px)`, height: ROW_H, display: 'flex', alignItems: 'center', gap: 12, padding: '0 16px' }}
               onClick={(ev) => handleClick(ev, item, entries, sel)}
-              onDoubleClick={() => item.isDir && navigate(item.path)}
+              onDoubleClick={() => { if (item.isDir) navigate(item.path); else openItem(item.path); }}
             >
               <span style={{ fontSize: 36 }}>{icon(item)}</span>
               <span style={{ display: 'flex', flexDirection: 'column', overflow: 'hidden', flex: 1 }}>
