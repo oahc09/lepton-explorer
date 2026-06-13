@@ -3,15 +3,26 @@ import { renderHook, act } from '@testing-library/react';
 import { useFileOps } from './useFileOps';
 import { useClipboardStore } from '../state/clipboardStore';
 import { useHistoryStore } from '../state/historyStore';
+import { useConflictStore } from '../state/conflictStore';
 import type { Entry } from '../types';
 
 vi.mock('@tauri-apps/api/core', () => ({ invoke: vi.fn() }));
 import { invoke } from '@tauri-apps/api/core';
 const m = invoke as unknown as ReturnType<typeof vi.fn>;
 
-const e = (n: string): Entry => ({ name: n, path: 'C:\\dest\\' + n, isDir: false, size: 0, modified: 0, created: 0, accessed: 0, typeLabel: '', ext: '', isHidden: false, isSystem: false, isReadOnly: false });
+const e = (n: string): Entry => ({ name: n, path: 'C:\\src\\' + n, isDir: false, size: 0, modified: 0, created: 0, accessed: 0, typeLabel: '', ext: '', isHidden: false, isSystem: false, isReadOnly: false });
 
-beforeEach(() => { m.mockReset(); useClipboardStore.getState().clear(); useHistoryStore.setState({ undoStack: [], redoStack: [] }); });
+/** Route invoke by command name so the paste flow (check_conflicts → copy/move) works. */
+function route(responses: Record<string, unknown>) {
+  m.mockImplementation((cmd: string) => Promise.resolve(responses[cmd] ?? []));
+}
+
+beforeEach(() => {
+  m.mockReset();
+  useClipboardStore.getState().clear();
+  useHistoryStore.setState({ undoStack: [], redoStack: [] });
+  useConflictStore.setState({ pending: null });
+});
 
 describe('useFileOps', () => {
   it('newFolder creates a folder and pushes an undo entry', async () => {
@@ -22,11 +33,47 @@ describe('useFileOps', () => {
     expect(useHistoryStore.getState().canUndo()).toBe(true);
   });
 
-  it('paste in copy mode invokes copy_items', async () => {
+  it('paste in copy mode with no conflict invokes copy_items_with_strategy(rename)', async () => {
     useClipboardStore.getState().copy([e('a.txt')]);
-    m.mockResolvedValue(['C:\\dest\\a.txt']);
+    route({ check_conflicts: [], copy_items_with_strategy: ['C:\\dest\\a.txt'] });
     const { result } = renderHook(() => useFileOps());
     await act(async () => { await result.current.paste('C:\\dest'); });
-    expect(m).toHaveBeenCalledWith('copy_items', expect.objectContaining({ dest: 'C:\\dest' }));
+    expect(m).toHaveBeenCalledWith('check_conflicts', expect.objectContaining({ dest: 'C:\\dest' }));
+    expect(m).toHaveBeenCalledWith('copy_items_with_strategy', expect.objectContaining({ dest: 'C:\\dest', strategy: 'rename' }));
+  });
+
+  it('paste with a conflict asks the user; choosing replace uses the replace strategy', async () => {
+    useClipboardStore.getState().copy([e('a.txt')]);
+    route({ check_conflicts: [{ name: 'a.txt' }], copy_items_with_strategy: ['C:\\dest\\a.txt'] });
+    const { result } = renderHook(() => useFileOps());
+    await act(async () => {
+      const pasteP = result.current.paste('C:\\dest');
+      await vi.waitFor(() => expect(useConflictStore.getState().pending).not.toBeNull());
+      useConflictStore.getState().answer('replace');
+      await pasteP;
+    });
+    expect(m).toHaveBeenCalledWith('copy_items_with_strategy', expect.objectContaining({ strategy: 'replace' }));
+  });
+
+  it('paste with a conflict that the user cancels performs no copy', async () => {
+    useClipboardStore.getState().copy([e('a.txt')]);
+    route({ check_conflicts: [{ name: 'a.txt' }] });
+    const { result } = renderHook(() => useFileOps());
+    await act(async () => {
+      const pasteP = result.current.paste('C:\\dest');
+      await vi.waitFor(() => expect(useConflictStore.getState().pending).not.toBeNull());
+      useConflictStore.getState().answer(null);
+      await pasteP;
+    });
+    expect(m).not.toHaveBeenCalledWith('copy_items_with_strategy', expect.anything());
+  });
+
+  it('paste in cut mode with no conflict invokes move_items_with_strategy(rename) and clears clipboard', async () => {
+    useClipboardStore.getState().cut([e('a.txt')]);
+    route({ check_conflicts: [], move_items_with_strategy: [['C:\\src\\a.txt', 'C:\\dest\\a.txt']] });
+    const { result } = renderHook(() => useFileOps());
+    await act(async () => { await result.current.paste('C:\\dest'); });
+    expect(m).toHaveBeenCalledWith('move_items_with_strategy', expect.objectContaining({ dest: 'C:\\dest', strategy: 'rename' }));
+    expect(useClipboardStore.getState().items).toHaveLength(0);
   });
 });

@@ -25,3 +25,10 @@ export interface Sort { field: SortField; asc: boolean; }
 
 export interface SpecialFolder { key: string; name: string; path: string; }
 export interface Drive { letter: string; path: string; }
+
+/// How a copy/move collision is resolved (mirrors the Rust ConflictStrategy).
+/// - 'rename'  → keep both (auto-rename incoming "name (1)")
+/// - 'replace' → overwrite the existing item
+/// - 'skip'    → leave the existing item untouched
+export type ConflictStrategy = 'rename' | 'replace' | 'skip';
+export interface ConflictInfo { name: string; }

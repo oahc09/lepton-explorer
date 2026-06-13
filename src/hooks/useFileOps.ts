@@ -1,7 +1,9 @@
 import { invoke } from '@tauri-apps/api/core';
 import { useClipboardStore } from '../state/clipboardStore';
+import { useConflictStore } from '../state/conflictStore';
 import { useHistoryStore } from '../state/historyStore';
 import { joinPath } from '../utils/paths';
+import type { ConflictInfo, ConflictStrategy } from '../types';
 
 function refresh() {
   // App listens for this and bumps its refreshKey to re-list.
@@ -50,16 +52,27 @@ export function useFileOps() {
     const { items, mode } = useClipboardStore.getState();
     if (!items.length) return;
     const sources = items.map((i) => i.path);
+
+    // Detect collisions; if any, ask the user how to resolve them (Win11
+    // "替换或跳过文件" dialog). `null` means the user cancelled the paste.
+    const conflicts = await invoke<ConflictInfo[]>('check_conflicts', { sources, dest: destDir });
+    let strategy: ConflictStrategy = 'rename';
+    if (conflicts.length) {
+      const choice = await useConflictStore.getState().ask(conflicts.map((c) => c.name));
+      if (choice === null) return;
+      strategy = choice;
+    }
+
     if (mode === 'copy') {
-      const created = await invoke<string[]>('copy_items', { sources, dest: destDir });
+      const created = await invoke<string[]>('copy_items_with_strategy', { sources, dest: destDir, strategy });
       push({
         label: '复制',
         undo: async () => { await invoke('delete_to_trash', { paths: created }); refresh(); },
-        redo: async () => { await invoke('copy_items', { sources, dest: destDir }); refresh(); },
+        redo: async () => { await invoke('copy_items_with_strategy', { sources, dest: destDir, strategy }); refresh(); },
       });
     } else {
-      const moved = await invoke<[string, string][]>('move_items', { sources, dest: destDir });
-      const pairs = moved; // [(old, new), ...]
+      const moved = await invoke<[string, string][]>('move_items_with_strategy', { sources, dest: destDir, strategy });
+      const pairs = moved; // [(old, new), ...] for items actually moved
       const parentOf = (p: string) => p.replace(/\\[^\\]*$/, '');
       push({
         label: '移动',
@@ -71,7 +84,7 @@ export function useFileOps() {
         },
         redo: async () => {
           const olds = pairs.map((p2) => p2[0]);
-          await invoke('move_items', { sources: olds, dest: destDir });
+          await invoke('move_items_with_strategy', { sources: olds, dest: destDir, strategy });
           refresh();
         },
       });

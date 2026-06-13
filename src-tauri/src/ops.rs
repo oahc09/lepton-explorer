@@ -1,6 +1,56 @@
 use std::fs;
 use std::path::{Path, PathBuf};
 
+/// How to handle a name collision when copying/moving into a destination that
+/// already contains an item of the same name. Mirrors the Win11 "Replace or
+/// skip files" conflict dialog.
+#[derive(Clone, Copy, serde::Deserialize, PartialEq, Debug)]
+#[serde(rename_all = "camelCase")]
+pub enum ConflictStrategy {
+    /// Keep both: auto-rename the incoming item ("name (1)"). Existing behavior.
+    Rename,
+    /// Overwrite the existing item (remove it first, then copy/move).
+    Replace,
+    /// Leave the existing item untouched; do not copy/move this source.
+    Skip,
+}
+
+/// A source name that already exists in the destination (a collision).
+#[derive(serde::Serialize, PartialEq, Debug)]
+#[serde(rename_all = "camelCase")]
+pub struct ConflictInfo {
+    pub name: String,
+}
+
+/// Report which of `sources` have a same-named item already present in `dest_dir`.
+pub fn check_conflicts(sources: &[String], dest_dir: &str) -> Vec<ConflictInfo> {
+    let dest = Path::new(dest_dir);
+    sources
+        .iter()
+        .filter_map(|s| {
+            let src = Path::new(s);
+            let name = src.file_name()?;
+            if dest.join(name).exists() {
+                Some(ConflictInfo { name: name.to_string_lossy().to_string() })
+            } else {
+                None
+            }
+        })
+        .collect()
+}
+
+/// Resolve the destination path for `src` under `dest` given a conflict strategy.
+/// Returns `None` when the strategy is Skip and a collision exists.
+fn resolve_target(src: &Path, dest: &Path, strategy: ConflictStrategy) -> Option<PathBuf> {
+    let name = src.file_name()?;
+    let direct = dest.join(name);
+    match strategy {
+        ConflictStrategy::Skip if direct.exists() => None,
+        ConflictStrategy::Rename => Some(unique_path(&direct)),
+        ConflictStrategy::Skip | ConflictStrategy::Replace => Some(direct),
+    }
+}
+
 pub fn create_dir(path: &str) -> std::io::Result<()> {
     fs::create_dir(Path::new(path))
 }
@@ -81,12 +131,28 @@ fn remove_recursive(p: &Path) -> std::io::Result<()> {
 
 /// Copy each source into `dest_dir` (auto-renaming on collision). Returns the resulting paths.
 pub fn copy_items(sources: &[String], dest_dir: &str) -> std::io::Result<Vec<String>> {
+    copy_items_with_strategy(sources, dest_dir, ConflictStrategy::Rename)
+}
+
+/// Copy each source into `dest_dir` honoring `strategy` on collision. Returns the
+/// resulting (new) paths — skipped sources contribute nothing.
+pub fn copy_items_with_strategy(
+    sources: &[String],
+    dest_dir: &str,
+    strategy: ConflictStrategy,
+) -> std::io::Result<Vec<String>> {
     let dest = Path::new(dest_dir);
     let mut out = Vec::new();
     for s in sources {
         let src = Path::new(s);
-        let name = src.file_name().ok_or_else(|| std::io::Error::new(std::io::ErrorKind::InvalidInput, "no file name"))?;
-        let target = unique_path(&dest.join(name));
+        let target = match resolve_target(src, dest, strategy) {
+            Some(t) => t,
+            None => continue, // Skip + collision → skip this source
+        };
+        // Replace: remove the existing target first so the copy overwrites it.
+        if strategy == ConflictStrategy::Replace && target.exists() {
+            remove_recursive(&target)?;
+        }
         copy_recursive(src, &target)?;
         out.push(target.to_string_lossy().to_string());
     }
@@ -96,12 +162,27 @@ pub fn copy_items(sources: &[String], dest_dir: &str) -> std::io::Result<Vec<Str
 /// Move each source into `dest_dir` (same-volume = rename; cross-volume = copy+delete).
 /// Returns Vec<(old_path, new_path)>.
 pub fn move_items(sources: &[String], dest_dir: &str) -> std::io::Result<Vec<(String, String)>> {
+    move_items_with_strategy(sources, dest_dir, ConflictStrategy::Rename)
+}
+
+/// Move each source into `dest_dir` honoring `strategy` on collision. Returns
+/// Vec<(old_path, new_path)> for sources actually moved (skipped sources excluded).
+pub fn move_items_with_strategy(
+    sources: &[String],
+    dest_dir: &str,
+    strategy: ConflictStrategy,
+) -> std::io::Result<Vec<(String, String)>> {
     let dest = Path::new(dest_dir);
     let mut out = Vec::new();
     for s in sources {
         let src = Path::new(s);
-        let name = src.file_name().ok_or_else(|| std::io::Error::new(std::io::ErrorKind::InvalidInput, "no file name"))?;
-        let target = unique_path(&dest.join(name));
+        let target = match resolve_target(src, dest, strategy) {
+            Some(t) => t,
+            None => continue, // Skip + collision → skip this source
+        };
+        if strategy == ConflictStrategy::Replace && target.exists() {
+            remove_recursive(&target)?;
+        }
         let old = src.to_string_lossy().to_string();
         match fs::rename(src, &target) {
             Ok(()) => {}
@@ -297,5 +378,121 @@ mod tests {
     #[test]
     fn delete_permanent_on_missing_is_error() {
         assert!(delete_permanent(&["Z:/no/such/file".to_string()]).is_err());
+    }
+
+    #[test]
+    fn check_conflicts_reports_only_colliding_names() {
+        let d = tempdir().unwrap();
+        let dest = d.path().join("dest"); fs::create_dir(&dest).unwrap();
+        fs::write(dest.join("a.txt"), "old").unwrap();
+        let src_a = d.path().join("a.txt"); fs::write(&src_a, "new").unwrap();
+        let src_b = d.path().join("b.txt"); fs::write(&src_b, "x").unwrap();
+        let conflicts = check_conflicts(
+            &[src_a.to_string_lossy().to_string(), src_b.to_string_lossy().to_string()],
+            dest.to_str().unwrap(),
+        );
+        assert_eq!(conflicts.len(), 1);
+        assert_eq!(conflicts[0].name, "a.txt");
+    }
+
+    #[test]
+    fn check_conflicts_empty_when_no_collision() {
+        let d = tempdir().unwrap();
+        let dest = d.path().join("dest"); fs::create_dir(&dest).unwrap();
+        let src = d.path().join("a.txt"); fs::write(&src, "x").unwrap();
+        let conflicts = check_conflicts(&[src.to_string_lossy().to_string()], dest.to_str().unwrap());
+        assert!(conflicts.is_empty());
+    }
+
+    #[test]
+    fn copy_with_strategy_replace_overwrites_existing() {
+        let d = tempdir().unwrap();
+        let dest = d.path().join("dest"); fs::create_dir(&dest).unwrap();
+        fs::write(dest.join("a.txt"), "EXISTING").unwrap();
+        let src = d.path().join("a.txt"); fs::write(&src, "NEW").unwrap();
+        let out = copy_items_with_strategy(
+            &[src.to_string_lossy().to_string()],
+            dest.to_str().unwrap(),
+            ConflictStrategy::Replace,
+        ).unwrap();
+        assert_eq!(fs::read_to_string(dest.join("a.txt")).unwrap(), "NEW");
+        assert_eq!(out.len(), 1);
+        assert!(out[0].ends_with("a.txt"));
+    }
+
+    #[test]
+    fn copy_with_strategy_skip_leaves_existing_untouched() {
+        let d = tempdir().unwrap();
+        let dest = d.path().join("dest"); fs::create_dir(&dest).unwrap();
+        fs::write(dest.join("a.txt"), "EXISTING").unwrap();
+        let src = d.path().join("a.txt"); fs::write(&src, "NEW").unwrap();
+        let out = copy_items_with_strategy(
+            &[src.to_string_lossy().to_string()],
+            dest.to_str().unwrap(),
+            ConflictStrategy::Skip,
+        ).unwrap();
+        assert_eq!(fs::read_to_string(dest.join("a.txt")).unwrap(), "EXISTING");
+        assert!(out.is_empty(), "skipped source contributes no result path");
+    }
+
+    #[test]
+    fn copy_with_strategy_skip_copies_when_no_collision() {
+        let d = tempdir().unwrap();
+        let dest = d.path().join("dest"); fs::create_dir(&dest).unwrap();
+        let src = d.path().join("a.txt"); fs::write(&src, "NEW").unwrap();
+        let out = copy_items_with_strategy(
+            &[src.to_string_lossy().to_string()],
+            dest.to_str().unwrap(),
+            ConflictStrategy::Skip,
+        ).unwrap();
+        assert!(dest.join("a.txt").is_file());
+        assert_eq!(fs::read_to_string(dest.join("a.txt")).unwrap(), "NEW");
+        assert_eq!(out.len(), 1);
+    }
+
+    #[test]
+    fn copy_with_strategy_rename_keeps_both() {
+        let d = tempdir().unwrap();
+        let dest = d.path().join("dest"); fs::create_dir(&dest).unwrap();
+        fs::write(dest.join("a.txt"), "EXISTING").unwrap();
+        let src = d.path().join("a.txt"); fs::write(&src, "NEW").unwrap();
+        let out = copy_items_with_strategy(
+            &[src.to_string_lossy().to_string()],
+            dest.to_str().unwrap(),
+            ConflictStrategy::Rename,
+        ).unwrap();
+        assert_eq!(fs::read_to_string(dest.join("a.txt")).unwrap(), "EXISTING");
+        assert!(dest.join("a (1).txt").is_file());
+        assert_eq!(fs::read_to_string(dest.join("a (1).txt")).unwrap(), "NEW");
+        assert!(out[0].ends_with("a (1).txt"));
+    }
+
+    #[test]
+    fn move_with_strategy_replace_overwrites_and_removes_source() {
+        let d = tempdir().unwrap();
+        let dest = d.path().join("dest"); fs::create_dir(&dest).unwrap();
+        fs::write(dest.join("a.txt"), "EXISTING").unwrap();
+        let src = d.path().join("a.txt"); fs::write(&src, "NEW").unwrap();
+        let out = move_items_with_strategy(
+            &[src.to_string_lossy().to_string()],
+            dest.to_str().unwrap(),
+            ConflictStrategy::Replace,
+        ).unwrap();
+        assert!(!src.exists(), "source must be moved away");
+        assert_eq!(fs::read_to_string(dest.join("a.txt")).unwrap(), "NEW");
+        assert_eq!(out.len(), 1);
+    }
+
+    #[test]
+    fn copy_items_default_still_auto_renames() {
+        // The default wrapper must preserve original behavior (Rename strategy).
+        let d = tempdir().unwrap();
+        let dest = d.path().join("dest"); fs::create_dir(&dest).unwrap();
+        fs::write(dest.join("a.txt"), "EXISTING").unwrap();
+        let src = d.path().join("a.txt"); fs::write(&src, "NEW").unwrap();
+        let out = copy_items(&[src.to_string_lossy().to_string()], dest.to_str().unwrap()).unwrap();
+        assert_eq!(fs::read_to_string(dest.join("a.txt")).unwrap(), "EXISTING");
+        assert!(dest.join("a (1).txt").is_file());
+        assert!(out[0].ends_with("a (1).txt"));
     }
 }

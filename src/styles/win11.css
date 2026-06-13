@@ -132,6 +132,17 @@ body { font-family: var(--font); font-size: 14px; background: var(--bg); color: 
 
 .rename-input { font-size: 13px; padding: 0 4px; border: 1px solid var(--accent); border-radius: 3px; height: 22px; width: 100%; min-width: 80px; background: var(--main-bg); color: var(--text); }
 
+.conflict { min-width: 360px; max-width: 440px; }
+.conflict-msg { font-size: 13px; margin-bottom: 8px; }
+.conflict-names { list-style: none; max-height: 150px; overflow: auto; border: 1px solid var(--border); border-radius: 6px; padding: 6px; margin-bottom: 8px; }
+.conflict-names li { font-size: 13px; padding: 3px 6px; border-radius: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.conflict-names li:hover { background: var(--hover-bg); }
+.conflict-more { color: var(--text-sub); font-style: italic; }
+.conflict-all { font-size: 12px; color: var(--text-sub); margin-bottom: 8px; }
+.conflict-actions { display: flex; gap: 8px; justify-content: flex-end; flex-wrap: wrap; }
+.conflict-replace { color: var(--accent-text); background: var(--accent); border-color: var(--accent); }
+.conflict-replace:hover:not(:disabled) { filter: brightness(1.08); background: var(--accent); }
+
 .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.35); display: flex; align-items: center; justify-content: center; z-index: 2000; }
 .modal { background: var(--main-bg); border-radius: 8px; padding: 20px; min-width: 320px; box-shadow: 0 12px 32px rgba(0,0,0,0.25); }
 .modal h3 { margin-bottom: 16px; font-size: 15px; }

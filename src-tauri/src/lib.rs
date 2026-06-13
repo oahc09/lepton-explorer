@@ -43,8 +43,31 @@ fn copy_items(sources: Vec<String>, dest: String) -> Result<Vec<String>> {
 }
 
 #[tauri::command]
+fn copy_items_with_strategy(
+    sources: Vec<String>,
+    dest: String,
+    strategy: ops::ConflictStrategy,
+) -> Result<Vec<String>> {
+    ops::copy_items_with_strategy(&sources, &dest, strategy).map_err(AppError::from)
+}
+
+#[tauri::command]
 fn move_items(sources: Vec<String>, dest: String) -> Result<Vec<(String, String)>> {
     ops::move_items(&sources, &dest).map_err(AppError::from)
+}
+
+#[tauri::command]
+fn move_items_with_strategy(
+    sources: Vec<String>,
+    dest: String,
+    strategy: ops::ConflictStrategy,
+) -> Result<Vec<(String, String)>> {
+    ops::move_items_with_strategy(&sources, &dest, strategy).map_err(AppError::from)
+}
+
+#[tauri::command]
+fn check_conflicts(sources: Vec<String>, dest: String) -> Vec<ops::ConflictInfo> {
+    ops::check_conflicts(&sources, &dest)
 }
 
 #[tauri::command]
@@ -97,7 +120,10 @@ pub fn run() {
             create_file,
             rename,
             copy_items,
+            copy_items_with_strategy,
             move_items,
+            move_items_with_strategy,
+            check_conflicts,
             delete_to_trash,
             delete_permanent,
             watch_directory,
