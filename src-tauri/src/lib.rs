@@ -67,6 +67,11 @@ fn get_thumbnail(path: String, size: u32) -> Option<String> {
     thumbnails::get_thumbnail(&path, size)
 }
 
+#[tauri::command]
+fn get_icon(path: String, size: u32) -> Option<String> {
+    thumbnails::get_icon(&path, size)
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -84,7 +89,8 @@ pub fn run() {
             delete_to_trash,
             delete_permanent,
             watch_directory,
-            get_thumbnail
+            get_thumbnail,
+            get_icon
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
