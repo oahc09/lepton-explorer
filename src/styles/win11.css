@@ -1,7 +1,7 @@
 :root {
   --font: "Segoe UI Variable", "Segoe UI", system-ui, sans-serif;
   --titlebar-h: 40px;
-  --toolbar-h: 48px;
+  --toolbar-h: 44px;
   --statusbar-h: 28px;
   --navpane-w: 240px;
 }
@@ -25,7 +25,7 @@
   --pane-bg: #2b2b2b;
   --main-bg: #2b2b2b;
   --text: #ffffff;
-  --text-sub: #b0b0b0;
+  --text-sub: #c5c5c5;
   --border: #3a3a3a;
   --accent: #60cdff;
   --accent-text: #000000;
