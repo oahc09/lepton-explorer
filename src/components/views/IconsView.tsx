@@ -33,6 +33,7 @@ export function IconsView({ entries, size = 'large' }: { entries: Entry[]; size?
               {row.map((item) => (
                 <div
                   key={item.path}
+                  data-path={item.path}
                   className={`tile${sel.selected.includes(item.path) ? ' selected' : ''}`}
                   style={{ width: s.tileW, height: s.tileH - 8 }}
                   onClick={(ev) => handleClick(ev, item, entries, sel)}

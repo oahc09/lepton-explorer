@@ -1,4 +1,63 @@
-// Phase 0 stub: full Win11 modern context menu arrives in Plan 4.
-export function ContextMenu() {
-  return null;
+import { useEffect, useState } from 'react';
+import { useSelectionStore } from '../state/selectionStore';
+import { useClipboardStore } from '../state/clipboardStore';
+import { useLocationStore } from '../state/locationStore';
+import { useFileOps } from '../hooks/useFileOps';
+import { openItem } from '../utils/open';
+import type { Entry } from '../types';
+
+interface Pos { x: number; y: number; }
+
+export function ContextMenu({ entries }: { entries: Entry[] }) {
+  const [pos, setPos] = useState<Pos | null>(null);
+  const sel = useSelectionStore((s) => s.selected);
+  const ops = useFileOps();
+  const path = useLocationStore((s) => s.path);
+
+  useEffect(() => {
+    const onMenu = (e: MouseEvent) => {
+      const t = e.target as HTMLElement;
+      if (t.closest('.main-view')) {
+        e.preventDefault();
+        setPos({ x: e.clientX, y: e.clientY });
+      }
+    };
+    const onClick = () => setPos(null);
+    document.addEventListener('contextmenu', onMenu);
+    document.addEventListener('click', onClick);
+    return () => {
+      document.removeEventListener('contextmenu', onMenu);
+      document.removeEventListener('click', onClick);
+    };
+  }, []);
+
+  // Select the right-clicked item (if not already in selection) before showing the menu.
+  useEffect(() => {
+    if (!pos) return;
+    const el = document.elementFromPoint(pos.x, pos.y)?.closest('[data-path]') as HTMLElement | null;
+    if (el?.dataset.path && !sel.includes(el.dataset.path)) {
+      const en = entries.find((e) => e.path === el.dataset.path);
+      if (en) useSelectionStore.getState().select([en]);
+    }
+  }, [pos, sel, entries]);
+
+  if (!pos) return null;
+  const selEntries = entries.filter((e) => sel.includes(e.path));
+  const hasSel = selEntries.length > 0;
+  const item = (label: string, fn: () => void, disabled = false) => (
+    <li className={`cm-item${disabled ? ' disabled' : ''}`} onClick={() => { if (!disabled) { fn(); setPos(null); } }}>{label}</li>
+  );
+  return (
+    <ul className="context-menu" style={{ left: pos.x, top: pos.y }}>
+      {hasSel && item('打开', () => selEntries.forEach((e) => (e.isDir ? useLocationStore.getState().navigate(e.path) : openItem(e.path))))}
+      {item('新建文件夹', () => ops.newFolder(path))}
+      {item('剪切', () => useClipboardStore.getState().cut(selEntries), !hasSel)}
+      {item('复制', () => useClipboardStore.getState().copy(selEntries), !hasSel)}
+      {item('粘贴', () => ops.paste(path))}
+      {item('重命名', () => window.dispatchEvent(new CustomEvent('winfinder:rename', { detail: sel[0] })), sel.length !== 1)}
+      {item('删除', () => ops.remove(sel, false), !hasSel)}
+      <li className="cm-sep" />
+      {item('显示更多选项', () => {})}
+    </ul>
+  );
 }

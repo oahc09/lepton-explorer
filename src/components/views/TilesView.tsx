@@ -29,6 +29,7 @@ export function TilesView({ entries }: { entries: Entry[] }) {
                 const selected = sel.selected.includes(item.path);
                 return (
                   <div key={item.path}
+                    data-path={item.path}
                     className={`tile2${selected ? ' selected' : ''}`}
                     style={{ width: 220, height: TILE_H - 8, display: 'flex', alignItems: 'center', gap: 10, padding: '6px 10px', borderRadius: 4 }}
                     onClick={(ev) => handleClick(ev, item, entries, sel)}

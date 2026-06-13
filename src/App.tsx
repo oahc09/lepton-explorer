@@ -156,7 +156,7 @@ export default function App() {
         </main>
       </div>
       <StatusBar count={entries.length} />
-      <ContextMenu />
+      <ContextMenu entries={entries} />
     </div>
   );
 }

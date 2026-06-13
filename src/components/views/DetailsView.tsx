@@ -35,6 +35,7 @@ export function DetailsView({ entries }: { entries: Entry[] }) {
           return (
             <div
               key={item.path}
+              data-path={item.path}
               className={`details-row${selected ? ' selected' : ''}`}
               style={{ position: 'absolute', top: 0, left: 0, width: '100%', transform: `translateY(${vi.start}px)`, height: ROW_H }}
               onClick={(ev) => handleClick(ev, item, sorted, sel)}

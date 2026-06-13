@@ -23,6 +23,7 @@ export function ContentView({ entries }: { entries: Entry[] }) {
           const selected = sel.selected.includes(item.path);
           return (
             <div key={item.path}
+              data-path={item.path}
               className={`content-row${selected ? ' selected' : ''}`}
               style={{ position: 'absolute', top: 0, left: 0, width: '100%', transform: `translateY(${vi.start}px)`, height: ROW_H, display: 'flex', alignItems: 'center', gap: 12, padding: '0 16px' }}
               onClick={(ev) => handleClick(ev, item, entries, sel)}

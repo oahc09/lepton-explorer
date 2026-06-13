@@ -23,6 +23,7 @@ export function ListView({ entries }: { entries: Entry[] }) {
           return (
             <div
               key={item.path}
+              data-path={item.path}
               className={`list-item${selected ? ' selected' : ''}`}
               style={{ position: 'absolute', top: 0, left: 0, transform: `translateY(${vi.start}px)`, height: ROW_H, display: 'flex', alignItems: 'center', gap: 6, padding: '0 6px' }}
               onClick={(ev) => handleClick(ev, item, entries, sel)}
