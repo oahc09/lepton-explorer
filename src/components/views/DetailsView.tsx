@@ -14,14 +14,17 @@ export function DetailsView({ entries }: { entries: Entry[] }) {
   const rowVirtualizer = useVirtualizer({ count: sorted.length, getScrollElement: () => parentRef.current, estimateSize: () => ROW_H, overscan: 20 });
   const sel = useSelectionStore();
   const onOpen = useOpen();
+  const sort = useViewStore((s) => s.sort);
+  const arrow = (field: 'name' | 'modified' | 'type' | 'size') =>
+    sort.field === field ? (sort.asc ? ' ▲' : ' ▼') : '';
 
   return (
     <div className="details" ref={parentRef} style={{ overflow: 'auto', height: '100%' }}>
       <div className="details-header">
-        <button className="col-name" onClick={() => useViewStore.getState().setSort('name')}>名称</button>
-        <button className="col-date" onClick={() => useViewStore.getState().setSort('modified')}>修改日期</button>
-        <button className="col-type" onClick={() => useViewStore.getState().setSort('type')}>类型</button>
-        <button className="col-size" onClick={() => useViewStore.getState().setSort('size')}>大小</button>
+        <button className={sort.field === 'name' ? 'col-name active-sort' : 'col-name'} onClick={() => useViewStore.getState().setSort('name')}>名称{arrow('name')}</button>
+        <button className={sort.field === 'modified' ? 'col-date active-sort' : 'col-date'} onClick={() => useViewStore.getState().setSort('modified')}>修改日期{arrow('modified')}</button>
+        <button className={sort.field === 'type' ? 'col-type active-sort' : 'col-type'} onClick={() => useViewStore.getState().setSort('type')}>类型{arrow('type')}</button>
+        <button className={sort.field === 'size' ? 'col-size active-sort' : 'col-size'} onClick={() => useViewStore.getState().setSort('size')}>大小{arrow('size')}</button>
       </div>
       <div style={{ height: `${rowVirtualizer.getTotalSize()}px`, position: 'relative' }}>
         {rowVirtualizer.getVirtualItems().map((vi) => {

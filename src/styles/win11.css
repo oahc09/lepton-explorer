@@ -74,6 +74,7 @@ body { font-family: var(--font); font-size: 14px; background: var(--bg); color: 
 .details-header, .details-row { display: grid; grid-template-columns: 1fr 180px 160px 110px; align-items: center; }
 .details-header { height: 32px; background: var(--header-bg); border-bottom: 1px solid var(--border); position: sticky; top: 0; z-index: 1; }
 .details-header button { border: 0; background: transparent; color: var(--text); text-align: left; font-size: 12px; padding: 0 10px; cursor: pointer; height: 100%; }
+.details-header button.active-sort { color: var(--accent); font-weight: 600; }
 .details-row { height: 32px; border-bottom: 1px solid var(--border); }
 .details-row:hover { background: var(--hover-bg); }
 .details-row.selected { background: var(--select-bg); }
