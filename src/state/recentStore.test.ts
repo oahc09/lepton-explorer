@@ -13,4 +13,12 @@ describe('recentStore', () => {
     expect(r[0].path).toBe('C:\\f5.txt');
     expect(r.filter((x) => x.path === 'C:\\f5.txt')).toHaveLength(1);
   });
+
+  it('clear empties the list', () => {
+    useRecentStore.getState().addRecent({ name: 'a.txt', path: 'C:\\a.txt' });
+    useRecentStore.getState().addRecent({ name: 'b.txt', path: 'C:\\b.txt' });
+    expect(useRecentStore.getState().recent).toHaveLength(2);
+    useRecentStore.getState().clear();
+    expect(useRecentStore.getState().recent).toEqual([]);
+  });
 });

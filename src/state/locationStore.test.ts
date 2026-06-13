@@ -98,4 +98,15 @@ describe('tabs', () => {
     expect(after[after.length - 1]).toBe(ids[0]);
     expect(after.length).toBe(ids.length);
   });
+
+  it('moveTab is a no-op for unknown or equal ids', () => {
+    useLocationStore.getState().addTab('C:\\A');
+    const before = useLocationStore.getState().tabs.map((t) => t.id);
+    useLocationStore.getState().moveTab('nonexistent', before[0]); // unknown from
+    const after1 = useLocationStore.getState().tabs.map((t) => t.id);
+    expect(after1).toEqual(before);
+    useLocationStore.getState().moveTab(before[0], before[0]); // equal from==to
+    const after2 = useLocationStore.getState().tabs.map((t) => t.id);
+    expect(after2).toEqual(before);
+  });
 });
