@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { getCurrentWindow } from '@tauri-apps/api/window';
+import { listen } from '@tauri-apps/api/event';
 import { TitleBar } from './components/TitleBar';
 import { Toolbar } from './components/Toolbar';
 import { Breadcrumb } from './components/Breadcrumb';
@@ -58,6 +59,16 @@ export default function App() {
     window.addEventListener('winfinder:refresh', onRefresh);
     return () => window.removeEventListener('winfinder:refresh', onRefresh);
   }, []);
+
+  // Watch the current path for filesystem changes; re-list on fs-changed.
+  useEffect(() => {
+    if (!path) return;
+    invoke('watch_directory', { path });
+    const un = listen<string>('fs-changed', (e) => {
+      if (e.payload === path) setRefreshKey((k) => k + 1);
+    });
+    return () => { un.then((u) => u()); };
+  }, [path]);
 
   // Ctrl+Shift+1..8 → view mode switch (Win11 mapping).
   useEffect(() => {
