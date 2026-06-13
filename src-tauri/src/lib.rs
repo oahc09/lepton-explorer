@@ -1,5 +1,6 @@
 pub mod error;
 pub mod fs_ops;
+pub mod ops;
 pub mod special;
 
 use error::{AppError, Result};
