@@ -28,4 +28,12 @@ describe('historyStore', () => {
     expect(useHistoryStore.getState().undoStack).toHaveLength(2);
     expect(useHistoryStore.getState().redoStack).toHaveLength(0);
   });
+  it('undo then new push clears the redo stack', async () => {
+    const mk = (n: string) => ({ label: n, undo: async () => {}, redo: async () => {} });
+    useHistoryStore.getState().push(mk('a'));
+    await useHistoryStore.getState().undo();
+    expect(useHistoryStore.getState().canRedo()).toBe(true);
+    useHistoryStore.getState().push(mk('b'));
+    expect(useHistoryStore.getState().canRedo()).toBe(false);
+  });
 });
