@@ -80,6 +80,6 @@ The wire contract is camelCase (locked by a regression test).
 - Delete is not undoable (recycle-bin restore is unreliable across the `trash` crate).
 - **Replace-mode** paste undo doesn't auto-restore the overwritten original — it's sent to the recycle
   bin, so it's recoverable there but not via Ctrl+Z. (Keep-both/skip undo fully.)
-- Copy and cross-volume move show a cancelable progress dialog; redo does not (same-volume move is instant).
+- Copy, cross-volume move, and redo all show a cancelable progress dialog (same-volume move is an instant rename).
 - "Show more options" context-menu item is a placeholder (real shell menu not wired).
 - §11 visual zero-deviation acceptance requires real Win11 baseline screenshots (user step).

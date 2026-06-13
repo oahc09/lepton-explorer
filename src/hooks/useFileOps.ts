@@ -72,7 +72,12 @@ export function useFileOps() {
         push({
           label: '复制',
           undo: async () => { await invoke('delete_to_trash', { paths: created }); refresh(); },
-          redo: async () => { await invoke('copy_items_with_strategy', { sources, dest: destDir, strategy }); refresh(); },
+          redo: async () => {
+            useProgressStore.getState().open();
+            try { await invoke('copy_with_progress', { sources, dest: destDir, strategy }); }
+            finally { useProgressStore.getState().close(); }
+            refresh();
+          },
         });
       } finally {
         useProgressStore.getState().close();
@@ -92,7 +97,9 @@ export function useFileOps() {
           },
           redo: async () => {
             const olds = pairs.map((p2) => p2[0]);
-            await invoke('move_items_with_strategy', { sources: olds, dest: destDir, strategy });
+            useProgressStore.getState().open();
+            try { await invoke('move_with_progress', { sources: olds, dest: destDir, strategy }); }
+            finally { useProgressStore.getState().close(); }
             refresh();
           },
         });
