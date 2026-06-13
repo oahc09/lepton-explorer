@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import type { SpecialFolder, Drive } from '../types';
 import { useLocationStore } from '../state/locationStore';
@@ -11,14 +11,22 @@ export function NavPane() {
   const navigate = useLocationStore((s) => s.navigate);
   const pinned = usePinnedStore((s) => s.pinned);
   const [expanded, setExpanded] = useState(true);
+  const navRef = useRef<HTMLElement>(null);
 
   useEffect(() => {
     invoke<SpecialFolder[]>('special_folders').then(setFolders);
     invoke<Drive[]>('list_drives').then(setDrives);
   }, []);
 
+  // F6 pane-focus cycling: focus this pane when requested.
+  useEffect(() => {
+    const onFocus = () => navRef.current?.focus();
+    window.addEventListener('winfinder:focus-navpane', onFocus);
+    return () => window.removeEventListener('winfinder:focus-navpane', onFocus);
+  }, []);
+
   return (
-    <nav className="nav-pane">
+    <nav className="nav-pane" ref={navRef} tabIndex={0}>
       {pinned.length > 0 && (
         <div className="nav-section">
           {pinned.map((p) => (

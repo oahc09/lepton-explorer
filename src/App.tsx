@@ -51,6 +51,9 @@ export default function App() {
   const ops = useFileOps();
   const opsRef = useRef(ops);
   opsRef.current = ops;
+  // F6 pane-focus cycling: 0 = nav pane, 1 = address bar, 2 = file list.
+  const focusZone = useRef(0);
+  const mainRef = useRef<HTMLElement>(null);
   const [propsEntry, setPropsEntry] = useState<Entry | null>(null);
   const setPropsEntryRef = useRef(setPropsEntry);
   setPropsEntryRef.current = setPropsEntry;
@@ -123,6 +126,13 @@ export default function App() {
     return () => window.removeEventListener('storage', onStorage);
   }, []);
 
+  // F6 file-list target: focus the main view when requested.
+  useEffect(() => {
+    const onFocus = () => mainRef.current?.focus();
+    window.addEventListener('winfinder:focus-filelist', onFocus);
+    return () => window.removeEventListener('winfinder:focus-filelist', onFocus);
+  }, []);
+
   // Ctrl+Shift+1..8 → view mode switch (Win11 mapping).
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -130,6 +140,16 @@ export default function App() {
       if (e.altKey && (e.key === 'd' || e.key === 'D')) { e.preventDefault(); window.dispatchEvent(new CustomEvent('winfinder:focus-address')); return; }
       if (e.key === 'F4' && !e.ctrlKey && !e.shiftKey && !e.altKey) { e.preventDefault(); window.dispatchEvent(new CustomEvent('winfinder:focus-address')); return; }
       if (e.ctrlKey && (e.key === 'e' || e.key === 'E' || e.key === 'f' || e.key === 'F') && !e.shiftKey) { e.preventDefault(); window.dispatchEvent(new CustomEvent('winfinder:focus-search')); return; }
+      if (e.key === 'F6') {
+        // Cycle focus between nav pane → address bar → file list (Shift = reverse).
+        e.preventDefault();
+        const ZONES = ['winfinder:focus-navpane', 'winfinder:focus-address', 'winfinder:focus-filelist'] as const;
+        focusZone.current = e.shiftKey
+          ? (focusZone.current + ZONES.length - 1) % ZONES.length
+          : (focusZone.current + 1) % ZONES.length;
+        window.dispatchEvent(new CustomEvent(ZONES[focusZone.current]));
+        return;
+      }
       const tag = (e.target as HTMLElement)?.tagName;
       if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
       if (e.key === 'Backspace') { e.preventDefault(); useLocationStore.getState().back(); return; }
@@ -288,7 +308,7 @@ export default function App() {
       </div>
       <div className="body">
         <NavPane />
-        <main className="main-view" key={`${path}-${refreshKey}`}>
+        <main className="main-view" key={`${path}-${refreshKey}`} ref={mainRef} tabIndex={0}>
           {path === '' ? (
             <HomeView onOpen={(p) => navigate(p)} />
           ) : loading ? (
