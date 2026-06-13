@@ -29,4 +29,10 @@ impl From<std::io::Error> for AppError {
     }
 }
 
+impl From<trash::Error> for AppError {
+    fn from(e: trash::Error) -> Self {
+        AppError::Unknown(e.to_string())
+    }
+}
+
 pub type Result<T> = std::result::Result<T, AppError>;
