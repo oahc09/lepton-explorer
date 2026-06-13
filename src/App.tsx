@@ -116,6 +116,7 @@ export default function App() {
       if (e.ctrlKey && (e.key === 'e' || e.key === 'E' || e.key === 'f' || e.key === 'F') && !e.shiftKey) { e.preventDefault(); window.dispatchEvent(new CustomEvent('winfinder:focus-search')); return; }
       const tag = (e.target as HTMLElement)?.tagName;
       if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
+      if (e.key === 'Backspace') { e.preventDefault(); useLocationStore.getState().back(); return; }
       if (e.ctrlKey && !e.shiftKey && (e.key === 't' || e.key === 'T')) {
         e.preventDefault();
         useLocationStore.getState().addTab('');
