@@ -2,6 +2,7 @@ import { invoke } from '@tauri-apps/api/core';
 import { useClipboardStore } from '../state/clipboardStore';
 import { useConflictStore } from '../state/conflictStore';
 import { useHistoryStore } from '../state/historyStore';
+import { parentOf } from '../state/locationStore';
 import { joinPath } from '../utils/paths';
 import type { ConflictInfo, ConflictStrategy } from '../types';
 
@@ -37,7 +38,7 @@ export function useFileOps() {
   }
 
   async function renameEntry(from: string, toName: string) {
-    const parent = from.replace(/\\[^\\]*$/, '');
+    const parent = parentOf(from);
     const to = joinPath(parent, toName);
     await invoke('rename', { from, to });
     push({
@@ -73,7 +74,6 @@ export function useFileOps() {
     } else {
       const moved = await invoke<[string, string][]>('move_items_with_strategy', { sources, dest: destDir, strategy });
       const pairs = moved; // [(old, new), ...] for items actually moved
-      const parentOf = (p: string) => p.replace(/\\[^\\]*$/, '');
       push({
         label: '移动',
         undo: async () => {
