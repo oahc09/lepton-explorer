@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useSelectionStore } from '../state/selectionStore';
 import { useClipboardStore } from '../state/clipboardStore';
 import { useLocationStore } from '../state/locationStore';
+import { usePinnedStore } from '../state/pinnedStore';
 import { useFileOps } from '../hooks/useFileOps';
 import { openItem } from '../utils/open';
 import type { Entry } from '../types';
@@ -57,6 +58,16 @@ export function ContextMenu({ entries }: { entries: Entry[] }) {
     <ul className="context-menu" style={{ left: pos.x, top: pos.y }}>
       {hasSel && item('打开', () => selEntries.forEach((e) => (e.isDir ? useLocationStore.getState().navigate(e.path) : openItem(e.path))))}
       {item('在新标签页中打开', () => { const en = selEntries[0]; if (en?.isDir) useLocationStore.getState().addTab(en.path); }, !(sel.length === 1 && selEntries[0]?.isDir))}
+      {(() => {
+        const en = selEntries[0];
+        const show = sel.length === 1 && en?.isDir;
+        if (!show) return null;
+        const pinned = usePinnedStore.getState().isPinned(en.path);
+        return item(pinned ? '从快速访问取消固定' : '固定到快速访问', () => {
+          if (pinned) usePinnedStore.getState().unpin(en.path);
+          else usePinnedStore.getState().pin({ name: en.name, path: en.path });
+        });
+      })()}
       {item('新建文件夹', () => ops.newFolder(path))}
       {item('剪切', () => useClipboardStore.getState().cut(selEntries), !hasSel)}
       {item('复制', () => useClipboardStore.getState().copy(selEntries), !hasSel)}

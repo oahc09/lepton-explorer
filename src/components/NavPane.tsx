@@ -2,12 +2,14 @@ import { useEffect, useState } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import type { SpecialFolder, Drive } from '../types';
 import { useLocationStore } from '../state/locationStore';
+import { usePinnedStore } from '../state/pinnedStore';
 import { dropInto } from '../utils/drop';
 
 export function NavPane() {
   const [folders, setFolders] = useState<SpecialFolder[]>([]);
   const [drives, setDrives] = useState<Drive[]>([]);
   const navigate = useLocationStore((s) => s.navigate);
+  const pinned = usePinnedStore((s) => s.pinned);
   const [expanded, setExpanded] = useState(true);
 
   useEffect(() => {
@@ -17,6 +19,18 @@ export function NavPane() {
 
   return (
     <nav className="nav-pane">
+      {pinned.length > 0 && (
+        <div className="nav-section">
+          {pinned.map((p) => (
+            <button key={p.path} className="nav-item"
+              onClick={() => navigate(p.path)}
+              onDragOver={(e) => { e.preventDefault(); e.dataTransfer.dropEffect = e.ctrlKey ? 'copy' : 'move'; }}
+              onDrop={(e) => { e.preventDefault(); void dropInto(p.path, e.ctrlKey); }}>
+              <span aria-hidden>📌</span><span>{p.name}</span>
+            </button>
+          ))}
+        </div>
+      )}
       <button className="nav-item" onClick={() => navigate('')}>
         <span aria-hidden>🏠</span><span>主页</span>
       </button>
