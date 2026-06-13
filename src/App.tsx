@@ -12,6 +12,7 @@ import { ContextMenu } from './components/ContextMenu';
 import { PropertiesDialog } from './components/PropertiesDialog';
 import { CommandBar } from './components/CommandBar';
 import { SearchBox } from './components/SearchBox';
+import { PreviewPane } from './components/PreviewPane';
 import { useLocationStore } from './state/locationStore';
 import { useSearchStore } from './state/searchStore';
 import { useViewStore } from './state/viewStore';
@@ -33,6 +34,9 @@ export default function App() {
   const showHidden = useViewStore((s) => s.showHidden);
   const visibleEntries = entries.filter((e) => showHidden || !e.isHidden);
   const shownEntries = searchResults ?? visibleEntries;
+  const previewPane = useViewStore((s) => s.previewPane);
+  const sel = useSelectionStore((s) => s.selected);
+  const previewEntry = sel.length === 1 ? shownEntries.find((e) => e.path === sel[0]) ?? null : null;
   const entryRef = useRef(entries);
   entryRef.current = entries;
   const ops = useFileOps();
@@ -102,6 +106,7 @@ export default function App() {
       if (e.ctrlKey && (e.key === 'e' || e.key === 'E' || e.key === 'f' || e.key === 'F') && !e.shiftKey) { e.preventDefault(); window.dispatchEvent(new CustomEvent('winfinder:focus-search')); return; }
       const tag = (e.target as HTMLElement)?.tagName;
       if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
+      if (e.altKey && (e.key === 'p' || e.key === 'P')) { e.preventDefault(); useViewStore.getState().togglePreview(); return; }
       if (e.ctrlKey && e.shiftKey && VIEW_SHORTCUTS[e.key]) {
         e.preventDefault();
         useViewStore.getState().setViewMode(VIEW_SHORTCUTS[e.key]);
@@ -215,6 +220,7 @@ export default function App() {
             <FileList entries={shownEntries} renamingPath={renamingPath} onRenameCommit={onRenameCommit} />
           )}
         </main>
+        {previewPane && <PreviewPane entry={previewEntry} />}
       </div>
       <StatusBar count={shownEntries.length} />
       <ContextMenu entries={shownEntries} />

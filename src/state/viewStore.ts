@@ -9,11 +9,13 @@ interface ViewState {
   colWidths: { name: number; date: number; type: number; size: number };
   showHidden: boolean;
   showExtensions: boolean;
+  previewPane: boolean;
   setViewMode: (m: ViewMode) => void;
   setSort: (field: SortField) => void; // click a column header
   setColWidth: (key: ColKey, w: number) => void;
   toggleHidden: () => void;
   toggleExtensions: () => void;
+  togglePreview: () => void;
 }
 
 export const useViewStore = create<ViewState>((set) => ({
@@ -22,6 +24,7 @@ export const useViewStore = create<ViewState>((set) => ({
   colWidths: { name: 600, date: 180, type: 160, size: 110 },
   showHidden: false,
   showExtensions: false,
+  previewPane: false,
   setViewMode: (m) => set({ viewMode: m }),
   setSort: (field) =>
     set((s) => ({
@@ -34,4 +37,5 @@ export const useViewStore = create<ViewState>((set) => ({
     set((s) => ({ colWidths: { ...s.colWidths, [key]: Math.max(40, w) } })),
   toggleHidden: () => set((s) => ({ showHidden: !s.showHidden })),
   toggleExtensions: () => set((s) => ({ showExtensions: !s.showExtensions })),
+  togglePreview: () => set((s) => ({ previewPane: !s.previewPane })),
 }));

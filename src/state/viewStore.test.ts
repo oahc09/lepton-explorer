@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { useViewStore } from './viewStore';
 
-beforeEach(() => useViewStore.setState({ viewMode: 'details', sort: { field: 'name', asc: true }, colWidths: { name: 600, date: 180, type: 160, size: 110 }, showHidden: false, showExtensions: false }));
+beforeEach(() => useViewStore.setState({ viewMode: 'details', sort: { field: 'name', asc: true }, colWidths: { name: 600, date: 180, type: 160, size: 110 }, showHidden: false, showExtensions: false, previewPane: false }));
 
 describe('viewStore', () => {
   it('setViewMode updates mode', () => {
