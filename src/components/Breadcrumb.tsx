@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useLocationStore } from '../state/locationStore';
 import { pathSegments } from '../utils/paths';
 
@@ -7,12 +7,20 @@ export function Breadcrumb() {
   const navigate = useLocationStore((s) => s.navigate);
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(path);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    const onFocus = () => { setDraft(path); setEditing(true); setTimeout(() => inputRef.current?.focus(), 0); };
+    window.addEventListener('winfinder:focus-address', onFocus);
+    return () => window.removeEventListener('winfinder:focus-address', onFocus);
+  }, [path]);
 
   if (editing) {
     return (
       <input
         className="breadcrumb-input"
         autoFocus
+        ref={inputRef}
         value={draft}
         onChange={(e) => setDraft(e.target.value)}
         onBlur={() => setEditing(false)}

@@ -10,6 +10,13 @@ export function SearchBox() {
   const setResults = useSearchStore((s) => s.setResults);
   const path = useLocationStore((s) => s.path);
   const t = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    const onFocus = () => inputRef.current?.focus();
+    window.addEventListener('winfinder:focus-search', onFocus);
+    return () => window.removeEventListener('winfinder:focus-search', onFocus);
+  }, []);
 
   useEffect(() => {
     if (t.current) clearTimeout(t.current);
@@ -24,6 +31,7 @@ export function SearchBox() {
   return (
     <input
       className="search-box"
+      ref={inputRef}
       placeholder={folderName ? `搜索 ${folderName}` : '搜索'}
       value={query}
       onChange={(e) => setQuery(e.target.value)}

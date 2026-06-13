@@ -96,6 +96,10 @@ export default function App() {
   // Ctrl+Shift+1..8 → view mode switch (Win11 mapping).
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
+      if (e.ctrlKey && (e.key === 'l' || e.key === 'L') && !e.shiftKey) { e.preventDefault(); window.dispatchEvent(new CustomEvent('winfinder:focus-address')); return; }
+      if (e.altKey && (e.key === 'd' || e.key === 'D')) { e.preventDefault(); window.dispatchEvent(new CustomEvent('winfinder:focus-address')); return; }
+      if (e.key === 'F4' && !e.ctrlKey && !e.shiftKey && !e.altKey) { e.preventDefault(); window.dispatchEvent(new CustomEvent('winfinder:focus-address')); return; }
+      if (e.ctrlKey && (e.key === 'e' || e.key === 'E' || e.key === 'f' || e.key === 'F') && !e.shiftKey) { e.preventDefault(); window.dispatchEvent(new CustomEvent('winfinder:focus-search')); return; }
       const tag = (e.target as HTMLElement)?.tagName;
       if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
       if (e.ctrlKey && e.shiftKey && VIEW_SHORTCUTS[e.key]) {
