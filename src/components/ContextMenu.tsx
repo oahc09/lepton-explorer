@@ -56,6 +56,7 @@ export function ContextMenu({ entries }: { entries: Entry[] }) {
       {item('粘贴', () => ops.paste(path))}
       {item('重命名', () => window.dispatchEvent(new CustomEvent('winfinder:rename', { detail: sel[0] })), sel.length !== 1)}
       {item('删除', () => ops.remove(sel, false), !hasSel)}
+      {item('属性', () => { const en = selEntries[0]; if (en) window.dispatchEvent(new CustomEvent('winfinder:properties', { detail: en })); }, sel.length !== 1)}
       <li className="cm-sep" />
       {item('显示更多选项', () => {})}
     </ul>

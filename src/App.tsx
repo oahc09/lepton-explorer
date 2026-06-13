@@ -9,6 +9,7 @@ import { NavPane } from './components/NavPane';
 import { FileList } from './components/FileList';
 import { StatusBar } from './components/StatusBar';
 import { ContextMenu } from './components/ContextMenu';
+import { PropertiesDialog } from './components/PropertiesDialog';
 import { CommandBar } from './components/CommandBar';
 import { SearchBox } from './components/SearchBox';
 import { useLocationStore } from './state/locationStore';
@@ -35,6 +36,9 @@ export default function App() {
   const ops = useFileOps();
   const opsRef = useRef(ops);
   opsRef.current = ops;
+  const [propsEntry, setPropsEntry] = useState<Entry | null>(null);
+  const setPropsEntryRef = useRef(setPropsEntry);
+  setPropsEntryRef.current = setPropsEntry;
 
   // Boot to the user's Documents folder on first run.
   useEffect(() => {
@@ -62,6 +66,13 @@ export default function App() {
     const onRefresh = () => setRefreshKey((k) => k + 1);
     window.addEventListener('winfinder:refresh', onRefresh);
     return () => window.removeEventListener('winfinder:refresh', onRefresh);
+  }, []);
+
+  // Context menu dispatches winfinder:properties; open the dialog when it fires.
+  useEffect(() => {
+    const onProps = (e: Event) => setPropsEntry((e as CustomEvent<Entry>).detail);
+    window.addEventListener('winfinder:properties', onProps as EventListener);
+    return () => window.removeEventListener('winfinder:properties', onProps as EventListener);
   }, []);
 
   // Watch the current path for filesystem changes; re-list on fs-changed.
@@ -134,6 +145,14 @@ export default function App() {
         window.dispatchEvent(new CustomEvent('winfinder:rename', { detail: selected[0] }));
         return;
       }
+      if (e.key === 'Enter' && e.altKey) {
+        e.preventDefault();
+        if (selected.length === 1) {
+          const en = entryRef.current.find((x: Entry) => x.path === selected[0]);
+          if (en) setPropsEntryRef.current(en);
+        }
+        return;
+      }
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
@@ -173,6 +192,7 @@ export default function App() {
       </div>
       <StatusBar count={entries.length} />
       <ContextMenu entries={entries} />
+      {propsEntry && <PropertiesDialog entry={propsEntry} onClose={() => setPropsEntry(null)} />}
     </div>
   );
 }
