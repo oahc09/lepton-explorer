@@ -16,9 +16,9 @@ A fully usable file manager matching Win11 Explorer's layout and behavior:
 - **Tabs** — `Ctrl+T`/`W`/`Tab`/`1–9`, middle-click folder=open-in-new-tab, middle-click tab=close,
   drag-to-reorder, context-menu "open in new tab"
 - **Multi-window** — `Ctrl+N` new window, `Ctrl+W` close (last tab/window closes the app)
-- **File operations** — new folder/file, rename (`F2`, inline), copy, cut/paste (recursive,
-  cross-volume, **replace/skip/keep-both conflict dialog** on collision), delete-to-recycle,
-  permanent delete (`Shift+Del`), open-in-default-app, **undo/redo** (`Ctrl+Z`/`Y`)
+- **File operations** — new folder/file, rename (`F2`, inline), copy (with a **progress dialog**),
+  cut/paste (recursive, cross-volume, **replace/skip/keep-both conflict dialog** on collision),
+  delete-to-recycle, permanent delete (`Shift+Del`), open-in-default-app, **undo/redo** (`Ctrl+Z`/`Y`)
 - **Selection** — click / `Ctrl` / `Shift` / `Ctrl+A`, arrow-key navigation (`↑↓`+`Enter`),
   rubber-band marquee in icon views
 - **Richness** — image thumbnails + system file-type icons (`SHGetFileInfo`), **live
@@ -80,6 +80,6 @@ The wire contract is camelCase (locked by a regression test).
 - Delete is not undoable (recycle-bin restore is unreliable across the `trash` crate).
 - **Replace-mode** paste undo doesn't auto-restore the overwritten original — it's sent to the recycle
   bin, so it's recoverable there but not via Ctrl+Z. (Keep-both/skip undo fully.)
-- Copy/move are synchronous (no streaming progress bar).
+- Copy shows a progress dialog; move (typically an instant same-volume rename) and redo do not.
 - "Show more options" context-menu item is a placeholder (real shell menu not wired).
 - §11 visual zero-deviation acceptance requires real Win11 baseline screenshots (user step).
