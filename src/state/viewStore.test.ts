@@ -31,4 +31,13 @@ describe('viewStore', () => {
     useViewStore.getState().toggleHidden();
     expect(useViewStore.getState().showHidden).toBe(false);
   });
+  it('togglePreview clears detailsPane and vice versa', () => {
+    useViewStore.setState({ previewPane: false, detailsPane: true });
+    useViewStore.getState().togglePreview();
+    expect(useViewStore.getState().previewPane).toBe(true);
+    expect(useViewStore.getState().detailsPane).toBe(false);
+    useViewStore.getState().toggleDetails();
+    expect(useViewStore.getState().detailsPane).toBe(true);
+    expect(useViewStore.getState().previewPane).toBe(false);
+  });
 });
