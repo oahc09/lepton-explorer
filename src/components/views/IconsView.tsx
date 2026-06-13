@@ -14,7 +14,7 @@ const SIZES: Record<IconSize, { tileW: number; tileH: number; font: number; perR
   'small': { tileW: 72, tileH: 64, font: 16, perRow: 10, nameMax: 66 },
 };
 
-export function IconsView({ entries, size = 'large' }: { entries: Entry[]; size?: IconSize }) {
+export function IconsView({ entries, size = 'large', renamingPath, onRenameCommit }: { entries: Entry[]; size?: IconSize; renamingPath?: string | null; onRenameCommit?: (n: string) => void; }) {
   const s = SIZES[size];
   const parentRef = useRef<HTMLDivElement>(null);
   const sel = useSelectionStore();
@@ -40,7 +40,23 @@ export function IconsView({ entries, size = 'large' }: { entries: Entry[]; size?
                   onDoubleClick={() => { if (item.isDir) navigate(item.path); else openItem(item.path); }}
                 >
                   <div className="tile-icon"><Thumbnail entry={item} size={s.font} /></div>
-                  <div className="tile-name" style={{ maxWidth: s.nameMax }}>{item.name}</div>
+                  {renamingPath === item.path ? (
+                    <input
+                      className="rename-input"
+                      style={{ maxWidth: s.nameMax }}
+                      autoFocus
+                      defaultValue={item.name}
+                      onClick={(e) => e.stopPropagation()}
+                      onFocus={(e) => e.currentTarget.select()}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') { e.preventDefault(); (e.currentTarget as HTMLInputElement).dataset.committed = '1'; onRenameCommit?.((e.currentTarget as HTMLInputElement).value); }
+                        if (e.key === 'Escape') { e.preventDefault(); (e.currentTarget as HTMLInputElement).dataset.committed = '1'; onRenameCommit?.(item.name); }
+                      }}
+                      onBlur={(e) => { if (!e.currentTarget.dataset.committed) onRenameCommit?.(e.currentTarget.value); }}
+                    />
+                  ) : (
+                    <div className="tile-name" style={{ maxWidth: s.nameMax }}>{item.name}</div>
+                  )}
                 </div>
               ))}
             </div>

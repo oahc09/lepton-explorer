@@ -39,6 +39,12 @@ export default function App() {
   const [propsEntry, setPropsEntry] = useState<Entry | null>(null);
   const setPropsEntryRef = useRef(setPropsEntry);
   setPropsEntryRef.current = setPropsEntry;
+  const [renamingPath, setRenamingPath] = useState<string | null>(null);
+
+  const onRenameCommit = (newName: string) => {
+    if (renamingPath && newName.trim()) ops.renameEntry(renamingPath, newName.trim());
+    setRenamingPath(null);
+  };
 
   // Boot to the user's Documents folder on first run.
   useEffect(() => {
@@ -73,6 +79,13 @@ export default function App() {
     const onProps = (e: Event) => setPropsEntry((e as CustomEvent<Entry>).detail);
     window.addEventListener('winfinder:properties', onProps as EventListener);
     return () => window.removeEventListener('winfinder:properties', onProps as EventListener);
+  }, []);
+
+  // CommandBar/F2 dispatches winfinder:rename (detail = path); start inline rename.
+  useEffect(() => {
+    const onRename = (e: Event) => setRenamingPath((e as CustomEvent<string>).detail);
+    window.addEventListener('winfinder:rename', onRename as EventListener);
+    return () => window.removeEventListener('winfinder:rename', onRename as EventListener);
   }, []);
 
   // Watch the current path for filesystem changes; re-list on fs-changed.
@@ -187,7 +200,7 @@ export default function App() {
           {loading ? <div className="empty">加载中…</div>
             : error ? <div className="empty">无法打开此位置：{error}</div>
             : entries.length === 0 ? <div className="empty">此文件夹为空。</div>
-            : <FileList entries={shownEntries} />}
+            : <FileList entries={shownEntries} renamingPath={renamingPath} onRenameCommit={onRenameCommit} />}
         </main>
       </div>
       <StatusBar count={entries.length} />

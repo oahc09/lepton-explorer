@@ -10,7 +10,7 @@ import { Thumbnail } from '../Thumbnail';
 
 const ROW_H = 32;
 
-export function DetailsView({ entries }: { entries: Entry[] }) {
+export function DetailsView({ entries, renamingPath, onRenameCommit }: { entries: Entry[]; renamingPath?: string | null; onRenameCommit?: (n: string) => void; }) {
   const parentRef = useRef<HTMLDivElement>(null);
   const sorted = useSorted(entries);
   const rowVirtualizer = useVirtualizer({ count: sorted.length, getScrollElement: () => parentRef.current, estimateSize: () => ROW_H, overscan: 20 });
@@ -41,7 +41,22 @@ export function DetailsView({ entries }: { entries: Entry[] }) {
               onClick={(ev) => handleClick(ev, item, sorted, sel)}
               onDoubleClick={() => { if (item.isDir) onOpen(item); else openItem(item.path); }}
             >
-              <span className="col-name"><span className="row-icon" aria-hidden><Thumbnail entry={item} size={16} /></span><span className="name">{item.name}</span></span>
+              <span className="col-name"><span className="row-icon" aria-hidden><Thumbnail entry={item} size={16} /></span>{renamingPath === item.path ? (
+                <input
+                  className="rename-input"
+                  autoFocus
+                  defaultValue={item.name}
+                  onClick={(e) => e.stopPropagation()}
+                  onFocus={(e) => e.currentTarget.select()}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') { e.preventDefault(); (e.currentTarget as HTMLInputElement).dataset.committed = '1'; onRenameCommit?.((e.currentTarget as HTMLInputElement).value); }
+                    if (e.key === 'Escape') { e.preventDefault(); (e.currentTarget as HTMLInputElement).dataset.committed = '1'; onRenameCommit?.(item.name); }
+                  }}
+                  onBlur={(e) => { if (!e.currentTarget.dataset.committed) onRenameCommit?.(e.currentTarget.value); }}
+                />
+              ) : (
+                <span className="name">{item.name}</span>
+              )}</span>
               <span className="col-date">{formatDate(item.modified)}</span>
               <span className="col-type">{item.typeLabel}</span>
               <span className="col-size">{item.isDir ? '' : formatSize(item.size)}</span>

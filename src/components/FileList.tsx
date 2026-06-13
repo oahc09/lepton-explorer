@@ -6,11 +6,11 @@ import { ListView } from './views/ListView';
 import { TilesView } from './views/TilesView';
 import { ContentView } from './views/ContentView';
 
-export function FileList({ entries }: { entries: Entry[] }) {
+export function FileList({ entries, renamingPath, onRenameCommit }: { entries: Entry[]; renamingPath?: string | null; onRenameCommit?: (newName: string) => void; }) {
   const viewMode = useViewStore((s) => s.viewMode);
-  if (viewMode === 'details') return <DetailsView entries={entries} />;
+  if (viewMode === 'details') return <DetailsView entries={entries} renamingPath={renamingPath} onRenameCommit={onRenameCommit} />;
   if (viewMode === 'list') return <ListView entries={entries} />;
   if (viewMode === 'tiles') return <TilesView entries={entries} />;
   if (viewMode === 'content') return <ContentView entries={entries} />;
-  return <IconsView entries={entries} size={viewMode as IconSize} />;
+  return <IconsView entries={entries} size={viewMode as IconSize} renamingPath={renamingPath} onRenameCommit={onRenameCommit} />;
 }
