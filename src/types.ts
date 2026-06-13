@@ -17,6 +17,9 @@ export type ViewMode =
   | 'extra-large' | 'large' | 'medium' | 'small'
   | 'list' | 'details' | 'tiles' | 'content';
 
+export type IconSize = 'extra-large' | 'large' | 'medium' | 'small';
+export const ICON_MODES: IconSize[] = ['extra-large', 'large', 'medium', 'small'];
+
 export type SortField = 'name' | 'modified' | 'type' | 'size';
 export interface Sort { field: SortField; asc: boolean; }
 

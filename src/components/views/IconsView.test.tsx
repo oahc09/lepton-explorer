@@ -18,7 +18,7 @@ beforeEach(() => useSelectionStore.getState().clear());
 
 describe('IconsView', () => {
   it('renders tiles and selects on click', () => {
-    render(<IconsView entries={[e('Folder1')]} />);
+    render(<IconsView entries={[e('Folder1')]} size="large" />);
     expect(screen.getByText('Folder1')).toBeInTheDocument();
     fireEvent.click(screen.getByText('Folder1'));
     expect(useSelectionStore.getState().selected).toEqual(['C:\\Folder1']);
