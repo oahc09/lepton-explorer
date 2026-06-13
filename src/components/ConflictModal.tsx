@@ -19,7 +19,7 @@ export function ConflictModal() {
       <div className="modal conflict" onClick={(e) => e.stopPropagation()}>
         <h3>替换或跳过文件</h3>
         <p className="conflict-msg">
-          目标位置已存在 {n} 个同名{n === 1 ? '文件' : '文件'}：
+          目标位置已存在 {n} 个同名文件：
         </p>
         <ul className="conflict-names">
           {names.slice(0, 8).map((name) => (

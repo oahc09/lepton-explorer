@@ -129,6 +129,14 @@ fn remove_recursive(p: &Path) -> std::io::Result<()> {
     if p.is_dir() { fs::remove_dir_all(p) } else { fs::remove_file(p) }
 }
 
+/// Send `p` to the OS recycle bin (recoverable), mapping the trash error to
+/// an io::Error. Used by the `Replace` strategy so an overwritten item is NOT
+/// permanently lost — undo can't auto-restore it, but the user can recover it
+/// from the recycle bin.
+fn trash_path(p: &Path) -> std::io::Result<()> {
+    trash::delete(p).map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e.to_string()))
+}
+
 /// Copy each source into `dest_dir` (auto-renaming on collision). Returns the resulting paths.
 pub fn copy_items(sources: &[String], dest_dir: &str) -> std::io::Result<Vec<String>> {
     copy_items_with_strategy(sources, dest_dir, ConflictStrategy::Rename)
@@ -149,9 +157,10 @@ pub fn copy_items_with_strategy(
             Some(t) => t,
             None => continue, // Skip + collision → skip this source
         };
-        // Replace: remove the existing target first so the copy overwrites it.
+        // Replace: send the existing target to the recycle bin (recoverable) so
+        // the copy can overwrite it without permanently losing the original.
         if strategy == ConflictStrategy::Replace && target.exists() {
-            remove_recursive(&target)?;
+            trash_path(&target)?;
         }
         copy_recursive(src, &target)?;
         out.push(target.to_string_lossy().to_string());
@@ -181,7 +190,7 @@ pub fn move_items_with_strategy(
             None => continue, // Skip + collision → skip this source
         };
         if strategy == ConflictStrategy::Replace && target.exists() {
-            remove_recursive(&target)?;
+            trash_path(&target)?;
         }
         let old = src.to_string_lossy().to_string();
         match fs::rename(src, &target) {

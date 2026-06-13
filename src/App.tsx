@@ -127,6 +127,9 @@ export default function App() {
     return () => window.removeEventListener('storage', onStorage);
   }, []);
 
+  // Reset the pane-focus cycle to start at the nav pane after each navigation.
+  useEffect(() => { focusZone.current = 0; }, [path]);
+
   // F6 file-list target: focus the main view when requested.
   useEffect(() => {
     const onFocus = () => mainRef.current?.focus();
