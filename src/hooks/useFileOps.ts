@@ -3,6 +3,7 @@ import { useClipboardStore } from '../state/clipboardStore';
 import { useConflictStore } from '../state/conflictStore';
 import { useHistoryStore } from '../state/historyStore';
 import { parentOf } from '../state/locationStore';
+import { useProgressStore } from '../state/progressStore';
 import { joinPath } from '../utils/paths';
 import type { ConflictInfo, ConflictStrategy } from '../types';
 
@@ -65,12 +66,17 @@ export function useFileOps() {
     }
 
     if (mode === 'copy') {
-      const created = await invoke<string[]>('copy_items_with_strategy', { sources, dest: destDir, strategy });
-      push({
-        label: '复制',
-        undo: async () => { await invoke('delete_to_trash', { paths: created }); refresh(); },
-        redo: async () => { await invoke('copy_items_with_strategy', { sources, dest: destDir, strategy }); refresh(); },
-      });
+      useProgressStore.getState().open();
+      try {
+        const created = await invoke<string[]>('copy_with_progress', { sources, dest: destDir, strategy });
+        push({
+          label: '复制',
+          undo: async () => { await invoke('delete_to_trash', { paths: created }); refresh(); },
+          redo: async () => { await invoke('copy_items_with_strategy', { sources, dest: destDir, strategy }); refresh(); },
+        });
+      } finally {
+        useProgressStore.getState().close();
+      }
     } else {
       const moved = await invoke<[string, string][]>('move_items_with_strategy', { sources, dest: destDir, strategy });
       const pairs = moved; // [(old, new), ...] for items actually moved

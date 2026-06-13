@@ -88,13 +88,14 @@ pub fn unique_path(dst: &Path) -> PathBuf {
 }
 
 fn copy_recursive(src: &Path, dst: &Path) -> std::io::Result<()> {
-    copy_recursive_inner(src, dst, &mut std::collections::HashSet::new())
+    copy_recursive_tracked(src, dst, &mut std::collections::HashSet::new(), &mut |_| {})
 }
 
-fn copy_recursive_inner(
+fn copy_recursive_tracked(
     src: &Path,
     dst: &Path,
     visited: &mut std::collections::HashSet<PathBuf>,
+    on_file: &mut dyn FnMut(&Path),
 ) -> std::io::Result<()> {
     // If `src` is itself a symlink (to a dir or file), do NOT dereference+recurse;
     // copy it as a single unit (copies the target's content). This avoids following
@@ -103,6 +104,7 @@ fn copy_recursive_inner(
         .map(|m| m.file_type().is_symlink())
         .unwrap_or(false)
     {
+        on_file(src);
         fs::copy(src, dst).map(|_| ())
     } else if src.is_dir() {
         // Guard against symlink/junction cycles: canonicalize this directory and
@@ -117,12 +119,77 @@ fn copy_recursive_inner(
             let entry = entry?;
             let from = entry.path();
             let to = dst.join(entry.file_name());
-            copy_recursive_inner(&from, &to, visited)?;
+            copy_recursive_tracked(&from, &to, visited, on_file)?;
         }
         Ok(())
     } else {
+        on_file(src);
         fs::copy(src, dst).map(|_| ())
     }
+}
+
+/// Count the files that copying `sources` would write (files only, not dirs).
+/// Matches `copy_recursive_tracked` semantics: a symlink counts as one unit,
+/// a directory counts its descendants recursively.
+fn count_files_in(p: &Path) -> usize {
+    if fs::symlink_metadata(p)
+        .map(|m| m.file_type().is_symlink())
+        .unwrap_or(false)
+    {
+        1
+    } else if p.is_dir() {
+        match fs::read_dir(p) {
+            Ok(rd) => rd
+                .filter_map(|e| e.ok())
+                .map(|e| count_files_in(&e.path()))
+                .sum(),
+            Err(_) => 0,
+        }
+    } else {
+        1
+    }
+}
+
+pub fn count_files(sources: &[String]) -> usize {
+    sources.iter().map(|s| count_files_in(Path::new(s))).sum()
+}
+
+/// Like `copy_items_with_strategy`, but invokes `on_file(current, total, path)`
+/// as each file is written — used to drive a progress indicator.
+pub fn copy_items_tracked<F>(
+    sources: &[String],
+    dest_dir: &str,
+    strategy: ConflictStrategy,
+    mut on_file: F,
+) -> std::io::Result<Vec<String>>
+where
+    F: FnMut(usize, usize, &Path),
+{
+    let dest = Path::new(dest_dir);
+    let total = count_files(sources);
+    let mut current = 0usize;
+    let mut out = Vec::new();
+    for s in sources {
+        let src = Path::new(s);
+        let target = match resolve_target(src, dest, strategy) {
+            Some(t) => t,
+            None => continue, // Skip + collision → skip this source
+        };
+        if strategy == ConflictStrategy::Replace && target.exists() {
+            trash_path(&target)?;
+        }
+        copy_recursive_tracked(
+            src,
+            &target,
+            &mut std::collections::HashSet::new(),
+            &mut |p| {
+                current += 1;
+                on_file(current, total, p);
+            },
+        )?;
+        out.push(target.to_string_lossy().to_string());
+    }
+    Ok(out)
 }
 
 fn remove_recursive(p: &Path) -> std::io::Result<()> {
@@ -503,5 +570,52 @@ mod tests {
         assert_eq!(fs::read_to_string(dest.join("a.txt")).unwrap(), "EXISTING");
         assert!(dest.join("a (1).txt").is_file());
         assert!(out[0].ends_with("a (1).txt"));
+    }
+
+    #[test]
+    fn count_files_counts_files_and_dir_descendants() {
+        let d = tempdir().unwrap();
+        let f1 = d.path().join("a.txt"); fs::write(&f1, "x").unwrap();
+        let sub = d.path().join("sub"); fs::create_dir(&sub).unwrap();
+        fs::write(sub.join("c.txt"), "z").unwrap();
+        fs::write(sub.join("d.txt"), "w").unwrap();
+        // f1 = 1 file; sub dir = 2 files inside → total 3
+        assert_eq!(
+            count_files(&[f1.to_string_lossy().to_string(), sub.to_string_lossy().to_string()]),
+            3
+        );
+    }
+
+    #[test]
+    fn count_files_empty_dir_counts_zero() {
+        let d = tempdir().unwrap();
+        let sub = d.path().join("empty"); fs::create_dir(&sub).unwrap();
+        assert_eq!(count_files(&[sub.to_string_lossy().to_string()]), 0);
+    }
+
+    #[test]
+    fn copy_items_tracked_invokes_callback_per_file_with_running_totals() {
+        let d = tempdir().unwrap();
+        let dest = d.path().join("dest"); fs::create_dir(&dest).unwrap();
+        let sub = d.path().join("sub"); fs::create_dir(&sub).unwrap();
+        fs::write(sub.join("a.txt"), "1").unwrap();
+        fs::write(sub.join("b.txt"), "2").unwrap();
+        let mut calls: Vec<(usize, usize, String)> = Vec::new();
+        let out = copy_items_tracked(
+            &[sub.to_string_lossy().to_string()],
+            dest.to_str().unwrap(),
+            ConflictStrategy::Rename,
+            |cur, total, p| {
+                calls.push((cur, total, p.file_name().unwrap().to_string_lossy().to_string()));
+            },
+        )
+        .unwrap();
+        assert_eq!(out.len(), 1);
+        assert_eq!(calls.len(), 2, "one callback per file copied");
+        assert!(calls.iter().all(|(_, t, _)| *t == 2), "total is constant");
+        assert_eq!(calls[0].0, 1);
+        assert_eq!(calls[1].0, 2);
+        assert!(dest.join("sub").join("a.txt").is_file());
+        assert!(dest.join("sub").join("b.txt").is_file());
     }
 }

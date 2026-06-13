@@ -4,6 +4,7 @@ import { useFileOps } from './useFileOps';
 import { useClipboardStore } from '../state/clipboardStore';
 import { useHistoryStore } from '../state/historyStore';
 import { useConflictStore } from '../state/conflictStore';
+import { useProgressStore } from '../state/progressStore';
 import type { Entry } from '../types';
 
 vi.mock('@tauri-apps/api/core', () => ({ invoke: vi.fn() }));
@@ -22,6 +23,7 @@ beforeEach(() => {
   useClipboardStore.getState().clear();
   useHistoryStore.setState({ undoStack: [], redoStack: [] });
   useConflictStore.setState({ pending: null });
+  useProgressStore.setState({ active: false });
 });
 
 describe('useFileOps', () => {
@@ -33,18 +35,19 @@ describe('useFileOps', () => {
     expect(useHistoryStore.getState().canUndo()).toBe(true);
   });
 
-  it('paste in copy mode with no conflict invokes copy_items_with_strategy(rename)', async () => {
+  it('paste in copy mode with no conflict invokes copy_with_progress(rename) and opens then closes the progress dialog', async () => {
     useClipboardStore.getState().copy([e('a.txt')]);
-    route({ check_conflicts: [], copy_items_with_strategy: ['C:\\dest\\a.txt'] });
+    route({ check_conflicts: [], copy_with_progress: ['C:\\dest\\a.txt'] });
     const { result } = renderHook(() => useFileOps());
     await act(async () => { await result.current.paste('C:\\dest'); });
     expect(m).toHaveBeenCalledWith('check_conflicts', expect.objectContaining({ dest: 'C:\\dest' }));
-    expect(m).toHaveBeenCalledWith('copy_items_with_strategy', expect.objectContaining({ dest: 'C:\\dest', strategy: 'rename' }));
+    expect(m).toHaveBeenCalledWith('copy_with_progress', expect.objectContaining({ dest: 'C:\\dest', strategy: 'rename' }));
+    expect(useProgressStore.getState().active).toBe(false); // closed after completion
   });
 
   it('paste with a conflict asks the user; choosing replace uses the replace strategy', async () => {
     useClipboardStore.getState().copy([e('a.txt')]);
-    route({ check_conflicts: [{ name: 'a.txt' }], copy_items_with_strategy: ['C:\\dest\\a.txt'] });
+    route({ check_conflicts: [{ name: 'a.txt' }], copy_with_progress: ['C:\\dest\\a.txt'] });
     const { result } = renderHook(() => useFileOps());
     await act(async () => {
       const pasteP = result.current.paste('C:\\dest');
@@ -52,7 +55,7 @@ describe('useFileOps', () => {
       useConflictStore.getState().answer('replace');
       await pasteP;
     });
-    expect(m).toHaveBeenCalledWith('copy_items_with_strategy', expect.objectContaining({ strategy: 'replace' }));
+    expect(m).toHaveBeenCalledWith('copy_with_progress', expect.objectContaining({ strategy: 'replace' }));
   });
 
   it('paste with a conflict that the user cancels performs no copy', async () => {
@@ -65,7 +68,8 @@ describe('useFileOps', () => {
       useConflictStore.getState().answer(null);
       await pasteP;
     });
-    expect(m).not.toHaveBeenCalledWith('copy_items_with_strategy', expect.anything());
+    expect(m).not.toHaveBeenCalledWith('copy_with_progress', expect.anything());
+    expect(useProgressStore.getState().active).toBe(false); // never opened (cancel before copy)
   });
 
   it('paste in cut mode with no conflict invokes move_items_with_strategy(rename) and clears clipboard', async () => {

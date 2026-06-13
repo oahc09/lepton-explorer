@@ -6,6 +6,16 @@ pub mod thumbnails;
 pub mod watch;
 
 use error::{AppError, Result};
+use tauri::Emitter;
+
+/// Progress payload emitted during a tracked copy.
+#[derive(serde::Serialize, Clone)]
+#[serde(rename_all = "camelCase")]
+struct CopyProgress {
+    current: usize,
+    total: usize,
+    file: String,
+}
 
 #[tauri::command]
 fn list_directory(dir: String) -> Result<Vec<fs_ops::Entry>> {
@@ -49,6 +59,25 @@ fn copy_items_with_strategy(
     strategy: ops::ConflictStrategy,
 ) -> Result<Vec<String>> {
     ops::copy_items_with_strategy(&sources, &dest, strategy).map_err(AppError::from)
+}
+
+#[tauri::command]
+fn copy_with_progress(
+    app: tauri::AppHandle,
+    sources: Vec<String>,
+    dest: String,
+    strategy: ops::ConflictStrategy,
+) -> Result<Vec<String>> {
+    // Copy file-by-file, emitting "fs-copy-progress" {current,total,file} per file
+    // so the frontend can render a progress dialog. Runs on a background thread.
+    ops::copy_items_tracked(&sources, &dest, strategy, |current, total, path| {
+        let file = path
+            .file_name()
+            .map(|f| f.to_string_lossy().to_string())
+            .unwrap_or_default();
+        let _ = app.emit("fs-copy-progress", CopyProgress { current, total, file });
+    })
+    .map_err(AppError::from)
 }
 
 #[tauri::command]
@@ -121,6 +150,7 @@ pub fn run() {
             rename,
             copy_items,
             copy_items_with_strategy,
+            copy_with_progress,
             move_items,
             move_items_with_strategy,
             check_conflicts,

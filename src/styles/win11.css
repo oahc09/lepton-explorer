@@ -134,6 +134,12 @@ body { font-family: var(--font); font-size: 14px; background: var(--bg); color: 
 
 .rename-input { font-size: 13px; padding: 0 4px; border: 1px solid var(--accent); border-radius: 3px; height: 22px; width: 100%; min-width: 80px; background: var(--main-bg); color: var(--text); }
 
+.progress-modal { min-width: 360px; max-width: 440px; }
+.progress-bar { height: 8px; background: var(--border); border-radius: 4px; overflow: hidden; margin: 12px 0 8px; }
+.progress-fill { height: 100%; background: var(--accent); border-radius: 4px; transition: width 120ms ease; }
+.progress-file { font-size: 12px; color: var(--text-sub); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.progress-count { font-size: 12px; color: var(--text-sub); margin-top: 4px; }
+
 .conflict { min-width: 360px; max-width: 440px; }
 .conflict-msg { font-size: 13px; margin-bottom: 8px; }
 .conflict-names { list-style: none; max-height: 150px; overflow: auto; border: 1px solid var(--border); border-radius: 6px; padding: 6px; margin-bottom: 8px; }

@@ -11,6 +11,7 @@ import { StatusBar } from './components/StatusBar';
 import { ContextMenu } from './components/ContextMenu';
 import { PropertiesDialog } from './components/PropertiesDialog';
 import { ConflictModal } from './components/ConflictModal';
+import { ProgressModal } from './components/ProgressModal';
 import { CommandBar } from './components/CommandBar';
 import { SearchBox } from './components/SearchBox';
 import { PreviewPane } from './components/PreviewPane';
@@ -347,6 +348,7 @@ export default function App() {
       <ContextMenu entries={shownEntries} />
       {propsEntry && <PropertiesDialog entry={propsEntry} onClose={() => setPropsEntry(null)} />}
       <ConflictModal />
+      <ProgressModal />
     </div>
   );
 }
