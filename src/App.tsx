@@ -30,6 +30,7 @@ import { HomeView } from './components/views/HomeView';
 import { VIEW_SHORTCUTS } from './shortcuts';
 import { openItem } from './utils/open';
 import { newWindow } from './utils/window';
+import { cycleIconSize } from './utils/viewCycle';
 
 export default function App() {
   const path = useLocationStore((s) => s.path);
@@ -131,6 +132,21 @@ export default function App() {
     const onFocus = () => mainRef.current?.focus();
     window.addEventListener('winfinder:focus-filelist', onFocus);
     return () => window.removeEventListener('winfinder:focus-filelist', onFocus);
+  }, []);
+
+  // Ctrl+mouse-wheel changes icon size (Win11 operating habit). Non-passive so we
+  // can preventDefault the browser's ctrl+wheel page zoom. Scoped to the file list.
+  useEffect(() => {
+    const onWheel = (e: WheelEvent) => {
+      if (!e.ctrlKey) return;
+      const target = e.target as HTMLElement | null;
+      if (!target || !target.closest('.main-view')) return;
+      e.preventDefault();
+      const vm = useViewStore.getState().viewMode;
+      useViewStore.getState().setViewMode(cycleIconSize(vm, e.deltaY < 0));
+    };
+    window.addEventListener('wheel', onWheel, { passive: false });
+    return () => window.removeEventListener('wheel', onWheel);
   }, []);
 
   // Ctrl+Shift+1..8 → view mode switch (Win11 mapping).
