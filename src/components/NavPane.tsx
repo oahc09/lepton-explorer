@@ -16,7 +16,7 @@ export function NavPane() {
 
   return (
     <nav className="nav-pane">
-      <button className="nav-item" onClick={() => navigate(folders.find((f) => f.key === 'home')?.path ?? '')}>
+      <button className="nav-item" onClick={() => navigate('')}>
         <span aria-hidden>🏠</span><span>主页</span>
       </button>
       <button className="nav-item" onClick={() => {}}>

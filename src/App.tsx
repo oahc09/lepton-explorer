@@ -20,7 +20,8 @@ import { useFileOps } from './hooks/useFileOps';
 import { useHistoryStore } from './state/historyStore';
 import { useClipboardStore } from './state/clipboardStore';
 import { useSelectionStore } from './state/selectionStore';
-import type { Entry, SpecialFolder, ViewMode } from './types';
+import type { Entry, ViewMode } from './types';
+import { HomeView } from './components/views/HomeView';
 import { VIEW_SHORTCUTS } from './shortcuts';
 
 export default function App() {
@@ -45,16 +46,6 @@ export default function App() {
     if (renamingPath && newName.trim()) ops.renameEntry(renamingPath, newName.trim());
     setRenamingPath(null);
   };
-
-  // Boot to the user's Documents folder on first run.
-  useEffect(() => {
-    if (!path) {
-      invoke<SpecialFolder[]>('special_folders').then((f) => {
-        const docs = f.find((x) => x.key === 'documents');
-        if (docs) navigate(docs.path);
-      });
-    }
-  }, [path, navigate]);
 
   // Follow system light/dark theme.
   useEffect(() => {
@@ -192,15 +183,22 @@ export default function App() {
         </select>
         <CommandBar entries={shownEntries} />
         <Breadcrumb />
-        <SearchBox />
+        {path !== '' && <SearchBox />}
       </div>
       <div className="body">
         <NavPane />
         <main className="main-view" key={`${path}-${refreshKey}`}>
-          {loading ? <div className="empty">加载中…</div>
-            : error ? <div className="empty">无法打开此位置：{error}</div>
-            : entries.length === 0 ? <div className="empty">此文件夹为空。</div>
-            : <FileList entries={shownEntries} renamingPath={renamingPath} onRenameCommit={onRenameCommit} />}
+          {path === '' ? (
+            <HomeView onOpen={(p) => navigate(p)} />
+          ) : loading ? (
+            <div className="empty">加载中…</div>
+          ) : error ? (
+            <div className="empty">无法打开此位置：{error}</div>
+          ) : entries.length === 0 ? (
+            <div className="empty">此文件夹为空。</div>
+          ) : (
+            <FileList entries={shownEntries} renamingPath={renamingPath} onRenameCommit={onRenameCommit} />
+          )}
         </main>
       </div>
       <StatusBar count={entries.length} />

@@ -127,3 +127,10 @@ body { font-family: var(--font); font-size: 14px; background: var(--bg); color: 
 .props { display: grid; grid-template-columns: 90px 1fr; gap: 8px 12px; font-size: 13px; }
 .props dt { color: var(--text-sub); }
 .modal-actions { margin-top: 16px; text-align: right; }
+.home { padding: 24px; overflow: auto; height: 100%; }
+.home-section { font-size: 16px; font-weight: 600; margin-bottom: 16px; }
+.home-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 12px; }
+.home-card { display: flex; flex-direction: column; align-items: center; gap: 10px; padding: 20px 12px; background: transparent; border: 1px solid transparent; border-radius: 8px; cursor: pointer; color: var(--text); }
+.home-card:hover { background: var(--hover-bg); }
+.home-icon { font-size: 40px; }
+.home-label { font-size: 13px; }
