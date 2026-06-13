@@ -1,7 +1,6 @@
 import { invoke } from '@tauri-apps/api/core';
 import { useClipboardStore } from '../state/clipboardStore';
 import { useHistoryStore } from '../state/historyStore';
-import { useLocationStore } from '../state/locationStore';
 import { joinPath } from '../utils/paths';
 
 function refresh() {
@@ -17,7 +16,7 @@ export function useFileOps() {
     const created = await invoke('create_dir', { path });
     push({
       label: '新建文件夹',
-      undo: async () => { await invoke('delete_permanent', { paths: [path] }); refresh(); },
+      undo: async () => { await invoke('delete_to_trash', { paths: [path] }); refresh(); },
       redo: async () => { await invoke('create_dir', { path }); refresh(); },
     });
     refresh();
@@ -29,7 +28,7 @@ export function useFileOps() {
     await invoke('create_file', { path });
     push({
       label: '新建文件',
-      undo: async () => { await invoke('delete_permanent', { paths: [path] }); refresh(); },
+      undo: async () => { await invoke('delete_to_trash', { paths: [path] }); refresh(); },
       redo: async () => { await invoke('create_file', { path }); refresh(); },
     });
     refresh();
@@ -55,16 +54,26 @@ export function useFileOps() {
       const created = await invoke<string[]>('copy_items', { sources, dest: destDir });
       push({
         label: '复制',
-        undo: async () => { await invoke('delete_permanent', { paths: created }); refresh(); },
+        undo: async () => { await invoke('delete_to_trash', { paths: created }); refresh(); },
         redo: async () => { await invoke('copy_items', { sources, dest: destDir }); refresh(); },
       });
     } else {
       const moved = await invoke<[string, string][]>('move_items', { sources, dest: destDir });
-      const olds = moved.map((mm) => mm[0]);
+      const pairs = moved; // [(old, new), ...]
+      const parentOf = (p: string) => p.replace(/\\[^\\]*$/, '');
       push({
         label: '移动',
-        undo: async () => { await invoke('move_items', { sources: moved.map((mm) => mm[1]), dest: useLocationStore.getState().path }); refresh(); },
-        redo: async () => { await invoke('move_items', { sources: olds, dest: destDir }); refresh(); },
+        undo: async () => {
+          for (const [oldP, newP] of pairs) {
+            await invoke('move_items', { sources: [newP], dest: parentOf(oldP) });
+          }
+          refresh();
+        },
+        redo: async () => {
+          const olds = pairs.map((p2) => p2[0]);
+          await invoke('move_items', { sources: olds, dest: destDir });
+          refresh();
+        },
       });
       useClipboardStore.getState().clear();
     }

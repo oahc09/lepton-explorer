@@ -207,7 +207,7 @@ export default function App() {
         </main>
       </div>
       <StatusBar count={entries.length} />
-      <ContextMenu entries={entries} />
+      <ContextMenu entries={shownEntries} />
       {propsEntry && <PropertiesDialog entry={propsEntry} onClose={() => setPropsEntry(null)} />}
     </div>
   );
