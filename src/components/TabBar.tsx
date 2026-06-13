@@ -7,6 +7,7 @@ export function TabBar() {
   const setActive = useLocationStore((s) => s.setActive);
   const addTab = useLocationStore((s) => s.addTab);
   const closeTab = useLocationStore((s) => s.closeTab);
+  const moveTab = useLocationStore((s) => s.moveTab);
 
   const onClose = async (id: string) => {
     const ok = closeTab(id);
@@ -21,6 +22,11 @@ export function TabBar() {
         <div
           key={t.id}
           className={`tab${t.id === activeId ? ' active' : ''}`}
+          draggable
+          onMouseDown={(e) => e.stopPropagation()}
+          onDragStart={(e) => { e.dataTransfer.effectAllowed = 'move'; e.dataTransfer.setData('text/plain', t.id); }}
+          onDragOver={(e) => { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; }}
+          onDrop={(e) => { e.preventDefault(); const from = e.dataTransfer.getData('text/plain'); if (from && from !== t.id) moveTab(from, t.id); }}
           onClick={() => setActive(t.id)}
           onAuxClick={(e) => { if (e.button === 1) { e.preventDefault(); void onClose(t.id); } }}
         >

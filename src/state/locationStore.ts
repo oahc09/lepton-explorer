@@ -44,6 +44,7 @@ interface LocationState {
   addTab: (path?: string) => string; // returns new tab id
   closeTab: (id: string) => boolean; // returns false if it was the last tab (caller should close window)
   setActive: (id: string) => void;
+  moveTab: (fromId: string, toId: string) => void;
 }
 
 const initial = makeTab();
@@ -142,6 +143,16 @@ export const useLocationStore = create<LocationState>((set, get) => {
     },
     setActive: (id) => {
       if (get().tabs.some((t) => t.id === id)) set(sync(get().tabs, id));
+    },
+    moveTab: (fromId, toId) => {
+      const { tabs, activeId } = get();
+      const from = tabs.findIndex((t) => t.id === fromId);
+      const to = tabs.findIndex((t) => t.id === toId);
+      if (from === -1 || to === -1 || from === to) return;
+      const next = [...tabs];
+      const [moved] = next.splice(from, 1);
+      next.splice(to, 0, moved);
+      set({ tabs: next, activeId }); // active tab unchanged → path/stacks stay valid
     },
   };
 });

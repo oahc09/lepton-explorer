@@ -79,4 +79,23 @@ describe('tabs', () => {
     useLocationStore.getState().setActive('t0');
     expect(useLocationStore.getState().path).toBe('C:\\X');
   });
+  it('moveTab reorders without losing active', () => {
+    // start from a clean 3-tab layout (no seeded tab) so ids[2] is the last
+    useLocationStore.setState({
+      path: '',
+      backStack: [],
+      forwardStack: [],
+      tabs: [
+        { id: 't0', title: 'A', path: 'C:\\A', backStack: [], forwardStack: [] },
+        { id: 't1', title: 'B', path: 'C:\\B', backStack: [], forwardStack: [] },
+        { id: 't2', title: 'C', path: 'C:\\C', backStack: [], forwardStack: [] },
+      ],
+      activeId: 't0',
+    });
+    const ids = useLocationStore.getState().tabs.map((t) => t.id);
+    useLocationStore.getState().moveTab(ids[0], ids[2]); // move first to last position
+    const after = useLocationStore.getState().tabs.map((t) => t.id);
+    expect(after[after.length - 1]).toBe(ids[0]);
+    expect(after.length).toBe(ids.length);
+  });
 });
