@@ -4,15 +4,18 @@ import type { Entry } from '../types';
 interface SelectionState {
   selected: string[];
   anchor: string | null;
+  focusIndex: number;
   select: (items: Entry[]) => void;
   toggle: (item: Entry) => void;
   selectRange: (allInOrder: Entry[], targetPath: string) => void;
+  setFocus: (i: number) => void;
   clear: () => void;
 }
 
 export const useSelectionStore = create<SelectionState>((set, get) => ({
   selected: [],
   anchor: null,
+  focusIndex: -1,
   select: (items) =>
     set({ selected: items.map((i) => i.path), anchor: items.length ? items[items.length - 1].path : null }),
   toggle: (item) =>
@@ -32,5 +35,6 @@ export const useSelectionStore = create<SelectionState>((set, get) => ({
     const [lo, hi] = a < b ? [a, b] : [b, a];
     set({ selected: paths.slice(lo, hi + 1), anchor });
   },
+  setFocus: (i) => set({ focusIndex: i }),
   clear: () => set({ selected: [], anchor: null }),
 }));

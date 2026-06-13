@@ -24,4 +24,8 @@ describe('selectionStore', () => {
     useSelectionStore.getState().selectRange(items, 'C:\\c');
     expect(useSelectionStore.getState().selected.sort()).toEqual(['C:\\a', 'C:\\b', 'C:\\c']);
   });
+  it('setFocus updates focusIndex', () => {
+    useSelectionStore.getState().setFocus(3);
+    expect(useSelectionStore.getState().focusIndex).toBe(3);
+  });
 });

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { getCurrentWindow } from '@tauri-apps/api/window';
 import { TitleBar } from './components/TitleBar';
@@ -11,6 +11,7 @@ import { ContextMenu } from './components/ContextMenu';
 import { useLocationStore } from './state/locationStore';
 import { useViewStore } from './state/viewStore';
 import { useDirectory } from './hooks/useDirectory';
+import { useSelectionStore } from './state/selectionStore';
 import type { SpecialFolder, ViewMode } from './types';
 import { VIEW_SHORTCUTS } from './shortcuts';
 
@@ -19,6 +20,8 @@ export default function App() {
   const navigate = useLocationStore((s) => s.navigate);
   const [refreshKey, setRefreshKey] = useState(0);
   const { entries, loading, error } = useDirectory(path);
+  const entryRef = useRef(entries);
+  entryRef.current = entries;
   const viewMode = useViewStore((s) => s.viewMode);
 
   // Boot to the user's Documents folder on first run.
@@ -50,6 +53,11 @@ export default function App() {
       if (e.ctrlKey && e.shiftKey && VIEW_SHORTCUTS[e.key]) {
         e.preventDefault();
         useViewStore.getState().setViewMode(VIEW_SHORTCUTS[e.key]);
+      }
+      if (e.ctrlKey && !e.shiftKey && (e.key === 'a' || e.key === 'A')) {
+        e.preventDefault();
+        useSelectionStore.getState().select(entryRef.current);
+        return;
       }
     };
     window.addEventListener('keydown', onKey);
