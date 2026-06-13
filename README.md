@@ -1,7 +1,83 @@
-# Tauri + React + Typescript
+# WinFinder
 
-This template should help get you started developing with Tauri, React and Typescript in Vite.
+A replica of the **Windows 11 File Explorer**, built with **Tauri v2** (Rust backend) + **React + TypeScript**. Runs on Windows 10 and Windows 11.
 
-## Recommended IDE Setup
+![status](https://img.shields.io/badge/status-feature--complete-brightgreen) ![tests](https://img.shields.io/badge/tests-93%20passing-brightgreen) ![build](https://img.shields.io/badge/exe-windows%20x64-blue)
 
-- [VS Code](https://code.visualstudio.com/) + [Tauri](https://marketplace.visualstudio.com/items?itemName=tauri-apps.tauri-vscode) + [rust-analyzer](https://marketplace.visualstudio.com/items?itemName=rust-lang.rust-analyzer)
+## What it does
+
+A fully usable file manager matching Win11 Explorer's layout and behavior:
+
+- **8 view modes** — extra-large / large / medium / small icons, list, details, tiles, content
+  (switch via the View ▾ flyout, the status-bar slider, or `Ctrl+Shift+1–8`)
+- **Navigation** — breadcrumb (segment click + edit mode), This PC + Quick access nav pane,
+  back/forward/up, refresh (`F5`), `Backspace`=back, address focus (`Ctrl+L`/`Alt+D`/`F4`),
+  **Home page** with special folders + recent files
+- **Tabs** — `Ctrl+T`/`W`/`Tab`/`1–9`, middle-click folder=open-in-new-tab, middle-click tab=close,
+  drag-to-reorder, context-menu "open in new tab"
+- **Multi-window** — `Ctrl+N` new window, `Ctrl+W` close (last tab/window closes the app)
+- **File operations** — new folder/file, rename (`F2`, inline), copy, cut/paste (recursive,
+  cross-volume, auto-rename on collision), delete-to-recycle, permanent delete (`Shift+Del`),
+  open-in-default-app, **undo/redo** (`Ctrl+Z`/`Y`)
+- **Selection** — click / `Ctrl` / `Shift` / `Ctrl+A`, arrow-key navigation (`↑↓`+`Enter`),
+  rubber-band marquee in icon views
+- **Richness** — image thumbnails + system file-type icons (`SHGetFileInfo`), **live
+  file-watching** (auto-refresh), **right-click context menu** (`Shift+F10`), **search**
+  (`Ctrl+E`/`F`), **properties** (`Alt+Enter`), **preview pane** (`Alt+P`) + **details pane**
+  (`Alt+Shift+P`)
+- **Quick access** — pin/unpin folders (persisted), cross-window synced
+- **Chrome** — custom Mica title bar, light/dark theme (follows system), `F11` fullscreen,
+  View→Show toggles (hidden items / file extensions), details column resize + sort arrows
+
+## Build & run
+
+Requirements: Windows 10/11, Rust (MSVC), Node 20+, pnpm, WebView2.
+
+```bash
+pnpm install          # one-time
+pnpm tauri dev        # run the dev app
+pnpm tauri build      # release build → src-tauri/target/release/winfinder.exe + installers
+```
+
+Artifacts: `src-tauri/target/release/winfinder.exe` (standalone), plus `bundle/msi/*.msi`
+and `bundle/nsis/*-setup.exe` installers.
+
+## Test
+
+```bash
+cd src-tauri && cargo test   # Rust unit tests (28)
+pnpm test                    # frontend tests (65)
+npx tsc --noEmit             # type-check
+```
+
+## Architecture
+
+```
+Rust backend (src-tauri/src/)         Frontend (src/)
+  lib.rs        commands + run()        App.tsx          shell + shortcuts + wiring
+  fs_ops.rs     list/search/folder_size state/           locationStore(tabs), viewStore,
+  ops.rs        create/copy/move/delete                  selectionStore, clipboardStore,
+  special.rs    special folders/drives                    historyStore, searchStore,
+  watch.rs      live FS watching                          pinnedStore, recentStore
+  thumbnails.rs image thumbnails + icons hooks/           useDirectory, useFileOps
+  error.rs      AppError (serde {kind,msg}) components/   TitleBar, TabBar, Toolbar,
+                                                       Breadcrumb, NavPane, CommandBar,
+                                                       FileList + 8 views, ContextMenu,
+                                                       PropertiesDialog, PreviewPane, …
+```
+
+All filesystem access is behind typed Tauri commands; the frontend never touches the disk.
+The wire contract is camelCase (locked by a regression test).
+
+## Documentation
+
+- Design spec: `docs/superpowers/specs/2026-06-13-winfinder-design.md`
+- Implementation plans: `docs/superpowers/plans/`
+- Acceptance: `docs/acceptance/` (dataset, reference procedure, checklist, Win11 visual spec)
+
+## Known limitations
+
+- Delete is not undoable (recycle-bin restore is unreliable across the `trash` crate).
+- Copy/move are synchronous (no streaming progress); collisions auto-rename (no replace/skip modal).
+- "Show more options" context-menu item is a placeholder (real shell menu not wired).
+- §11 visual zero-deviation acceptance requires real Win11 baseline screenshots (user step).
