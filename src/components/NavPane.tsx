@@ -12,11 +12,21 @@ export function NavPane() {
   const pinned = usePinnedStore((s) => s.pinned);
   const [expanded, setExpanded] = useState(true);
   const navRef = useRef<HTMLElement>(null);
+  const [dragOver, setDragOver] = useState<string | null>(null);
 
   useEffect(() => {
     invoke<SpecialFolder[]>('special_folders').then(setFolders);
     invoke<Drive[]>('list_drives').then(setDrives);
   }, []);
+
+  // Shared drag handlers + highlight class for drop targets (Win11 highlights the
+  // folder being dragged over). `onDragLeave` only clears when leaving THIS item.
+  const dropProps = (p: string) => ({
+    onDragOver: (e: React.DragEvent) => { e.preventDefault(); e.dataTransfer.dropEffect = e.ctrlKey ? 'copy' : 'move'; setDragOver(p); },
+    onDragLeave: () => setDragOver((cur) => (cur === p ? null : cur)),
+    onDrop: (e: React.DragEvent) => { e.preventDefault(); setDragOver(null); void dropInto(p, e.ctrlKey); },
+  });
+  const dropClass = (p: string, base: string) => dragOver === p ? `${base} drag-over` : base;
 
   // F6 pane-focus cycling: focus this pane when requested.
   useEffect(() => {
@@ -30,10 +40,9 @@ export function NavPane() {
       {pinned.length > 0 && (
         <div className="nav-section">
           {pinned.map((p) => (
-            <button key={p.path} className="nav-item"
+            <button key={p.path} className={dropClass(p.path, 'nav-item')}
               onClick={() => navigate(p.path)}
-              onDragOver={(e) => { e.preventDefault(); e.dataTransfer.dropEffect = e.ctrlKey ? 'copy' : 'move'; }}
-              onDrop={(e) => { e.preventDefault(); void dropInto(p.path, e.ctrlKey); }}>
+              {...dropProps(p.path)}>
               <span aria-hidden>📌</span><span>{p.name}</span>
             </button>
           ))}
@@ -51,12 +60,12 @@ export function NavPane() {
       {expanded && (
         <div className="nav-group">
           {folders.filter((f) => f.key !== 'home').map((f) => (
-            <button key={f.key} className="nav-item nav-child" onClick={() => navigate(f.path)} onDragOver={(e) => { e.preventDefault(); e.dataTransfer.dropEffect = e.ctrlKey ? 'copy' : 'move'; }} onDrop={(e) => { e.preventDefault(); void dropInto(f.path, e.ctrlKey); }}>
+            <button key={f.key} className={dropClass(f.path, 'nav-item nav-child')} onClick={() => navigate(f.path)} {...dropProps(f.path)}>
               <span aria-hidden>📂</span><span>{f.name}</span>
             </button>
           ))}
           {drives.map((d) => (
-            <button key={d.letter} className="nav-item nav-child" onClick={() => navigate(d.path)} onDragOver={(e) => { e.preventDefault(); e.dataTransfer.dropEffect = e.ctrlKey ? 'copy' : 'move'; }} onDrop={(e) => { e.preventDefault(); void dropInto(d.path, e.ctrlKey); }}>
+            <button key={d.letter} className={dropClass(d.path, 'nav-item nav-child')} onClick={() => navigate(d.path)} {...dropProps(d.path)}>
               <span aria-hidden>💽</span><span>{d.letter}</span>
             </button>
           ))}
