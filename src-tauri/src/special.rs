@@ -1,6 +1,7 @@
 use serde::Serialize;
 
 #[derive(Serialize, Clone, Debug)]
+#[serde(rename_all = "camelCase")]
 pub struct SpecialFolder {
     pub key: String,
     pub name: String,
@@ -8,6 +9,7 @@ pub struct SpecialFolder {
 }
 
 #[derive(Serialize, Clone, Debug)]
+#[serde(rename_all = "camelCase")]
 pub struct Drive {
     pub letter: String,
     pub path: String,

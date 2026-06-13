@@ -4,6 +4,7 @@ use std::path::Path;
 use std::time::SystemTime;
 
 #[derive(Serialize, Clone, Debug, PartialEq)]
+#[serde(rename_all = "camelCase")]
 pub struct Entry {
     pub name: String,
     pub path: String,
@@ -110,5 +111,26 @@ mod tests {
     #[test]
     fn missing_dir_returns_error() {
         assert!(list_directory("Z:/nope/does/not/exist").is_err());
+    }
+
+    #[test]
+    fn entry_serializes_to_camel_case_for_frontend_contract() {
+        let e = Entry {
+            name: "a.txt".into(), path: "C:\\a.txt".into(), is_dir: false,
+            size: 1, modified: 0, created: 0, accessed: 0,
+            type_label: "TXT 文件".into(), ext: "txt".into(),
+            is_hidden: false, is_system: false, is_read_only: false,
+        };
+        let json = serde_json::to_string(&e).unwrap();
+        // camelCase keys the TS frontend expects (src/types.ts).
+        assert!(json.contains("\"isDir\""), "got: {json}");
+        assert!(json.contains("\"typeLabel\""), "got: {json}");
+        assert!(json.contains("\"isReadOnly\""), "got: {json}");
+        assert!(json.contains("\"isHidden\""), "got: {json}");
+        assert!(json.contains("\"isSystem\""), "got: {json}");
+        // snake_case keys must NOT appear on the wire.
+        assert!(!json.contains("is_dir"));
+        assert!(!json.contains("type_label"));
+        assert!(!json.contains("is_read_only"));
     }
 }
