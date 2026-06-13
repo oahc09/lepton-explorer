@@ -23,11 +23,17 @@ export function ContextMenu({ entries }: { entries: Entry[] }) {
       }
     };
     const onClick = () => setPos(null);
+    const onOpen = (e: Event) => {
+      const detail = (e as CustomEvent<{ x: number; y: number }>).detail;
+      if (detail) setPos({ x: detail.x, y: detail.y });
+    };
     document.addEventListener('contextmenu', onMenu);
     document.addEventListener('click', onClick);
+    window.addEventListener('winfinder:open-menu', onOpen as EventListener);
     return () => {
       document.removeEventListener('contextmenu', onMenu);
       document.removeEventListener('click', onClick);
+      window.removeEventListener('winfinder:open-menu', onOpen as EventListener);
     };
   }, []);
 

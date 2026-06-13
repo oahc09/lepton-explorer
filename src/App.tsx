@@ -41,6 +41,9 @@ export default function App() {
   const setPropsEntryRef = useRef(setPropsEntry);
   setPropsEntryRef.current = setPropsEntry;
   const [renamingPath, setRenamingPath] = useState<string | null>(null);
+  const [fs, setFs] = useState(false);
+
+  useEffect(() => { getCurrentWindow().setFullscreen(fs).catch(() => {}); }, [fs]);
 
   const onRenameCommit = (newName: string) => {
     if (renamingPath && newName.trim()) ops.renameEntry(renamingPath, newName.trim());
@@ -97,6 +100,23 @@ export default function App() {
       if (e.ctrlKey && e.shiftKey && VIEW_SHORTCUTS[e.key]) {
         e.preventDefault();
         useViewStore.getState().setViewMode(VIEW_SHORTCUTS[e.key]);
+      }
+      if (e.key === 'F11') {
+        e.preventDefault();
+        setFs((f) => !f);
+        return;
+      }
+      if (e.key === 'F10' && e.shiftKey) {
+        e.preventDefault();
+        const sel = useSelectionStore.getState().selected;
+        if (sel.length) {
+          const el = document.querySelector(`[data-path="${CSS.escape(sel[0])}"]`) as HTMLElement | null;
+          const r = el?.getBoundingClientRect();
+          const x = r ? r.left + 40 : window.innerWidth / 2;
+          const y = r ? r.bottom : window.innerHeight / 2;
+          window.dispatchEvent(new CustomEvent('winfinder:open-menu', { detail: { x, y } }));
+        }
+        return;
       }
       if (e.ctrlKey && !e.shiftKey && (e.key === 'a' || e.key === 'A')) {
         e.preventDefault();
