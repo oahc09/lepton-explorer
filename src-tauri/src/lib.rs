@@ -2,6 +2,7 @@ pub mod error;
 pub mod fs_ops;
 pub mod ops;
 pub mod special;
+pub mod watch;
 
 use error::{AppError, Result};
 
@@ -55,10 +56,16 @@ fn list_drives() -> Vec<special::Drive> {
     special::list_drives()
 }
 
+#[tauri::command]
+fn watch_directory(app: tauri::AppHandle, path: String) {
+    watch::watch_directory(app, path);
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
+        .manage(watch::WatcherState::new())
         .invoke_handler(tauri::generate_handler![
             list_directory,
             special_folders,
@@ -69,7 +76,8 @@ pub fn run() {
             copy_items,
             move_items,
             delete_to_trash,
-            delete_permanent
+            delete_permanent,
+            watch_directory
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
