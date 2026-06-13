@@ -13,6 +13,16 @@ fn list_directory(dir: String) -> Result<Vec<fs_ops::Entry>> {
 }
 
 #[tauri::command]
+fn search(root: String, query: String) -> Result<Vec<fs_ops::Entry>> {
+    fs_ops::search(&root, &query).map_err(AppError::from)
+}
+
+#[tauri::command]
+fn get_properties(path: String) -> Result<u64> {
+    fs_ops::folder_size(&path).map_err(AppError::from)
+}
+
+#[tauri::command]
 fn create_dir(path: String) -> Result<()> {
     ops::create_dir(&path).map_err(AppError::from)
 }
@@ -79,6 +89,8 @@ pub fn run() {
         .manage(watch::WatcherState::new())
         .invoke_handler(tauri::generate_handler![
             list_directory,
+            search,
+            get_properties,
             special_folders,
             list_drives,
             create_dir,

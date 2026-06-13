@@ -25,40 +25,9 @@ pub fn list_directory(dir: &str) -> std::io::Result<Vec<Entry>> {
     for rd in fs::read_dir(dir)? {
         let rd = rd?;
         let meta = rd.metadata()?;
-        let ft = meta.file_type();
         let name = rd.file_name().to_string_lossy().to_string();
         let path = rd.path().to_string_lossy().to_string();
-        let ext = Path::new(&name)
-            .extension()
-            .and_then(|e| e.to_str())
-            .map(|s| s.to_string())
-            .unwrap_or_default();
-
-        #[cfg(windows)]
-        let is_hidden = {
-            use std::os::windows::fs::MetadataExt;
-            const FILE_ATTRIBUTE_HIDDEN: u32 = 0x2;
-            (meta.file_attributes() & FILE_ATTRIBUTE_HIDDEN) != 0
-        };
-        #[cfg(not(windows))]
-        let is_hidden = name.starts_with('.');
-
-        let type_label = type_label_for(&name, ft.is_dir());
-
-        entries.push(Entry {
-            name,
-            path,
-            is_dir: ft.is_dir(),
-            size: if ft.is_dir() { 0 } else { meta.len() },
-            modified: to_ms(meta.modified()),
-            created: to_ms(meta.created()),
-            accessed: to_ms(meta.accessed()),
-            type_label,
-            ext,
-            is_hidden,
-            is_system: false,
-            is_read_only: meta.permissions().readonly(),
-        });
+        entries.push(entry_from(&name, &path, &meta));
     }
     // Win11 default: folders first, then name ascending (case-insensitive).
     entries.sort_by(|a, b| {
@@ -67,6 +36,74 @@ pub fn list_directory(dir: &str) -> std::io::Result<Vec<Entry>> {
             .then_with(|| a.name.to_lowercase().cmp(&b.name.to_lowercase()))
     });
     Ok(entries)
+}
+
+fn entry_from(name: &str, path: &str, meta: &fs::Metadata) -> Entry {
+    let ft = meta.file_type();
+    let ext = Path::new(name)
+        .extension()
+        .and_then(|e| e.to_str())
+        .map(|s| s.to_string())
+        .unwrap_or_default();
+
+    #[cfg(windows)]
+    let is_hidden = {
+        use std::os::windows::fs::MetadataExt;
+        const FILE_ATTRIBUTE_HIDDEN: u32 = 0x2;
+        (meta.file_attributes() & FILE_ATTRIBUTE_HIDDEN) != 0
+    };
+    #[cfg(not(windows))]
+    let is_hidden = name.starts_with('.');
+
+    let type_label = type_label_for(name, ft.is_dir());
+
+    Entry {
+        name: name.to_string(),
+        path: path.to_string(),
+        is_dir: ft.is_dir(),
+        size: if ft.is_dir() { 0 } else { meta.len() },
+        modified: to_ms(meta.modified()),
+        created: to_ms(meta.created()),
+        accessed: to_ms(meta.accessed()),
+        type_label,
+        ext,
+        is_hidden,
+        is_system: false,
+        is_read_only: meta.permissions().readonly(),
+    }
+}
+
+pub fn search(root: &str, query: &str) -> std::io::Result<Vec<Entry>> {
+    let q = query.to_lowercase();
+    let mut out = Vec::new();
+    let mut stack: Vec<std::path::PathBuf> = vec![std::path::PathBuf::from(root)];
+    while let Some(dir) = stack.pop() {
+        let rd = match fs::read_dir(&dir) { Ok(r) => r, Err(_) => continue };
+        for de in rd.flatten() {
+            let meta = match de.metadata() { Ok(m) => m, Err(_) => continue };
+            let name = de.file_name().to_string_lossy().to_string();
+            let path = de.path().to_string_lossy().to_string();
+            if name.to_lowercase().contains(&q) {
+                out.push(entry_from(&name, &path, &meta));
+            }
+            if meta.is_dir() { stack.push(de.path()); }
+        }
+    }
+    out.sort_by(|a, b| b.is_dir.cmp(&a.is_dir).then_with(|| a.name.to_lowercase().cmp(&b.name.to_lowercase())));
+    Ok(out)
+}
+
+pub fn folder_size(path: &str) -> std::io::Result<u64> {
+    let mut total: u64 = 0;
+    let mut stack: Vec<std::path::PathBuf> = vec![std::path::PathBuf::from(path)];
+    while let Some(dir) = stack.pop() {
+        let rd = match fs::read_dir(&dir) { Ok(r) => r, Err(_) => continue };
+        for de in rd.flatten() {
+            let meta = match de.metadata() { Ok(m) => m, Err(_) => continue };
+            if meta.is_dir() { stack.push(de.path()); } else { total += meta.len(); }
+        }
+    }
+    Ok(total)
 }
 
 fn to_ms(t: std::io::Result<SystemTime>) -> i64 {
@@ -132,5 +169,34 @@ mod tests {
         assert!(!json.contains("is_dir"));
         assert!(!json.contains("type_label"));
         assert!(!json.contains("is_read_only"));
+    }
+
+    #[test]
+    fn search_finds_by_name_recursively() {
+        let d = tempdir().unwrap();
+        fs::create_dir_all(d.path().join("sub")).unwrap();
+        fs::write(d.path().join("sub").join("report.txt"), "x").unwrap();
+        fs::write(d.path().join("other.md"), "y").unwrap();
+        let hits = search(d.path().to_str().unwrap(), "report").unwrap();
+        let names: Vec<&str> = hits.iter().map(|e| e.name.as_str()).collect();
+        assert!(names.contains(&"report.txt"));
+        assert!(!names.contains(&"other.md"));
+    }
+
+    #[test]
+    fn search_is_case_insensitive() {
+        let d = tempdir().unwrap();
+        fs::write(d.path().join("README.md"), "x").unwrap();
+        let hits = search(d.path().to_str().unwrap(), "readme").unwrap();
+        assert!(hits.iter().any(|e| e.name == "README.md"));
+    }
+
+    #[test]
+    fn folder_size_sums_files() {
+        let d = tempdir().unwrap();
+        fs::write(d.path().join("a.txt"), "12345").unwrap();
+        fs::create_dir_all(d.path().join("sub")).unwrap();
+        fs::write(d.path().join("sub").join("b.txt"), "ab").unwrap();
+        assert_eq!(folder_size(d.path().to_str().unwrap()).unwrap(), 7);
     }
 }
