@@ -2,7 +2,7 @@
 
 A replica of the **Windows 11 File Explorer**, built with **Tauri v2** (Rust backend) + **React + TypeScript**. Runs on Windows 10 and Windows 11.
 
-![status](https://img.shields.io/badge/status-feature--complete-brightgreen) ![tests](https://img.shields.io/badge/tests-93%20passing-brightgreen) ![build](https://img.shields.io/badge/exe-windows%20x64-blue)
+![status](https://img.shields.io/badge/status-feature--complete-brightgreen) ![tests](https://img.shields.io/badge/tests-95%20passing-brightgreen) ![build](https://img.shields.io/badge/exe-windows%20x64-blue)
 
 ## What it does
 
@@ -46,7 +46,7 @@ and `bundle/nsis/*-setup.exe` installers.
 
 ```bash
 cd src-tauri && cargo test   # Rust unit tests (28)
-pnpm test                    # frontend tests (65)
+pnpm test                    # frontend tests (67)
 npx tsc --noEmit             # type-check
 ```
 

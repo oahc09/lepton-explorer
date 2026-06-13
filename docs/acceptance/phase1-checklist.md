@@ -8,8 +8,8 @@
 
 | 门槛 | 命令 | 结果 |
 |---|---|---|
-| Rust 单元测试 | `cargo test` | ✅ 22 passed |
-| 前端单元测试 | `pnpm test` | ✅ 53 passed |
+| Rust 单元测试 | `cargo test` | ✅ 28 passed |
+| 前端单元测试 | `pnpm test` | ✅ 67 passed |
 | 类型检查 | `tsc --noEmit` | ✅ clean |
 | 前端构建 | `pnpm run build` | ✅ ok |
 | 发布打包 | `pnpm tauri build` | ✅ exe + msi + nsis |
@@ -47,7 +47,6 @@
 - 删除不可撤销（回收站还原在 `trash` crate 不可靠）。
 - 复制/移动为同步执行，无流式进度条；同名冲突自动改名（无 替换/跳过 弹窗）。
 - "显示更多选项"为占位（未接入真实 Shell 经典菜单）。
-- 橡皮筋框选未实现。
 - 多窗口间 固定/最近 不实时同步（localStorage 仅在重载时重读）。
 
 ## 视觉零偏差门槛（§11，需用户截图比对）
@@ -56,5 +55,5 @@
 `docs/acceptance/reference/README.md`，数据集见 `docs/acceptance/dataset/README.md`。
 任何可见偏差（非 §11.3 豁免）须修复后重比，直至全绿。
 
-> 说明：自动化门槛与功能实现已全部完成（Phase 0+1+2），并由 22+53 测试 / 构建 /
+> 说明：自动化门槛与功能实现已全部完成（Phase 0+1+2），并由 28+67 测试 / 构建 /
 > 运行 / 3 轮代码评审验证。视觉零偏差比对需用户在真机 Win11 上采集基准截图后进行。
