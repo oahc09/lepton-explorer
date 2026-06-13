@@ -88,6 +88,26 @@ fn cancel_copy() {
 }
 
 #[tauri::command]
+fn move_with_progress(
+    app: tauri::AppHandle,
+    sources: Vec<String>,
+    dest: String,
+    strategy: ops::ConflictStrategy,
+) -> Result<Vec<(String, String)>> {
+    // Same-volume moves are instant renames; cross-volume moves copy+delete and
+    // emit per-file progress. Reuses the copy progress event + cancel flag.
+    ops::reset_copy_cancel();
+    ops::move_items_tracked(&sources, &dest, strategy, ops::is_copy_cancelled, |current, total, path| {
+        let file = path
+            .file_name()
+            .map(|f| f.to_string_lossy().to_string())
+            .unwrap_or_default();
+        let _ = app.emit("fs-copy-progress", CopyProgress { current, total, file });
+    })
+    .map_err(AppError::from)
+}
+
+#[tauri::command]
 fn move_items(sources: Vec<String>, dest: String) -> Result<Vec<(String, String)>> {
     ops::move_items(&sources, &dest).map_err(AppError::from)
 }
@@ -161,6 +181,7 @@ pub fn run() {
             cancel_copy,
             move_items,
             move_items_with_strategy,
+            move_with_progress,
             check_conflicts,
             delete_to_trash,
             delete_permanent,

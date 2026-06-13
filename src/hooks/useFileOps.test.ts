@@ -72,12 +72,13 @@ describe('useFileOps', () => {
     expect(useProgressStore.getState().active).toBe(false); // never opened (cancel before copy)
   });
 
-  it('paste in cut mode with no conflict invokes move_items_with_strategy(rename) and clears clipboard', async () => {
+  it('paste in cut mode with no conflict invokes move_with_progress(rename) and clears clipboard', async () => {
     useClipboardStore.getState().cut([e('a.txt')]);
-    route({ check_conflicts: [], move_items_with_strategy: [['C:\\src\\a.txt', 'C:\\dest\\a.txt']] });
+    route({ check_conflicts: [], move_with_progress: [['C:\\src\\a.txt', 'C:\\dest\\a.txt']] });
     const { result } = renderHook(() => useFileOps());
     await act(async () => { await result.current.paste('C:\\dest'); });
-    expect(m).toHaveBeenCalledWith('move_items_with_strategy', expect.objectContaining({ dest: 'C:\\dest', strategy: 'rename' }));
+    expect(m).toHaveBeenCalledWith('move_with_progress', expect.objectContaining({ dest: 'C:\\dest', strategy: 'rename' }));
     expect(useClipboardStore.getState().items).toHaveLength(0);
+    expect(useProgressStore.getState().active).toBe(false); // closed after completion
   });
 });

@@ -216,6 +216,61 @@ where
     Ok(out)
 }
 
+/// Like `move_items_with_strategy`, but for cross-volume moves (copy+delete) it
+/// emits per-file progress via `on_file` and honors `is_cancelled` between
+/// sources. Same-volume moves are instant renames (no per-file progress).
+pub fn move_items_tracked<F, C>(
+    sources: &[String],
+    dest_dir: &str,
+    strategy: ConflictStrategy,
+    is_cancelled: C,
+    mut on_file: F,
+) -> std::io::Result<Vec<(String, String)>>
+where
+    F: FnMut(usize, usize, &Path),
+    C: Fn() -> bool,
+{
+    let dest = Path::new(dest_dir);
+    let total = count_files(sources);
+    let mut current = 0usize;
+    let mut out = Vec::new();
+    for s in sources {
+        if is_cancelled() {
+            break;
+        }
+        let src = Path::new(s);
+        let target = match resolve_target(src, dest, strategy) {
+            Some(t) => t,
+            None => continue,
+        };
+        if strategy == ConflictStrategy::Replace && target.exists() {
+            trash_path(&target)?;
+        }
+        let old = src.to_string_lossy().to_string();
+        match fs::rename(src, &target) {
+            Ok(()) => {}
+            Err(e) if e.raw_os_error() == Some(17)
+                    || e.raw_os_error() == Some(18)
+                    || e.kind() == std::io::ErrorKind::CrossesDevices => {
+                // Cross-device: tracked copy (emits progress) then delete the source.
+                copy_recursive_tracked(
+                    src,
+                    &target,
+                    &mut std::collections::HashSet::new(),
+                    &mut |p| {
+                        current += 1;
+                        on_file(current, total, p);
+                    },
+                )?;
+                remove_recursive(src)?;
+            }
+            Err(e) => return Err(e),
+        }
+        out.push((old, target.to_string_lossy().to_string()));
+    }
+    Ok(out)
+}
+
 fn remove_recursive(p: &Path) -> std::io::Result<()> {
     if p.is_dir() { fs::remove_dir_all(p) } else { fs::remove_file(p) }
 }
@@ -682,5 +737,26 @@ mod tests {
         assert_eq!(out.len(), 1, "first source copied, then cancelled");
         assert!(dest.join("a.txt").is_file());
         assert!(!dest.join("b.txt").exists(), "second source not copied after cancel");
+    }
+
+    #[test]
+    fn move_items_tracked_moves_same_volume_without_progress_callbacks() {
+        // Same-volume move is an instant rename: no per-file progress is emitted.
+        let d = tempdir().unwrap();
+        let dest = d.path().join("dest"); fs::create_dir(&dest).unwrap();
+        let src = d.path().join("a.txt"); fs::write(&src, "x").unwrap();
+        let mut calls = 0usize;
+        let moved = move_items_tracked(
+            &[src.to_string_lossy().to_string()],
+            dest.to_str().unwrap(),
+            ConflictStrategy::Rename,
+            || false,
+            |_, _, _| { calls += 1; },
+        )
+        .unwrap();
+        assert!(!src.exists());
+        assert!(dest.join("a.txt").is_file());
+        assert_eq!(moved.len(), 1);
+        assert_eq!(calls, 0, "same-volume rename emits no per-file progress");
     }
 }

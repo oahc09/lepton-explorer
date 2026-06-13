@@ -78,23 +78,28 @@ export function useFileOps() {
         useProgressStore.getState().close();
       }
     } else {
-      const moved = await invoke<[string, string][]>('move_items_with_strategy', { sources, dest: destDir, strategy });
-      const pairs = moved; // [(old, new), ...] for items actually moved
-      push({
-        label: '移动',
-        undo: async () => {
-          for (const [oldP, newP] of pairs) {
-            await invoke('move_items', { sources: [newP], dest: parentOf(oldP) });
-          }
-          refresh();
-        },
-        redo: async () => {
-          const olds = pairs.map((p2) => p2[0]);
-          await invoke('move_items_with_strategy', { sources: olds, dest: destDir, strategy });
-          refresh();
-        },
-      });
-      useClipboardStore.getState().clear();
+      useProgressStore.getState().open();
+      try {
+        const moved = await invoke<[string, string][]>('move_with_progress', { sources, dest: destDir, strategy });
+        const pairs = moved; // [(old, new), ...] for items actually moved
+        push({
+          label: '移动',
+          undo: async () => {
+            for (const [oldP, newP] of pairs) {
+              await invoke('move_items', { sources: [newP], dest: parentOf(oldP) });
+            }
+            refresh();
+          },
+          redo: async () => {
+            const olds = pairs.map((p2) => p2[0]);
+            await invoke('move_items_with_strategy', { sources: olds, dest: destDir, strategy });
+            refresh();
+          },
+        });
+        useClipboardStore.getState().clear();
+      } finally {
+        useProgressStore.getState().close();
+      }
     }
     refresh();
   }
