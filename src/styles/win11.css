@@ -115,3 +115,6 @@ body { font-family: var(--font); font-size: 14px; background: var(--bg); color: 
 .cm-item:hover:not(.disabled) { background: var(--hover-bg); }
 .cm-item.disabled { color: var(--text-sub); cursor: default; }
 .cm-sep { height: 1px; background: var(--border); margin: 4px 0; list-style: none; }
+
+.search-box { flex: 0 1 240px; height: 32px; border: 1px solid var(--border); background: var(--main-bg); color: var(--text); border-radius: 6px; padding: 0 10px; font-size: 13px; margin-left: auto; }
+.search-box:focus { outline: none; border-color: var(--accent); }

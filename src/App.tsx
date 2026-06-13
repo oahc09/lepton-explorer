@@ -10,7 +10,9 @@ import { FileList } from './components/FileList';
 import { StatusBar } from './components/StatusBar';
 import { ContextMenu } from './components/ContextMenu';
 import { CommandBar } from './components/CommandBar';
+import { SearchBox } from './components/SearchBox';
 import { useLocationStore } from './state/locationStore';
+import { useSearchStore } from './state/searchStore';
 import { useViewStore } from './state/viewStore';
 import { useDirectory } from './hooks/useDirectory';
 import { useFileOps } from './hooks/useFileOps';
@@ -25,6 +27,8 @@ export default function App() {
   const navigate = useLocationStore((s) => s.navigate);
   const [refreshKey, setRefreshKey] = useState(0);
   const { entries, loading, error } = useDirectory(path);
+  const searchResults = useSearchStore((s) => s.results);
+  const shownEntries = searchResults ?? entries;
   const entryRef = useRef(entries);
   entryRef.current = entries;
   const viewMode = useViewStore((s) => s.viewMode);
@@ -154,8 +158,9 @@ export default function App() {
           <option value="tiles">平铺</option>
           <option value="content">内容</option>
         </select>
-        <CommandBar entries={entries} />
+        <CommandBar entries={shownEntries} />
         <Breadcrumb />
+        <SearchBox />
       </div>
       <div className="body">
         <NavPane />
@@ -163,7 +168,7 @@ export default function App() {
           {loading ? <div className="empty">加载中…</div>
             : error ? <div className="empty">无法打开此位置：{error}</div>
             : entries.length === 0 ? <div className="empty">此文件夹为空。</div>
-            : <FileList entries={entries} />}
+            : <FileList entries={shownEntries} />}
         </main>
       </div>
       <StatusBar count={entries.length} />
