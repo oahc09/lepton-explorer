@@ -89,6 +89,18 @@ pub fn move_items(sources: &[String], dest_dir: &str) -> std::io::Result<Vec<(St
     Ok(out)
 }
 
+pub fn delete_to_trash(paths: &[String]) -> Result<(), trash::Error> {
+    let items: Vec<&Path> = paths.iter().map(|p| Path::new(p)).collect();
+    trash::delete_all(items)
+}
+
+pub fn delete_permanent(paths: &[String]) -> std::io::Result<()> {
+    for p in paths {
+        remove_recursive(Path::new(p))?;
+    }
+    Ok(())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -165,5 +177,22 @@ mod tests {
         assert!(!src.exists());
         assert!(dest.join("a.txt").is_file());
         assert!(moved[0].1.ends_with("a.txt"));
+    }
+
+    #[test]
+    fn delete_permanent_removes_file_and_dir() {
+        let d = tempdir().unwrap();
+        let f = d.path().join("a.txt"); fs::write(&f, "x").unwrap();
+        delete_permanent(&[f.to_str().unwrap().to_string()]).unwrap();
+        assert!(!f.exists());
+    }
+
+    #[test]
+    fn delete_to_trash_removes_file() {
+        // Moves the file to the OS recycle bin; the temp file disappears from its location.
+        let d = tempdir().unwrap();
+        let f = d.path().join("totrash.txt"); fs::write(&f, "x").unwrap();
+        let _ = delete_to_trash(&[f.to_str().unwrap().to_string()]);
+        assert!(!f.exists(), "file should be moved to recycle bin");
     }
 }
