@@ -8,8 +8,8 @@
 
 | 门槛 | 命令 | 结果 |
 |---|---|---|
-| Rust 单元测试 | `cargo test` | ✅ 39 passed |
-| 前端单元测试 | `pnpm test` | ✅ 124 passed |
+| Rust 单元测试 | `cargo test` | ✅ 41 passed |
+| 前端单元测试 | `pnpm test` | ✅ 125 passed |
 | 类型检查 | `tsc --noEmit` | ✅ clean |
 | 前端构建 | `pnpm run build` | ✅ ok |
 | 发布打包 | `pnpm tauri build` | ✅ exe + msi + nsis |
@@ -55,5 +55,5 @@
 `docs/acceptance/reference/README.md`，数据集见 `docs/acceptance/dataset/README.md`。
 任何可见偏差（非 §11.3 豁免）须修复后重比，直至全绿。
 
-> 说明：自动化门槛与功能实现已全部完成（Phase 0+1+2），并由 39+124 测试 / 构建 /
+> 说明：自动化门槛与功能实现已全部完成（Phase 0+1+2），并由 41+125 测试 / 构建 /
 > 运行 / 代码评审验证。视觉零偏差比对需用户在真机 Win11 上采集基准截图后进行。
