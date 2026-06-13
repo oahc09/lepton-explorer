@@ -3,8 +3,10 @@ import { useRef } from 'react';
 import type { Entry, IconSize } from '../../types';
 import { useSelectionStore } from '../../state/selectionStore';
 import { useLocationStore } from '../../state/locationStore';
+import { useViewStore } from '../../state/viewStore';
 import { handleClick } from './detailsHelpers';
 import { openItem } from '../../utils/open';
+import { displayName } from '../../utils/display';
 import { Thumbnail } from '../Thumbnail';
 
 const SIZES: Record<IconSize, { tileW: number; tileH: number; font: number; perRow: number; nameMax: number }> = {
@@ -19,6 +21,7 @@ export function IconsView({ entries, size = 'large', renamingPath, onRenameCommi
   const parentRef = useRef<HTMLDivElement>(null);
   const sel = useSelectionStore();
   const navigate = useLocationStore((st) => st.navigate);
+  const showExtensions = useViewStore((s) => s.showExtensions);
   const rowCount = Math.ceil(entries.length / s.perRow);
   const rowV = useVirtualizer({ count: rowCount, getScrollElement: () => parentRef.current, estimateSize: () => s.tileH, overscan: 8 });
 
@@ -55,7 +58,7 @@ export function IconsView({ entries, size = 'large', renamingPath, onRenameCommi
                       onBlur={(e) => { if (!e.currentTarget.dataset.committed) onRenameCommit?.(e.currentTarget.value); }}
                     />
                   ) : (
-                    <div className="tile-name" style={{ maxWidth: s.nameMax }}>{item.name}</div>
+                    <div className="tile-name" style={{ maxWidth: s.nameMax }}>{displayName(item, showExtensions)}</div>
                   )}
                 </div>
               ))}

@@ -19,7 +19,7 @@ const e = (n: string): Entry => ({ name: n, path: 'C:\\' + n, isDir: false, size
 
 beforeEach(() => {
   useSelectionStore.getState().clear();
-  useViewStore.setState({ viewMode: 'details', sort: { field: 'name', asc: true } });
+  useViewStore.setState({ viewMode: 'details', sort: { field: 'name', asc: true }, showExtensions: true });
 });
 
 describe('DetailsView', () => {

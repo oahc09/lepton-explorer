@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { useSelectionStore } from '../../state/selectionStore';
+import { useViewStore } from '../../state/viewStore';
 
 vi.mock('@tanstack/react-virtual', () => ({
   useVirtualizer: ({ count, estimateSize }: { count: number; estimateSize: () => number }) => ({
@@ -14,7 +15,7 @@ import type { Entry } from '../../types';
 
 const e = (n: string, size = 0): Entry => ({ name: n, path: 'C:\\' + n, isDir: false, size, modified: 0, created: 0, accessed: 0, typeLabel: 'TXT 文件', ext: 'txt', isHidden: false, isSystem: false, isReadOnly: false });
 
-beforeEach(() => useSelectionStore.getState().clear());
+beforeEach(() => { useSelectionStore.getState().clear(); useViewStore.setState({ showExtensions: true }); });
 
 describe('TilesView', () => {
   it('renders tile with name and selects on click', () => {

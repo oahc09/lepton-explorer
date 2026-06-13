@@ -4,6 +4,7 @@ import type { Entry } from '../../types';
 import { useViewStore } from '../../state/viewStore';
 import { useSelectionStore } from '../../state/selectionStore';
 import { formatDate, formatSize } from '../../utils/format';
+import { displayName } from '../../utils/display';
 import { useSorted, handleClick, useOpen } from './detailsHelpers';
 import { openItem } from '../../utils/open';
 import { Thumbnail } from '../Thumbnail';
@@ -18,6 +19,7 @@ export function DetailsView({ entries, renamingPath, onRenameCommit }: { entries
   const onOpen = useOpen();
   const sort = useViewStore((s) => s.sort);
   const colWidths = useViewStore((s) => s.colWidths);
+  const showExtensions = useViewStore((s) => s.showExtensions);
   const setColWidth = useViewStore((s) => s.setColWidth);
   const arrow = (field: 'name' | 'modified' | 'type' | 'size') =>
     sort.field === field ? (sort.asc ? ' ▲' : ' ▼') : '';
@@ -68,7 +70,7 @@ export function DetailsView({ entries, renamingPath, onRenameCommit }: { entries
                   onBlur={(e) => { if (!e.currentTarget.dataset.committed) onRenameCommit?.(e.currentTarget.value); }}
                 />
               ) : (
-                <span className="name">{item.name}</span>
+                <span className="name">{displayName(item, showExtensions)}</span>
               )}</span>
               <span className="col-date">{formatDate(item.modified)}</span>
               <span className="col-type">{item.typeLabel}</span>

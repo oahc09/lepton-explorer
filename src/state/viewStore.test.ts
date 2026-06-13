@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { useViewStore } from './viewStore';
 
-beforeEach(() => useViewStore.setState({ viewMode: 'details', sort: { field: 'name', asc: true }, colWidths: { name: 600, date: 180, type: 160, size: 110 } }));
+beforeEach(() => useViewStore.setState({ viewMode: 'details', sort: { field: 'name', asc: true }, colWidths: { name: 600, date: 180, type: 160, size: 110 }, showHidden: false, showExtensions: false }));
 
 describe('viewStore', () => {
   it('setViewMode updates mode', () => {
@@ -23,5 +23,12 @@ describe('viewStore', () => {
     expect(useViewStore.getState().colWidths.date).toBe(250);
     useViewStore.getState().setColWidth('size', 10);
     expect(useViewStore.getState().colWidths.size).toBe(40);
+  });
+  it('toggleHidden flips the flag', () => {
+    expect(useViewStore.getState().showHidden).toBe(false);
+    useViewStore.getState().toggleHidden();
+    expect(useViewStore.getState().showHidden).toBe(true);
+    useViewStore.getState().toggleHidden();
+    expect(useViewStore.getState().showHidden).toBe(false);
   });
 });

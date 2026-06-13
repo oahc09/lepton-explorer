@@ -29,6 +29,8 @@ export function CommandBar({ entries }: { entries: Entry[] }) {
   }, []);
   const viewMode = useViewStore((s) => s.viewMode);
   const sort = useViewStore((s) => s.sort);
+  const showExtensionsFlag = useViewStore((s) => s.showExtensions);
+  const showHiddenFlag = useViewStore((s) => s.showHidden);
 
   return (
     <div className="command-bar" ref={barRef}>
@@ -45,6 +47,9 @@ export function CommandBar({ entries }: { entries: Entry[] }) {
             {VIEWS.map((v) => (
               <li key={v.mode} className={`flyout-item${viewMode === v.mode ? ' checked' : ''}`} onClick={() => { useViewStore.getState().setViewMode(v.mode); setOpen(null); }}>{v.label}</li>
             ))}
+            <li className="flyout-sep" />
+            <li className={`flyout-item${showExtensionsFlag ? ' checked' : ''}`} onClick={() => { useViewStore.getState().toggleExtensions(); }}>文件扩展名</li>
+            <li className={`flyout-item${showHiddenFlag ? ' checked' : ''}`} onClick={() => { useViewStore.getState().toggleHidden(); }}>隐藏的项目</li>
           </ul>
         )}
       </span>

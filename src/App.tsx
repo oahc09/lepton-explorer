@@ -30,7 +30,9 @@ export default function App() {
   const [refreshKey, setRefreshKey] = useState(0);
   const { entries, loading, error } = useDirectory(path);
   const searchResults = useSearchStore((s) => s.results);
-  const shownEntries = searchResults ?? entries;
+  const showHidden = useViewStore((s) => s.showHidden);
+  const visibleEntries = entries.filter((e) => showHidden || !e.isHidden);
+  const shownEntries = searchResults ?? visibleEntries;
   const entryRef = useRef(entries);
   entryRef.current = entries;
   const ops = useFileOps();

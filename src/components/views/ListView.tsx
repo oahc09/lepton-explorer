@@ -3,8 +3,10 @@ import { useRef } from 'react';
 import type { Entry } from '../../types';
 import { useSelectionStore } from '../../state/selectionStore';
 import { useLocationStore } from '../../state/locationStore';
+import { useViewStore } from '../../state/viewStore';
 import { handleClick } from './detailsHelpers';
 import { openItem } from '../../utils/open';
+import { displayName } from '../../utils/display';
 import { Thumbnail } from '../Thumbnail';
 
 const ROW_H = 22;
@@ -13,6 +15,7 @@ export function ListView({ entries }: { entries: Entry[] }) {
   const parentRef = useRef<HTMLDivElement>(null);
   const sel = useSelectionStore();
   const navigate = useLocationStore((s) => s.navigate);
+  const showExtensions = useViewStore((s) => s.showExtensions);
   const v = useVirtualizer({ count: entries.length, getScrollElement: () => parentRef.current, estimateSize: () => ROW_H, overscan: 30 });
   return (
     <div className="list" ref={parentRef} style={{ overflow: 'auto', height: '100%', padding: '4px 8px' }}>
@@ -30,7 +33,7 @@ export function ListView({ entries }: { entries: Entry[] }) {
               onDoubleClick={() => { if (item.isDir) navigate(item.path); else openItem(item.path); }}
             >
               <span className="list-icon"><Thumbnail entry={item} size={16} /></span>
-              <span className="list-name">{item.name}</span>
+              <span className="list-name">{displayName(item, showExtensions)}</span>
             </div>
           );
         })}

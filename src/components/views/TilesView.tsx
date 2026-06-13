@@ -3,9 +3,11 @@ import { useRef } from 'react';
 import type { Entry } from '../../types';
 import { useSelectionStore } from '../../state/selectionStore';
 import { useLocationStore } from '../../state/locationStore';
+import { useViewStore } from '../../state/viewStore';
 import { formatSize } from '../../utils/format';
 import { handleClick } from './detailsHelpers';
 import { openItem } from '../../utils/open';
+import { displayName } from '../../utils/display';
 import { Thumbnail } from '../Thumbnail';
 
 const TILE_H = 76;
@@ -15,6 +17,7 @@ export function TilesView({ entries }: { entries: Entry[] }) {
   const parentRef = useRef<HTMLDivElement>(null);
   const sel = useSelectionStore();
   const navigate = useLocationStore((s) => s.navigate);
+  const showExtensions = useViewStore((s) => s.showExtensions);
   const rowCount = Math.ceil(entries.length / perRow);
   const v = useVirtualizer({ count: rowCount, getScrollElement: () => parentRef.current, estimateSize: () => TILE_H, overscan: 8 });
   return (
@@ -37,7 +40,7 @@ export function TilesView({ entries }: { entries: Entry[] }) {
                   >
                     <span><Thumbnail entry={item} size={40} /></span>
                     <span style={{ display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-                      <span className="tile2-name" style={{ fontSize: 13 }}>{item.name}</span>
+                      <span className="tile2-name" style={{ fontSize: 13 }}>{displayName(item, showExtensions)}</span>
                       <span style={{ fontSize: 12, color: 'var(--text-sub)' }}>{item.isDir ? '文件夹' : `${formatSize(item.size)} · ${item.typeLabel}`}</span>
                     </span>
                   </div>
