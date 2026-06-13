@@ -20,7 +20,7 @@ export function CommandBar({ entries }: { entries: Entry[] }) {
   const ops = useFileOps();
   const selEntries = entries.filter((en) => selected.includes(en.path));
 
-  const [open, setOpen] = useState<null | 'view' | 'sort'>(null);
+  const [open, setOpen] = useState<null | 'view' | 'sort' | 'new'>(null);
   const barRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
     const onDoc = (e: MouseEvent) => { if (barRef.current && !barRef.current.contains(e.target as Node)) setOpen(null); };
@@ -34,7 +34,15 @@ export function CommandBar({ entries }: { entries: Entry[] }) {
 
   return (
     <div className="command-bar" ref={barRef}>
-      <button className="cmd" onClick={() => ops.newFolder(path)}>＋ 文件夹</button>
+      <span style={{ position: 'relative' }}>
+        <button className="cmd" onClick={() => setOpen(open === 'new' ? null : 'new')}>新建 ▾</button>
+        {open === 'new' && (
+          <ul className="flyout">
+            <li className="flyout-item" onClick={() => { ops.newFolder(path); setOpen(null); }}>文件夹</li>
+            <li className="flyout-item" onClick={() => { ops.newFile(path); setOpen(null); }}>文本文档</li>
+          </ul>
+        )}
+      </span>
       <button className="cmd" disabled={!hasSel} onClick={() => useClipboardStore.getState().cut(selEntries)}>剪切</button>
       <button className="cmd" disabled={!hasSel} onClick={() => useClipboardStore.getState().copy(selEntries)}>复制</button>
       <button className="cmd" disabled={selected.length !== 1} onClick={() => window.dispatchEvent(new CustomEvent('winfinder:rename', { detail: selected[0] }))}>重命名</button>
