@@ -73,7 +73,11 @@ export function Breadcrumb() {
 
   const segs = pathSegments(path);
   return (
-    <div className="breadcrumb" onDoubleClick={() => { setDraft(path); setEditing(true); }}>
+    <div
+      className="breadcrumb"
+      onClick={(e) => { if (!(e.target as HTMLElement).closest('.crumb')) { setDraft(path); setEditing(true); } }}
+      onDoubleClick={() => { setDraft(path); setEditing(true); }}
+    >
       {segs.map((s, i) => (
         <span key={s.path} className="crumb-group">
           {i > 0 && <span className="chevron">›</span>}

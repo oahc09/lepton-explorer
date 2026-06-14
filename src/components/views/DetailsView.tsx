@@ -1,5 +1,5 @@
 import { useVirtualizer } from '@tanstack/react-virtual';
-import { useEffect, useMemo, useRef } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import type { Entry, SortField } from '../../types';
 import { useViewStore } from '../../state/viewStore';
 import { useSelectionStore } from '../../state/selectionStore';
@@ -26,6 +26,7 @@ const COLS: { key: ColKey; label: string; sortField: SortField; widthKey: ColKey
 
 export function DetailsView({ entries, renamingPath, onRenameCommit }: { entries: Entry[]; renamingPath?: string | null; onRenameCommit?: (n: string) => void; }) {
   const parentRef = useRef<HTMLDivElement>(null);
+  const [dragOver, setDragOver] = useState<string | null>(null);
   const sorted = entries; // FileList applies the active sort for all views
   const sort = useViewStore((s) => s.sort);
   const colWidths = useViewStore((s) => s.colWidths);
@@ -140,7 +141,7 @@ export function DetailsView({ entries, renamingPath, onRenameCommit }: { entries
             <div
               key={item.path}
               data-path={item.path}
-              className={`details-row${selected ? ' selected' : ''}`}
+              className={`details-row${selected ? ' selected' : ''}${dragOver === item.path ? ' drag-over' : ''}`}
               style={{ position: 'absolute', top: 0, left: 0, width: '100%', transform: `translateY(${vi.start}px)`, height: ROW_H, display: 'grid', gridTemplateColumns: cols }}
               draggable
               onDragStart={(e) => {
@@ -150,8 +151,9 @@ export function DetailsView({ entries, renamingPath, onRenameCommit }: { entries
                 e.dataTransfer.effectAllowed = 'copyMove';
                 e.dataTransfer.setData('text/plain', paths.join('\n'));
               }}
-              onDragOver={(e) => { if (item.isDir) { e.preventDefault(); e.dataTransfer.dropEffect = e.ctrlKey ? 'copy' : 'move'; } }}
-              onDrop={(e) => { if (item.isDir) { e.preventDefault(); void dropInto(item.path, e.ctrlKey); } }}
+              onDragOver={(e) => { if (item.isDir) { e.preventDefault(); e.dataTransfer.dropEffect = e.ctrlKey ? 'copy' : 'move'; setDragOver(item.path); } }}
+              onDragLeave={() => setDragOver((cur) => (cur === item.path ? null : cur))}
+              onDrop={(e) => { if (item.isDir) { e.preventDefault(); setDragOver(null); void dropInto(item.path, e.ctrlKey); } }}
               onClick={(ev) => handleClick(ev, item, sorted, sel)}
               onDoubleClick={() => { if (item.isDir) onOpen(item); else openItem(item.path); }}
               onAuxClick={(e) => { if (e.button === 1 && item.isDir) { e.preventDefault(); useLocationStore.getState().addTab(item.path); } }}

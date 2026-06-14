@@ -28,6 +28,7 @@ export function IconsView({ entries, size = 'large', renamingPath, onRenameCommi
   const rowV = useVirtualizer({ count: rowCount, getScrollElement: () => parentRef.current, estimateSize: () => s.tileH, overscan: 8 });
 
   const [marquee, setMarquee] = useState<{ x: number; y: number; w: number; h: number } | null>(null);
+  const [dragOver, setDragOver] = useState<string | null>(null);
 
   const startMarquee = (e: React.MouseEvent) => {
     // Only start when pressing on empty space (not on a tile or its children).
@@ -97,7 +98,7 @@ export function IconsView({ entries, size = 'large', renamingPath, onRenameCommi
                 <div
                   key={item.path}
                   data-path={item.path}
-                  className={`tile${sel.selected.includes(item.path) ? ' selected' : ''}`}
+                  className={`tile${sel.selected.includes(item.path) ? ' selected' : ''}${dragOver === item.path ? ' drag-over' : ''}`}
                   style={{ width: s.tileW, height: s.tileH - 8 }}
                   draggable
                   onDragStart={(e) => {
@@ -107,8 +108,9 @@ export function IconsView({ entries, size = 'large', renamingPath, onRenameCommi
                     e.dataTransfer.effectAllowed = 'copyMove';
                     e.dataTransfer.setData('text/plain', paths.join('\n'));
                   }}
-                  onDragOver={(e) => { if (item.isDir) { e.preventDefault(); e.dataTransfer.dropEffect = e.ctrlKey ? 'copy' : 'move'; } }}
-                  onDrop={(e) => { if (item.isDir) { e.preventDefault(); void dropInto(item.path, e.ctrlKey); } }}
+                  onDragOver={(e) => { if (item.isDir) { e.preventDefault(); e.dataTransfer.dropEffect = e.ctrlKey ? 'copy' : 'move'; setDragOver(item.path); } }}
+                  onDragLeave={() => setDragOver((cur) => (cur === item.path ? null : cur))}
+                  onDrop={(e) => { if (item.isDir) { e.preventDefault(); setDragOver(null); void dropInto(item.path, e.ctrlKey); } }}
                   onClick={(ev) => handleClick(ev, item, entries, sel)}
                   onDoubleClick={() => { if (item.isDir) navigate(item.path); else openItem(item.path); }}
                   onAuxClick={(e) => { if (e.button === 1 && item.isDir) { e.preventDefault(); useLocationStore.getState().addTab(item.path); } }}
