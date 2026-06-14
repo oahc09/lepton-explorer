@@ -49,4 +49,25 @@ describe('DetailsView', () => {
     expect(screen.queryByText('类型')).toBeNull(); // hidden header
     expect(screen.queryByText('修改日期')).toBeNull(); // hidden header
   });
+
+  it('renders an inline rename input for the renaming entry and commits on Enter', () => {
+    const entry = e('a.txt');
+    let committed: string | null = null;
+    const { container } = render(<DetailsView entries={[entry]} renamingPath={entry.path} onRenameCommit={(n) => { committed = n; }} />);
+    const input = container.querySelector('input.rename-input') as HTMLInputElement;
+    expect(input).toBeTruthy();
+    fireEvent.change(input, { target: { value: 'renamed.txt' } });
+    fireEvent.keyDown(input, { key: 'Enter' });
+    expect(committed).toBe('renamed.txt');
+  });
+
+  it('rename Escape reverts to the original name', () => {
+    const entry = e('a.txt');
+    let committed = 'UNCHANGED';
+    const { container } = render(<DetailsView entries={[entry]} renamingPath={entry.path} onRenameCommit={(n) => { committed = n; }} />);
+    const input = container.querySelector('input.rename-input') as HTMLInputElement;
+    fireEvent.change(input, { target: { value: 'temp' } });
+    fireEvent.keyDown(input, { key: 'Escape' });
+    expect(committed).toBe('a.txt');
+  });
 });
