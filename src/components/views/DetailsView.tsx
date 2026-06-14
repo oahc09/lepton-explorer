@@ -6,7 +6,7 @@ import { useSelectionStore } from '../../state/selectionStore';
 import { useLocationStore } from '../../state/locationStore';
 import { formatDate, formatSize } from '../../utils/format';
 import { displayName } from '../../utils/display';
-import { useSorted, handleClick, useOpen } from './detailsHelpers';
+import { handleClick, useOpen } from './detailsHelpers';
 import { openItem } from '../../utils/open';
 import { setDragged } from '../../utils/drag';
 import { dropInto } from '../../utils/drop';
@@ -26,7 +26,7 @@ const COLS: { key: ColKey; label: string; sortField: SortField; widthKey: ColKey
 
 export function DetailsView({ entries, renamingPath, onRenameCommit }: { entries: Entry[]; renamingPath?: string | null; onRenameCommit?: (n: string) => void; }) {
   const parentRef = useRef<HTMLDivElement>(null);
-  const sorted = useSorted(entries);
+  const sorted = entries; // FileList applies the active sort for all views
   const sort = useViewStore((s) => s.sort);
   const colWidths = useViewStore((s) => s.colWidths);
   const colVisible = useViewStore((s) => s.colVisible);
