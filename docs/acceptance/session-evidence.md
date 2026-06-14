@@ -14,8 +14,7 @@ git log --format="%ci  %s" | head -1             # last commit
 ## Recorded span
 
 - **First commit:** `2026-06-13 21:12:07 +0800` — "docs: add WinFinder design spec"
-- **Last commit (at time of writing):** `2026-06-14 08:36:42 +0800` — "docs: group-by in details-view checklist row"
-- **Span:** **~11.4 hours** across **138 commits** on `phase0-foundation`.
+- **Span (at time of writing):** **~11.6 hours** across **141 commits** on `phase0-foundation`. Run the `git log` command above for the live, current span.
 
 This is continuous, timestamped, durable evidence of sustained work well beyond the
 4-hour threshold. (The exe has also been kept running throughout via launches after
