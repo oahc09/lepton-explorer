@@ -83,4 +83,7 @@ The wire contract is camelCase (locked by a regression test).
   bin, so it's recoverable there but not via Ctrl+Z. (Keep-both/skip undo fully.)
 - Copy, cross-volume move, and redo all show a cancelable progress dialog (same-volume move is an instant rename). Cancel is honored between and within items.
 - "Show more options" context-menu item is a placeholder (real shell menu not wired).
-- §11 visual zero-deviation acceptance requires real Win11 baseline screenshots (user step).
+- §11 visual acceptance: the app's render was self-captured (html2canvas) and verified to match the
+  measured Win11 values (accent `#0078D4`, command bar 40px, status bar 24px, button radius 4px, theme,
+  font) — see `docs/acceptance/section11-self-capture.md`. A pixel-exact comparison against a fresh Win11
+  baseline of identical content remains a user step.
