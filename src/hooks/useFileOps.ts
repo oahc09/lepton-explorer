@@ -119,5 +119,28 @@ export function useFileOps() {
     refresh();
   }
 
-  return { newFolder, newFile, renameEntry, paste, remove };
+  /** Create a typed file (txt/docx/xlsx/…) with a non-colliding name. Undoable. */
+  async function newTypedFile(dir: string, label: string, ext: string) {
+    const name = `新建 ${label}.${ext}`;
+    const path = await invoke<string>('unique_target', { dir, name });
+    await invoke('create_typed_file', { path });
+    push({
+      label: `新建${label}`,
+      undo: async () => { await invoke('delete_to_trash', { paths: [path] }); refresh(); },
+      redo: async () => { await invoke('create_typed_file', { path }); refresh(); },
+    });
+    refresh();
+  }
+
+  /** Copy a path string to the system clipboard. */
+  function copyPath(path: string) {
+    navigator.clipboard?.writeText(path).catch(() => {});
+  }
+
+  /** Open a terminal (Windows Terminal, else cmd) at the given folder. */
+  async function openTerminal(path: string) {
+    try { await invoke('open_in_terminal', { path }); } catch { /* ignore */ }
+  }
+
+  return { newFolder, newFile, newTypedFile, renameEntry, paste, remove, copyPath, openTerminal };
 }

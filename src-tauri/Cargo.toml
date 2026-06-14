@@ -29,6 +29,7 @@ trash = "5"
 notify = "6"
 image = { version = "0.25", default-features = false, features = ["png", "jpeg", "gif", "bmp", "webp"] }
 base64 = "0.22"
+zip = "2"
 
 [dev-dependencies]
 tempfile = "3"

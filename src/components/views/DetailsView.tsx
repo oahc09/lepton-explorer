@@ -11,6 +11,7 @@ import { openItem } from '../../utils/open';
 import { setDragged } from '../../utils/drag';
 import { dropInto } from '../../utils/drop';
 import { groupEntries } from '../../utils/groupBy';
+import { useTagStore, TAG_HEX } from '../../state/tagStore';
 import { Thumbnail } from '../Thumbnail';
 
 const ROW_H = 32;
@@ -33,6 +34,7 @@ export function DetailsView({ entries, renamingPath, onRenameCommit }: { entries
   const colVisible = useViewStore((s) => s.colVisible);
   const groupBy = useViewStore((s) => s.groupBy);
   const showExtensions = useViewStore((s) => s.showExtensions);
+  const tags = useTagStore((s) => s.tags);
   const setColWidth = useViewStore((s) => s.setColWidth);
   const sel = useSelectionStore();
   const onOpen = useOpen();
@@ -86,6 +88,7 @@ export function DetailsView({ entries, renamingPath, onRenameCommit }: { entries
     if (c.key === 'name') {
       return (
         <span className="col-name" key="name">
+          {tags[item.path] && <span className="tag-dot" style={{ background: TAG_HEX[tags[item.path]] }} />}
           <span className="row-icon" aria-hidden><Thumbnail entry={item} size={16} /></span>
           {renamingPath === item.path ? (
             <input

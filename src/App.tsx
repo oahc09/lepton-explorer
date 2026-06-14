@@ -40,6 +40,7 @@ export default function App() {
   const { entries, loading, error } = useDirectory(path, refreshKey);
   const searchResults = useSearchStore((s) => s.results);
   const showHidden = useViewStore((s) => s.showHidden);
+  const themeMode = useViewStore((s) => s.themeMode);
   const visibleEntries = entries.filter((e) => showHidden || !e.isHidden);
   const shownEntries = searchResults ?? visibleEntries;
   const previewPane = useViewStore((s) => s.previewPane);
@@ -78,16 +79,20 @@ export default function App() {
     setRenamingPath(null);
   };
 
-  // Follow system light/dark theme.
+  // Theme: manual override (light/dark) or follow the system (auto).
   useEffect(() => {
     const apply = (t: 'light' | 'dark') => {
       document.documentElement.classList.toggle('theme-dark', t === 'dark');
       document.documentElement.classList.toggle('theme-light', t === 'light');
     };
+    if (themeMode !== 'auto') {
+      apply(themeMode);
+      return;
+    }
     getCurrentWindow().theme().then((t) => t && apply(t as 'light' | 'dark')).catch(() => {});
     const unlisten = getCurrentWindow().onThemeChanged((e) => e.payload && apply(e.payload as 'light' | 'dark'));
     return () => { unlisten.then((u) => u()); };
-  }, []);
+  }, [themeMode]);
 
   // File ops dispatch winfinder:refresh; re-list when it fires.
   useEffect(() => {

@@ -9,6 +9,7 @@ import { openItem } from '../../utils/open';
 import { displayName } from '../../utils/display';
 import { setDragged } from '../../utils/drag';
 import { dropInto } from '../../utils/drop';
+import { useTagStore, TAG_HEX } from '../../state/tagStore';
 import { Thumbnail } from '../Thumbnail';
 
 const SIZES: Record<IconSize, { tileW: number; tileH: number; font: number; perRow: number; nameMax: number }> = {
@@ -24,6 +25,7 @@ export function IconsView({ entries, size = 'large', renamingPath, onRenameCommi
   const sel = useSelectionStore();
   const navigate = useLocationStore((st) => st.navigate);
   const showExtensions = useViewStore((s) => s.showExtensions);
+  const tags = useTagStore((s) => s.tags);
   const rowCount = Math.ceil(entries.length / s.perRow);
   const rowV = useVirtualizer({ count: rowCount, getScrollElement: () => parentRef.current, estimateSize: () => s.tileH, overscan: 8 });
 
@@ -115,7 +117,7 @@ export function IconsView({ entries, size = 'large', renamingPath, onRenameCommi
                   onDoubleClick={() => { if (item.isDir) navigate(item.path); else openItem(item.path); }}
                   onAuxClick={(e) => { if (e.button === 1 && item.isDir) { e.preventDefault(); useLocationStore.getState().addTab(item.path); } }}
                 >
-                  <div className="tile-icon"><Thumbnail entry={item} size={s.font} /></div>
+                  <div className="tile-icon">{tags[item.path] && <span className="tag-dot" style={{ background: TAG_HEX[tags[item.path]], position: 'absolute' }} />}<Thumbnail entry={item} size={s.font} /></div>
                   {renamingPath === item.path ? (
                     <input
                       className="rename-input"

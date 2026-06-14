@@ -384,6 +384,15 @@ pub fn delete_permanent(paths: &[String]) -> std::io::Result<()> {
     Ok(())
 }
 
+/// Open a terminal at `path`. Prefers Windows Terminal (wt.exe); falls back to cmd.
+pub fn open_in_terminal(path: &str) -> std::io::Result<()> {
+    use std::process::Command;
+    if Command::new("wt.exe").arg("-d").arg(path).spawn().is_ok() {
+        return Ok(());
+    }
+    Command::new("cmd").arg("/K").current_dir(path).spawn().map(|_| ())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

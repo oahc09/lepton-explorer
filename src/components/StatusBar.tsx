@@ -9,7 +9,11 @@ export function StatusBar({ count, entries }: { count: number; entries: Entry[] 
   const selectedPaths = useSelectionStore((s) => s.selected);
   const viewMode = useViewStore((s) => s.viewMode);
   const setViewMode = useViewStore((s) => s.setViewMode);
+  const themeMode = useViewStore((s) => s.themeMode);
+  const setThemeMode = useViewStore((s) => s.setThemeMode);
   const idx = MODES.indexOf(viewMode) + 1;
+  const themeIcon = themeMode === 'auto' ? '🖥️' : themeMode === 'light' ? '☀️' : '🌙';
+  const themeLabel = themeMode === 'auto' ? '跟随系统' : themeMode === 'light' ? '浅色' : '深色';
 
   const selEntries = entries.filter((e) => selectedPaths.includes(e.path));
   const selCount = selEntries.length;
@@ -29,15 +33,22 @@ export function StatusBar({ count, entries }: { count: number; entries: Entry[] 
   return (
     <footer className="status-bar">
       <span>{left}</span>
-      <input
-        className="view-slider"
-        type="range"
-        min={1}
-        max={8}
-        value={idx}
-        onChange={(e) => setViewMode(MODES[parseInt(e.target.value, 10) - 1])}
-        title="视图模式"
-      />
+      <div className="status-right">
+        <input
+          className="view-slider"
+          type="range"
+          min={1}
+          max={8}
+          value={idx}
+          onChange={(e) => setViewMode(MODES[parseInt(e.target.value, 10) - 1])}
+          title="视图模式"
+        />
+        <button
+          className="theme-toggle"
+          title={`主题：${themeLabel}（点击切换）`}
+          onClick={() => setThemeMode(themeMode === 'auto' ? 'light' : themeMode === 'light' ? 'dark' : 'auto')}
+        >{themeIcon}</button>
+      </div>
     </footer>
   );
 }

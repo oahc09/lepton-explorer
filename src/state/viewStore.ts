@@ -14,7 +14,9 @@ interface ViewState {
   showExtensions: boolean;
   previewPane: boolean;
   detailsPane: boolean;
+  themeMode: 'auto' | 'light' | 'dark';
   setViewMode: (m: ViewMode) => void;
+  setThemeMode: (m: 'auto' | 'light' | 'dark') => void;
   setSort: (field: SortField) => void; // click a column header
   setGroupBy: (field: SortField | null) => void; // Group by ▾ (null = no grouping)
   setColWidth: (key: ColKey, w: number) => void;
@@ -35,7 +37,9 @@ export const useViewStore = create<ViewState>((set) => ({
   showExtensions: false,
   previewPane: false,
   detailsPane: false,
+  themeMode: 'auto',
   setViewMode: (m) => set({ viewMode: m }),
+  setThemeMode: (m) => set({ themeMode: m }),
   setSort: (field) =>
     set((s) => ({
       sort:

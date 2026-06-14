@@ -1,5 +1,6 @@
 pub mod error;
 pub mod fs_ops;
+pub mod office;
 pub mod ops;
 pub mod special;
 pub mod thumbnails;
@@ -58,6 +59,16 @@ fn create_dir(path: String) -> Result<()> {
 #[tauri::command]
 fn create_file(path: String) -> Result<()> {
     ops::create_file(&path).map_err(AppError::from)
+}
+
+#[tauri::command]
+fn create_typed_file(path: String) -> Result<()> {
+    office::create_typed_file(&path).map_err(AppError::from)
+}
+
+#[tauri::command]
+fn open_in_terminal(path: String) -> Result<()> {
+    ops::open_in_terminal(&path).map_err(AppError::from)
 }
 
 /// Return a non-colliding path for `dir` + `name` (auto-suffixes " (n)"), so
@@ -202,7 +213,9 @@ pub fn run() {
             list_drives,
             create_dir,
             create_file,
+            create_typed_file,
             unique_target,
+            open_in_terminal,
             rename,
             copy_items,
             copy_items_with_strategy,

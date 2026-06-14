@@ -5,6 +5,8 @@ import { useLocationStore } from '../state/locationStore';
 import { usePinnedStore } from '../state/pinnedStore';
 import { useFileOps } from '../hooks/useFileOps';
 import { openItem } from '../utils/open';
+import { NEW_FILE_KINDS } from '../types';
+import { useTagStore, TAG_COLORS } from '../state/tagStore';
 import type { Entry } from '../types';
 
 interface Pos { x: number; y: number; }
@@ -73,11 +75,30 @@ export function ContextMenu({ entries }: { entries: Entry[] }) {
         });
       })()}
       {item('新建文件夹', () => ops.newFolder(path))}
+      <li className="cm-item cm-has-submenu">新建文件 ▸
+        <ul className="cm-submenu">
+          {NEW_FILE_KINDS.map((k) => (
+            <li key={k.ext} className="cm-item" onClick={() => { ops.newTypedFile(path, k.label, k.ext); setPos(null); }}>{k.label} (.{k.ext})</li>
+          ))}
+        </ul>
+      </li>
       {item('剪切', () => useClipboardStore.getState().cut(selEntries), !hasSel)}
       {item('复制', () => useClipboardStore.getState().copy(selEntries), !hasSel)}
+      {item('复制路径', () => ops.copyPath(sel.join('\n')), !hasSel)}
       {item('粘贴', () => ops.paste(path))}
+      {item('在终端打开', () => { const en = selEntries[0]; ops.openTerminal(en && en.isDir ? en.path : path); })}
       {item('重命名', () => window.dispatchEvent(new CustomEvent('winfinder:rename', { detail: sel[0] })), sel.length !== 1)}
       {item('删除', () => ops.remove(sel, false), !hasSel)}
+      <li className={`cm-item cm-has-submenu${sel.length === 1 ? '' : ' disabled'}`}>标签 ▸
+        <ul className="cm-submenu">
+          <li className="cm-item" onClick={() => { if (sel[0]) useTagStore.getState().clearTag(sel[0]); setPos(null); }}>无</li>
+          {TAG_COLORS.map((c) => (
+            <li key={c.key} className="cm-item" onClick={() => { if (sel[0]) useTagStore.getState().setTag(sel[0], c.key); setPos(null); }}>
+              <span style={{ color: c.hex }}>●</span>&nbsp; {c.label}
+            </li>
+          ))}
+        </ul>
+      </li>
       {item('属性', () => { const en = selEntries[0]; if (en) window.dispatchEvent(new CustomEvent('winfinder:properties', { detail: en })); }, sel.length !== 1)}
       <li className="cm-sep" />
       {!more && (
