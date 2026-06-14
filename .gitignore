@@ -19,3 +19,6 @@ Thumbs.db
 *.log
 .env
 .env.local
+
+# Standalone release EXE (build output, placed here for convenience)
+/WinFinder.exe
