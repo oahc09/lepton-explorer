@@ -32,6 +32,19 @@ fn suggest_paths(prefix: String) -> Vec<fs_ops::PathSuggestion> {
     fs_ops::suggest_paths(&prefix)
 }
 
+/// §11 self-capture helper: decode a `data:image/png;base64,...` URL (produced by
+/// html2canvas in the frontend) and write the PNG bytes to `out_path`, so the
+/// rendered app can be inspected visually (§11 verification).
+#[tauri::command]
+fn capture_dom_png(data_url: String, out_path: String) -> Result<()> {
+    use base64::Engine;
+    let b64 = data_url.rsplit_once(',').map(|(_, b)| b).unwrap_or("");
+    let bytes = base64::engine::general_purpose::STANDARD
+        .decode(b64)
+        .map_err(|e| AppError::Unknown(e.to_string()))?;
+    std::fs::write(&out_path, bytes).map_err(AppError::from)
+}
+
 #[tauri::command]
 fn get_properties(path: String) -> Result<u64> {
     fs_ops::folder_size(&path).map_err(AppError::from)
@@ -175,6 +188,7 @@ pub fn run() {
             list_directory,
             search,
             suggest_paths,
+            capture_dom_png,
             get_properties,
             special_folders,
             list_drives,
