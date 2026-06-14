@@ -35,7 +35,9 @@ export function DetailsView({ entries, renamingPath, onRenameCommit }: { entries
   const showExtensions = useViewStore((s) => s.showExtensions);
   const setColWidth = useViewStore((s) => s.setColWidth);
   const arrow = (field: SortField) => (sort.field === field ? (sort.asc ? ' ▲' : ' ▼') : '');
-  const visibleCols = COLS.filter((c) => colVisible[c.key]);
+  // Name is always shown (can't be hidden via the UI); force-include it as a
+  // safety fallback so the grid is never empty even if colVisible.name were false.
+  const visibleCols = COLS.filter((c) => c.key === 'name' || colVisible[c.key]);
   const cols = visibleCols.map((c) => `${colWidths[c.widthKey]}px`).join(' ');
 
   useEffect(() => {

@@ -31,7 +31,8 @@ export async function dropInto(destDir: string, copy: boolean) {
       useProgressStore.getState().close();
     }
     window.dispatchEvent(new CustomEvent('winfinder:refresh'));
-  } catch {
-    // ignore op errors (e.g. permission denied, in-use) — don't refresh on failure
+  } catch (e) {
+    // op errors (permission denied, in-use, etc.) — don't refresh on failure, but log for diagnosis
+    console.warn('dropInto failed', e);
   }
 }
