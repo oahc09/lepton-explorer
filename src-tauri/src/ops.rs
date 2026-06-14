@@ -105,8 +105,12 @@ pub fn unique_path(dst: &Path) -> PathBuf {
     }
 }
 
+fn never_cancel() -> bool {
+    false
+}
+
 fn copy_recursive(src: &Path, dst: &Path) -> std::io::Result<()> {
-    copy_recursive_tracked(src, dst, &mut std::collections::HashSet::new(), &mut |_| {})
+    copy_recursive_tracked(src, dst, &mut std::collections::HashSet::new(), &mut |_| {}, &never_cancel)
 }
 
 fn copy_recursive_tracked(
@@ -114,6 +118,7 @@ fn copy_recursive_tracked(
     dst: &Path,
     visited: &mut std::collections::HashSet<PathBuf>,
     on_file: &mut dyn FnMut(&Path),
+    is_cancelled: &dyn Fn() -> bool,
 ) -> std::io::Result<()> {
     // If `src` is itself a symlink (to a dir or file), do NOT dereference+recurse;
     // copy it as a single unit (copies the target's content). This avoids following
@@ -122,6 +127,9 @@ fn copy_recursive_tracked(
         .map(|m| m.file_type().is_symlink())
         .unwrap_or(false)
     {
+        if is_cancelled() {
+            return Ok(());
+        }
         on_file(src);
         fs::copy(src, dst).map(|_| ())
     } else if src.is_dir() {
@@ -134,13 +142,19 @@ fn copy_recursive_tracked(
         }
         fs::create_dir_all(dst)?;
         for entry in fs::read_dir(src)? {
+            if is_cancelled() {
+                return Ok(()); // Cancel pressed mid-folder: stop, keep what's copied.
+            }
             let entry = entry?;
             let from = entry.path();
             let to = dst.join(entry.file_name());
-            copy_recursive_tracked(&from, &to, visited, on_file)?;
+            copy_recursive_tracked(&from, &to, visited, on_file, is_cancelled)?;
         }
         Ok(())
     } else {
+        if is_cancelled() {
+            return Ok(());
+        }
         on_file(src);
         fs::copy(src, dst).map(|_| ())
     }
@@ -210,6 +224,7 @@ where
                 current += 1;
                 on_file(current, total, p);
             },
+            &is_cancelled,
         )?;
         out.push(target.to_string_lossy().to_string());
     }
@@ -261,6 +276,7 @@ where
                         current += 1;
                         on_file(current, total, p);
                     },
+                    &is_cancelled,
                 )?;
                 remove_recursive(src)?;
             }
@@ -758,5 +774,27 @@ mod tests {
         assert!(dest.join("a.txt").is_file());
         assert_eq!(moved.len(), 1);
         assert_eq!(calls, 0, "same-volume rename emits no per-file progress");
+    }
+
+    #[test]
+    fn copy_items_tracked_cancels_mid_folder_copy() {
+        // Cancel threaded into recursion: after the first file, the rest are skipped.
+        let d = tempdir().unwrap();
+        let dest = d.path().join("dest"); fs::create_dir(&dest).unwrap();
+        let sub = d.path().join("sub"); fs::create_dir(&sub).unwrap();
+        fs::write(sub.join("a.txt"), "1").unwrap();
+        fs::write(sub.join("b.txt"), "2").unwrap();
+        let cancelled = std::cell::Cell::new(false);
+        let out = copy_items_tracked(
+            &[sub.to_string_lossy().to_string()],
+            dest.to_str().unwrap(),
+            ConflictStrategy::Rename,
+            || cancelled.get(),
+            |_, _, _| { cancelled.set(true); }, // request cancel once the first file is written
+        )
+        .unwrap();
+        assert_eq!(out.len(), 1); // the folder recorded (partially copied)
+        let copied = ["a.txt", "b.txt"].into_iter().filter(|n| dest.join("sub").join(n).is_file()).count();
+        assert_eq!(copied, 1, "exactly one file copied before cancel (order-independent)");
     }
 }
