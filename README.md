@@ -2,7 +2,7 @@
 
 A replica of the **Windows 11 File Explorer**, built with **Tauri v2** (Rust backend) + **React + TypeScript**. Runs on Windows 10 and Windows 11.
 
-![status](https://img.shields.io/badge/status-feature--complete-brightgreen) ![tests](https://img.shields.io/badge/tests-172%20passing-brightgreen) ![build](https://img.shields.io/badge/exe-windows%20x64-blue)
+![status](https://img.shields.io/badge/status-feature--complete-brightgreen) ![tests](https://img.shields.io/badge/tests-181%20passing-brightgreen) ![build](https://img.shields.io/badge/exe-windows%20x64-blue)
 
 ## What it does
 
@@ -28,7 +28,7 @@ A fully usable file manager matching Win11 Explorer's layout and behavior:
   (`Alt+Shift+P`)
 - **Quick access** — pin/unpin folders (persisted), cross-window synced
 - **Chrome** — custom Mica title bar, light/dark theme (follows system), `F11` fullscreen,
-  View→Show toggles (hidden items / file extensions), details column resize, sort arrows, + show/hide columns
+  View→Show toggles (hidden items / file extensions), details column resize, sort arrows, + show/hide columns, group by
 
 ## Build & run
 
@@ -47,7 +47,7 @@ and `bundle/nsis/*-setup.exe` installers.
 
 ```bash
 cd src-tauri && cargo test   # Rust unit tests (43)
-pnpm test                    # frontend tests (129)
+pnpm test                    # frontend tests (138)
 npx tsc --noEmit             # type-check
 ```
 
