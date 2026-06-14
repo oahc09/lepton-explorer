@@ -38,7 +38,11 @@ export function DetailsView({ entries, renamingPath, onRenameCommit }: { entries
   const arrow = (field: SortField) => (sort.field === field ? (sort.asc ? ' ▲' : ' ▼') : '');
   // Name is always shown; force-include it so the grid is never empty.
   const visibleCols = COLS.filter((c) => c.key === 'name' || colVisible[c.key]);
-  const cols = visibleCols.map((c) => `${colWidths[c.widthKey]}px`).join(' ');
+  // The Name column flexes (min 80px) so the other columns stay visible in narrow
+  // windows — matches Win11 (name shrinks rather than pushing others off-screen).
+  const cols = visibleCols
+    .map((c) => (c.key === 'name' ? `minmax(80px, ${colWidths.name}px)` : `${colWidths[c.widthKey]}px`))
+    .join(' ');
 
   // Flatten into group-header + row items when grouping. `rowToFlat` maps a
   // logical row index → flat index so keyboard navigation scrolls correctly.

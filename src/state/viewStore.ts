@@ -28,7 +28,7 @@ interface ViewState {
 export const useViewStore = create<ViewState>((set) => ({
   viewMode: 'details',
   sort: { field: 'name', asc: true },
-  colWidths: { name: 600, date: 180, type: 160, size: 110 },
+  colWidths: { name: 300, date: 180, type: 160, size: 110 },
   colVisible: { name: true, date: true, type: true, size: true },
   groupBy: null,
   showHidden: false,

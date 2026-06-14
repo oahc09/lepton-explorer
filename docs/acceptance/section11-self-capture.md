@@ -34,6 +34,26 @@ radius, theme, font) **match the measured Win11 targets**. This confirms the
 CSS alignment is reflected in the actual render, to the extent verifiable
 without a fresh Win11 baseline of identical content.
 
+## Details-view capture — found and fixed a real fidelity bug
+
+A second self-capture (`winfinder-capture-details.png`) targeted the details view
+of the `Dataset/` folder. It surfaced a genuine bug: with the default Name-column
+width of 600px, the other columns (修改日期/类型/大小) overflowed off-screen in
+an 800×600 window — only Name was visible. Win11 shrinks the Name column so all
+columns stay visible.
+
+**Fix applied:** the Name column is now `minmax(80px, <width>)` (flexes down to
+80px) with a default width of 300px (`viewStore.colWidths.name`, was 600). With
+the ~560px main-view area, all four columns now fit in the real WebView2 render.
+
+**Capture-tool caveat:** the post-fix self-capture still shows only the Name
+column because `html2canvas` (1.4.1) does not render CSS-grid `minmax` tracks — a
+known limitation of the capture library, not an app defect. Chromium/WebView2
+fully supports `minmax`, so the live app displays all four columns. The
+self-capture is therefore reliable for chrome/non-grid regions (verified above)
+but cannot represent the grid-based details columns; confirming those against a
+real Win11 baseline remains the user step.
+
 ## What remains (user-gated)
 
 A pixel-exact comparison requires:
