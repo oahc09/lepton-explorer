@@ -157,6 +157,62 @@ fn type_label_for(name: &str, is_dir: bool) -> String {
     }
 }
 
+#[derive(Serialize, Clone, Debug, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct PathSuggestion {
+    pub name: String,
+    pub path: String,
+    pub is_dir: bool,
+}
+
+/// Address-bar autocomplete: given a partial path, return the children of the
+/// deepest existing parent directory whose name starts with the typed remainder.
+/// e.g. "C:\Users\ca\Do" → children of "C:\Users\ca" whose name starts with "Do".
+pub fn suggest_paths(prefix: &str) -> Vec<PathSuggestion> {
+    let p = prefix.replace('/', "\\");
+    let p = p.trim_end_matches('\\');
+    if p.is_empty() {
+        return Vec::new();
+    }
+    let pp = Path::new(p);
+    let (dir, partial) = if pp.is_dir() {
+        (p.to_string(), String::new())
+    } else if let Some(i) = p.rfind('\\') {
+        (p[..i].to_string(), p[i + 1..].to_string())
+    } else if p.len() == 2 && p.ends_with(':') {
+        // Bare drive letter "C:" → its root.
+        (format!("{}\\", p), String::new())
+    } else {
+        return Vec::new();
+    };
+    let dir_path = Path::new(&dir);
+    if !dir_path.is_dir() {
+        return Vec::new();
+    }
+    let pl = partial.to_lowercase();
+    let mut out: Vec<PathSuggestion> = fs::read_dir(dir_path)
+        .ok()
+        .into_iter()
+        .flatten()
+        .filter_map(|e| e.ok())
+        .filter_map(|e| {
+            let name = e.file_name().to_string_lossy().to_string();
+            if !name.to_lowercase().starts_with(&pl) {
+                return None;
+            }
+            Some(PathSuggestion {
+                path: dir_path.join(&name).to_string_lossy().to_string(),
+                is_dir: e.path().is_dir(),
+                name,
+            })
+        })
+        .collect();
+    // Folders first, then name (case-insensitive); cap at 20.
+    out.sort_by(|a, b| b.is_dir.cmp(&a.is_dir).then_with(|| a.name.to_lowercase().cmp(&b.name.to_lowercase())));
+    out.truncate(20);
+    out
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -257,5 +313,46 @@ mod tests {
         fs::write(d.path().join("s").join("x"), "123").unwrap(); // 3
         fs::write(d.path().join("top"), "12").unwrap();            // 2
         assert_eq!(folder_size(d.path().to_str().unwrap()).unwrap(), 5);
+    }
+
+    #[test]
+    fn suggest_paths_matches_children_by_prefix() {
+        let d = tempdir().unwrap();
+        fs::create_dir_all(d.path().join("Documents")).unwrap();
+        fs::create_dir_all(d.path().join("Downloads")).unwrap();
+        fs::write(d.path().join("data.txt"), "x").unwrap();
+        let base = d.path().to_string_lossy().to_string();
+        // prefix = base + "\Do" → children of base starting with "Do"
+        let s = suggest_paths(&format!("{}\\Do", base));
+        let names: Vec<&str> = s.iter().map(|x| x.name.as_str()).collect();
+        assert!(names.contains(&"Documents"));
+        assert!(names.contains(&"Downloads"));
+        assert!(!names.contains(&"data.txt"));
+        assert!(s.iter().all(|x| x.is_dir)); // both matches are dirs
+    }
+
+    #[test]
+    fn suggest_paths_existing_dir_lists_all_children() {
+        let d = tempdir().unwrap();
+        fs::write(d.path().join("apple.txt"), "x").unwrap();
+        fs::write(d.path().join("banana.txt"), "x").unwrap();
+        let s = suggest_paths(d.path().to_str().unwrap());
+        let names: Vec<&str> = s.iter().map(|x| x.name.as_str()).collect();
+        assert!(names.contains(&"apple.txt"));
+        assert!(names.contains(&"banana.txt"));
+    }
+
+    #[test]
+    fn suggest_paths_case_insensitive_prefix() {
+        let d = tempdir().unwrap();
+        fs::create_dir_all(d.path().join("Documents")).unwrap();
+        let base = d.path().to_string_lossy().to_string();
+        let s = suggest_paths(&format!("{}\\doc", base)); // lowercase prefix
+        assert!(s.iter().any(|x| x.name == "Documents"));
+    }
+
+    #[test]
+    fn suggest_paths_nonexistent_parent_returns_empty() {
+        assert!(suggest_paths("Z:\\no\\such\\path\\X").is_empty());
     }
 }

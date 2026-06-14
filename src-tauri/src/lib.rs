@@ -28,6 +28,11 @@ fn search(root: String, query: String) -> Result<Vec<fs_ops::Entry>> {
 }
 
 #[tauri::command]
+fn suggest_paths(prefix: String) -> Vec<fs_ops::PathSuggestion> {
+    fs_ops::suggest_paths(&prefix)
+}
+
+#[tauri::command]
 fn get_properties(path: String) -> Result<u64> {
     fs_ops::folder_size(&path).map_err(AppError::from)
 }
@@ -169,6 +174,7 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             list_directory,
             search,
+            suggest_paths,
             get_properties,
             special_folders,
             list_drives,

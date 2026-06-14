@@ -32,3 +32,6 @@ export interface Drive { letter: string; path: string; }
 /// - 'skip'    → leave the existing item untouched
 export type ConflictStrategy = 'rename' | 'replace' | 'skip';
 export interface ConflictInfo { name: string; }
+
+/** Address-bar autocomplete suggestion (mirrors Rust PathSuggestion). */
+export interface PathSuggestion { name: string; path: string; isDir: boolean; }
