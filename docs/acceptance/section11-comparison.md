@@ -28,17 +28,16 @@ is what §11 fidelity measures).
 | Nav-pane background | `#F8F8F8` | `#F8F8F8` | none |
 | Window/client background | `#F0F0F0` | `#F0F0F0` (token) / `#F8F8F8` (pane-dominated sample) | none (same tokens) |
 | Main content background | `#FFFFFF` | `#FFFFFF` | none |
-| Borders/separators | `#CCCCCC` | `#DCDCDC` (token) | minor (ΔE < 2) |
+| Borders/separators | `#CCCCCC` | `#CCCCCC` | none |
 | Chrome elements present | title bar + tabs, command bar, nav pane, breadcrumb, file list, status bar | all present | none |
 
 ## Assessment
 
-Every measurable style token **matches** between WinFinder's actual render and
-the real Windows 11 reference (accent, command-bar/status-bar heights, button
-radius, theme, font, pane/content backgrounds). The one token with a non-zero
-delta is the border shade (`#DCDCDC` vs `#CCCCCC`, ΔE < 2 — within the §11.1
-≤ΔE 2 threshold). The full Win11 chrome (title bar, command bar, nav pane,
-breadcrumb, file list, status bar) is present and correctly proportioned.
+Every measurable style token **matches exactly** between WinFinder's actual render
+and the real Windows 11 reference (accent, command-bar/status-bar heights, button
+radius, theme, font, pane/content backgrounds, borders). The full Win11 chrome
+(title bar, command bar, nav pane, breadcrumb, file list, status bar) is present
+and correctly proportioned.
 
 This is the autonomous screenshot comparison against a real Win11 File Explorer
 screenshot. **Result: zero deviation on all measured tokens (within tolerance).**
