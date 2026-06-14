@@ -347,7 +347,7 @@ export default function App() {
         {previewPane && <PreviewPane entry={previewEntry} />}
         {detailsPane && <DetailsPane entry={previewEntry} />}
       </div>
-      <StatusBar count={shownEntries.length} />
+      <StatusBar count={shownEntries.length} entries={shownEntries} />
       <ContextMenu entries={shownEntries} />
       {propsEntry && <PropertiesDialog entry={propsEntry} onClose={() => setPropsEntry(null)} />}
       <ConflictModal />

@@ -11,6 +11,7 @@ interface Pos { x: number; y: number; }
 
 export function ContextMenu({ entries }: { entries: Entry[] }) {
   const [pos, setPos] = useState<Pos | null>(null);
+  const [more, setMore] = useState(false);
   const sel = useSelectionStore((s) => s.selected);
   const ops = useFileOps();
   const path = useLocationStore((s) => s.path);
@@ -20,13 +21,14 @@ export function ContextMenu({ entries }: { entries: Entry[] }) {
       const t = e.target as HTMLElement;
       if (t.closest('.main-view')) {
         e.preventDefault();
+        setMore(false);
         setPos({ x: e.clientX, y: e.clientY });
       }
     };
     const onClick = () => setPos(null);
     const onOpen = (e: Event) => {
       const detail = (e as CustomEvent<{ x: number; y: number }>).detail;
-      if (detail) setPos({ x: detail.x, y: detail.y });
+      if (detail) { setMore(false); setPos({ x: detail.x, y: detail.y }); }
     };
     document.addEventListener('contextmenu', onMenu);
     document.addEventListener('click', onClick);
@@ -76,7 +78,20 @@ export function ContextMenu({ entries }: { entries: Entry[] }) {
       {item('删除', () => ops.remove(sel, false), !hasSel)}
       {item('属性', () => { const en = selEntries[0]; if (en) window.dispatchEvent(new CustomEvent('winfinder:properties', { detail: en })); }, sel.length !== 1)}
       <li className="cm-sep" />
-      {item('显示更多选项', () => {})}
+      {!more && (
+        <li className="cm-item" onClick={(e) => { e.stopPropagation(); setMore(true); }}>显示更多选项 ▾</li>
+      )}
+      {more && (
+        <>
+          {item('全选', () => useSelectionStore.getState().select(entries))}
+          {item('反转选择', () => {
+            const cur = useSelectionStore.getState().selected;
+            const newSel = entries.filter((e) => !cur.includes(e.path)).map((e) => e.path);
+            useSelectionStore.setState({ selected: newSel, anchor: newSel[newSel.length - 1] ?? null });
+          })}
+          {item('刷新', () => window.dispatchEvent(new CustomEvent('winfinder:refresh')))}
+        </>
+      )}
     </ul>
   );
 }

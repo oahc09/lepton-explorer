@@ -51,7 +51,7 @@ body { font-family: var(--font); font-size: 14px; background: var(--bg); color: 
 .theme-dark .wc:hover { background: rgba(255,255,255,0.10); }
 .wc-close:hover { background: #c42b1c; color: #fff; }
 
-.toolbar-row { height: var(--toolbar-h); display: flex; align-items: center; gap: 8px; padding: 0 12px; overflow: hidden; }
+.toolbar-row { height: var(--toolbar-h); display: flex; align-items: center; gap: 8px; padding: 0 12px; }
 .toolbar { display: flex; gap: 4px; }
 .toolbar button { width: 36px; height: 36px; border: 0; background: transparent; color: var(--text); border-radius: 4px; font-size: 16px; cursor: pointer; }
 .toolbar button:hover:not(:disabled) { background: var(--hover-bg); }
@@ -91,6 +91,10 @@ body { font-family: var(--font); font-size: 14px; background: var(--bg); color: 
 .details-row:hover { background: var(--hover-bg); }
 .details-row.selected { background: var(--select-bg); }
 .details-row span { padding: 0 10px; font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.col-name { display: flex; align-items: center; gap: 8px; padding: 0 10px !important; }
+.col-name .row-icon { display: inline-flex; align-items: center; flex: none; }
+.col-name .row-icon img { display: block; }
+.col-name .name { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
 .group-header { font-size: 13px; font-weight: 600; color: var(--text); background: var(--header-bg); border-bottom: 1px solid var(--border); }
 
 .icons { padding: 8px; }
