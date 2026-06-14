@@ -2,7 +2,7 @@
 
 A replica of the **Windows 11 File Explorer**, built with **Tauri v2** (Rust backend) + **React + TypeScript**. Runs on Windows 10 and Windows 11.
 
-![status](https://img.shields.io/badge/status-feature--complete-brightgreen) ![tests](https://img.shields.io/badge/tests-181%20passing-brightgreen) ![build](https://img.shields.io/badge/exe-windows%20x64-blue)
+![status](https://img.shields.io/badge/status-feature--complete-brightgreen) ![tests](https://img.shields.io/badge/tests-186%20passing-brightgreen) ![build](https://img.shields.io/badge/exe-windows%20x64-blue)
 
 ## What it does
 
@@ -12,7 +12,7 @@ A fully usable file manager matching Win11 Explorer's layout and behavior:
   (switch via the View ▾ flyout, the status-bar slider, `Ctrl+Shift+1–8`, or `Ctrl+scroll`)
 - **Navigation** — breadcrumb (segment click + edit mode), This PC + Quick access nav pane,
   back/forward/up, refresh (`F5`), `Backspace`=back, `Alt+←/→/↑` (back/forward/up),
-  address focus (`Ctrl+L`/`Alt+D`/`F4`), pane-focus cycling (`F6`/`Shift+F6`),
+  address focus (`Ctrl+L`/`Alt+D`/`F4`, with **path autocomplete**), pane-focus cycling (`F6`/`Shift+F6`),
   **Home page** with special folders + recent files
 - **Tabs** — `Ctrl+T`/`W`/`Tab`/`1–9`, middle-click folder=open-in-new-tab, middle-click tab=close,
   drag-to-reorder, context-menu "open in new tab"
@@ -46,8 +46,8 @@ and `bundle/nsis/*-setup.exe` installers.
 ## Test
 
 ```bash
-cd src-tauri && cargo test   # Rust unit tests (43)
-pnpm test                    # frontend tests (138)
+cd src-tauri && cargo test   # Rust unit tests (47)
+pnpm test                    # frontend tests (139)
 npx tsc --noEmit             # type-check
 ```
 
