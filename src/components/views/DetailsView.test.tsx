@@ -19,7 +19,12 @@ const e = (n: string): Entry => ({ name: n, path: 'C:\\' + n, isDir: false, size
 
 beforeEach(() => {
   useSelectionStore.getState().clear();
-  useViewStore.setState({ viewMode: 'details', sort: { field: 'name', asc: true }, showExtensions: true });
+  useViewStore.setState({
+    viewMode: 'details',
+    sort: { field: 'name', asc: true },
+    showExtensions: true,
+    colVisible: { name: true, date: true, type: true, size: true },
+  });
 });
 
 describe('DetailsView', () => {
@@ -35,5 +40,13 @@ describe('DetailsView', () => {
     render(<DetailsView entries={[e('a.txt')]} />);
     // 大小 header carries the descending arrow
     expect(screen.getByText(/大小/).textContent).toMatch(/▼/);
+  });
+
+  it('hides columns marked not visible', () => {
+    useViewStore.setState({ colVisible: { name: true, date: false, type: false, size: true } });
+    render(<DetailsView entries={[e('a.txt')]} />);
+    expect(screen.getByText(/大小/)).toBeInTheDocument(); // visible
+    expect(screen.queryByText('类型')).toBeNull(); // hidden header
+    expect(screen.queryByText('修改日期')).toBeNull(); // hidden header
   });
 });

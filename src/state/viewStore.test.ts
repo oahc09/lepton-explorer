@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { useViewStore } from './viewStore';
 
-beforeEach(() => useViewStore.setState({ viewMode: 'details', sort: { field: 'name', asc: true }, colWidths: { name: 600, date: 180, type: 160, size: 110 }, showHidden: false, showExtensions: false, previewPane: false, detailsPane: false }));
+beforeEach(() => useViewStore.setState({ viewMode: 'details', sort: { field: 'name', asc: true }, colWidths: { name: 600, date: 180, type: 160, size: 110 }, colVisible: { name: true, date: true, type: true, size: true }, showHidden: false, showExtensions: false, previewPane: false, detailsPane: false }));
 
 describe('viewStore', () => {
   it('setViewMode updates mode', () => {
@@ -23,6 +23,15 @@ describe('viewStore', () => {
     expect(useViewStore.getState().colWidths.date).toBe(250);
     useViewStore.getState().setColWidth('size', 10);
     expect(useViewStore.getState().colWidths.size).toBe(40);
+  });
+  it('toggleCol hides/shows a column but never Name', () => {
+    useViewStore.getState().toggleCol('date');
+    expect(useViewStore.getState().colVisible.date).toBe(false);
+    useViewStore.getState().toggleCol('date');
+    expect(useViewStore.getState().colVisible.date).toBe(true);
+    // Name is always visible (toggleCol is a no-op for it).
+    useViewStore.getState().toggleCol('name');
+    expect(useViewStore.getState().colVisible.name).toBe(true);
   });
   it('toggleHidden flips the flag', () => {
     expect(useViewStore.getState().showHidden).toBe(false);

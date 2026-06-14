@@ -1,6 +1,6 @@
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { useEffect, useRef } from 'react';
-import type { Entry } from '../../types';
+import type { Entry, SortField } from '../../types';
 import { useViewStore } from '../../state/viewStore';
 import { useSelectionStore } from '../../state/selectionStore';
 import { useLocationStore } from '../../state/locationStore';
@@ -14,6 +14,15 @@ import { Thumbnail } from '../Thumbnail';
 
 const ROW_H = 32;
 
+/** Details-view column descriptors (key, header label, sort field, width key). */
+type ColKey = 'name' | 'date' | 'type' | 'size';
+const COLS: { key: ColKey; label: string; sortField: SortField; widthKey: ColKey }[] = [
+  { key: 'name', label: '名称', sortField: 'name', widthKey: 'name' },
+  { key: 'date', label: '修改日期', sortField: 'modified', widthKey: 'date' },
+  { key: 'type', label: '类型', sortField: 'type', widthKey: 'type' },
+  { key: 'size', label: '大小', sortField: 'size', widthKey: 'size' },
+];
+
 export function DetailsView({ entries, renamingPath, onRenameCommit }: { entries: Entry[]; renamingPath?: string | null; onRenameCommit?: (n: string) => void; }) {
   const parentRef = useRef<HTMLDivElement>(null);
   const sorted = useSorted(entries);
@@ -22,11 +31,12 @@ export function DetailsView({ entries, renamingPath, onRenameCommit }: { entries
   const onOpen = useOpen();
   const sort = useViewStore((s) => s.sort);
   const colWidths = useViewStore((s) => s.colWidths);
+  const colVisible = useViewStore((s) => s.colVisible);
   const showExtensions = useViewStore((s) => s.showExtensions);
   const setColWidth = useViewStore((s) => s.setColWidth);
-  const arrow = (field: 'name' | 'modified' | 'type' | 'size') =>
-    sort.field === field ? (sort.asc ? ' ▲' : ' ▼') : '';
-  const cols = `${colWidths.name}px ${colWidths.date}px ${colWidths.type}px ${colWidths.size}px`;
+  const arrow = (field: SortField) => (sort.field === field ? (sort.asc ? ' ▲' : ' ▼') : '');
+  const visibleCols = COLS.filter((c) => colVisible[c.key]);
+  const cols = visibleCols.map((c) => `${colWidths[c.widthKey]}px`).join(' ');
 
   useEffect(() => {
     const onScroll = (ev: Event) => {
@@ -62,10 +72,12 @@ export function DetailsView({ entries, renamingPath, onRenameCommit }: { entries
   return (
     <div className="details" ref={parentRef} style={{ overflow: 'auto', height: '100%' }}>
       <div className="details-header" style={{ display: 'grid', gridTemplateColumns: cols }}>
-        <div className="col-head"><button className={sort.field === 'name' ? 'col-name active-sort' : 'col-name'} onClick={() => useViewStore.getState().setSort('name')}>名称{arrow('name')}</button><div className="col-resizer" onMouseDown={(e) => startResize('name', e)} /></div>
-        <div className="col-head"><button className={sort.field === 'modified' ? 'col-date active-sort' : 'col-date'} onClick={() => useViewStore.getState().setSort('modified')}>修改日期{arrow('modified')}</button><div className="col-resizer" onMouseDown={(e) => startResize('date', e)} /></div>
-        <div className="col-head"><button className={sort.field === 'type' ? 'col-type active-sort' : 'col-type'} onClick={() => useViewStore.getState().setSort('type')}>类型{arrow('type')}</button><div className="col-resizer" onMouseDown={(e) => startResize('type', e)} /></div>
-        <div className="col-head"><button className={sort.field === 'size' ? 'col-size active-sort' : 'col-size'} onClick={() => useViewStore.getState().setSort('size')}>大小{arrow('size')}</button><div className="col-resizer" onMouseDown={(e) => startResize('size', e)} /></div>
+        {visibleCols.map((c) => (
+          <div className="col-head" key={c.key}>
+            <button className={sort.field === c.sortField ? `col-${c.key} active-sort` : `col-${c.key}`} onClick={() => useViewStore.getState().setSort(c.sortField)}>{c.label}{arrow(c.sortField)}</button>
+            <div className="col-resizer" onMouseDown={(e) => startResize(c.widthKey, e)} />
+          </div>
+        ))}
       </div>
       <div style={{ height: `${rowVirtualizer.getTotalSize()}px`, position: 'relative' }}>
         {rowVirtualizer.getVirtualItems().map((vi) => {
@@ -91,25 +103,34 @@ export function DetailsView({ entries, renamingPath, onRenameCommit }: { entries
               onDoubleClick={() => { if (item.isDir) onOpen(item); else openItem(item.path); }}
               onAuxClick={(e) => { if (e.button === 1 && item.isDir) { e.preventDefault(); useLocationStore.getState().addTab(item.path); } }}
             >
-              <span className="col-name"><span className="row-icon" aria-hidden><Thumbnail entry={item} size={16} /></span>{renamingPath === item.path ? (
-                <input
-                  className="rename-input"
-                  autoFocus
-                  defaultValue={item.name}
-                  onClick={(e) => e.stopPropagation()}
-                  onFocus={(e) => e.currentTarget.select()}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter') { e.preventDefault(); (e.currentTarget as HTMLInputElement).dataset.committed = '1'; onRenameCommit?.((e.currentTarget as HTMLInputElement).value); }
-                    if (e.key === 'Escape') { e.preventDefault(); (e.currentTarget as HTMLInputElement).dataset.committed = '1'; onRenameCommit?.(item.name); }
-                  }}
-                  onBlur={(e) => { if (!e.currentTarget.dataset.committed) onRenameCommit?.(e.currentTarget.value); }}
-                />
-              ) : (
-                <span className="name">{displayName(item, showExtensions)}</span>
-              )}</span>
-              <span className="col-date">{formatDate(item.modified)}</span>
-              <span className="col-type">{item.typeLabel}</span>
-              <span className="col-size">{item.isDir ? '' : formatSize(item.size)}</span>
+              {visibleCols.map((c) => {
+                if (c.key === 'name') {
+                  return (
+                    <span className="col-name" key="name">
+                      <span className="row-icon" aria-hidden><Thumbnail entry={item} size={16} /></span>
+                      {renamingPath === item.path ? (
+                        <input
+                          className="rename-input"
+                          autoFocus
+                          defaultValue={item.name}
+                          onClick={(e) => e.stopPropagation()}
+                          onFocus={(e) => e.currentTarget.select()}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') { e.preventDefault(); (e.currentTarget as HTMLInputElement).dataset.committed = '1'; onRenameCommit?.((e.currentTarget as HTMLInputElement).value); }
+                            if (e.key === 'Escape') { e.preventDefault(); (e.currentTarget as HTMLInputElement).dataset.committed = '1'; onRenameCommit?.(item.name); }
+                          }}
+                          onBlur={(e) => { if (!e.currentTarget.dataset.committed) onRenameCommit?.(e.currentTarget.value); }}
+                        />
+                      ) : (
+                        <span className="name">{displayName(item, showExtensions)}</span>
+                      )}
+                    </span>
+                  );
+                }
+                if (c.key === 'date') return <span className="col-date" key="date">{formatDate(item.modified)}</span>;
+                if (c.key === 'type') return <span className="col-type" key="type">{item.typeLabel}</span>;
+                return <span className="col-size" key="size">{item.isDir ? '' : formatSize(item.size)}</span>;
+              })}
             </div>
           );
         })}

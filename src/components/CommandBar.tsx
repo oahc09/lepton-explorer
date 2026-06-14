@@ -29,6 +29,7 @@ export function CommandBar({ entries }: { entries: Entry[] }) {
   }, []);
   const viewMode = useViewStore((s) => s.viewMode);
   const sort = useViewStore((s) => s.sort);
+  const colVisible = useViewStore((s) => s.colVisible);
   const showExtensionsFlag = useViewStore((s) => s.showExtensions);
   const showHiddenFlag = useViewStore((s) => s.showHidden);
 
@@ -67,6 +68,11 @@ export function CommandBar({ entries }: { entries: Entry[] }) {
           <ul className="flyout">
             {([['name', '名称'], ['modified', '修改日期'], ['type', '类型'], ['size', '大小']] as const).map(([f, label]) => (
               <li key={f} className={`flyout-item${sort.field === f ? ' checked' : ''}`} onClick={() => { useViewStore.getState().setSort(f); setOpen(null); }}>{label}{sort.field === f ? (sort.asc ? ' ▲' : ' ▼') : ''}</li>
+            ))}
+            <li className="flyout-sep" />
+            <li className="flyout-item flyout-static" aria-hidden>列（名称常显）</li>
+            {([['date', '修改日期'], ['type', '类型'], ['size', '大小']] as const).map(([key, label]) => (
+              <li key={key} className={`flyout-item${colVisible[key] ? ' checked' : ''}`} onClick={() => { useViewStore.getState().toggleCol(key); }}>{label}</li>
             ))}
           </ul>
         )}
