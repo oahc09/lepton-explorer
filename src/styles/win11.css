@@ -86,6 +86,7 @@ body { font-family: var(--font); font-size: 14px; background: var(--bg); color: 
 .details-row:hover { background: var(--hover-bg); }
 .details-row.selected { background: var(--select-bg); }
 .details-row span { padding: 0 10px; font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.group-header { font-size: 13px; font-weight: 600; color: var(--text); background: var(--header-bg); border-bottom: 1px solid var(--border); }
 
 .icons { padding: 8px; }
 .icon-row { display: flex; gap: 8px; padding: 4px; }

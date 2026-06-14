@@ -1,5 +1,5 @@
 import { useVirtualizer } from '@tanstack/react-virtual';
-import { useEffect, useRef } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 import type { Entry, SortField } from '../../types';
 import { useViewStore } from '../../state/viewStore';
 import { useSelectionStore } from '../../state/selectionStore';
@@ -10,6 +10,7 @@ import { useSorted, handleClick, useOpen } from './detailsHelpers';
 import { openItem } from '../../utils/open';
 import { setDragged } from '../../utils/drag';
 import { dropInto } from '../../utils/drop';
+import { groupEntries } from '../../utils/groupBy';
 import { Thumbnail } from '../Thumbnail';
 
 const ROW_H = 32;
@@ -26,19 +27,24 @@ const COLS: { key: ColKey; label: string; sortField: SortField; widthKey: ColKey
 export function DetailsView({ entries, renamingPath, onRenameCommit }: { entries: Entry[]; renamingPath?: string | null; onRenameCommit?: (n: string) => void; }) {
   const parentRef = useRef<HTMLDivElement>(null);
   const sorted = useSorted(entries);
-  const rowVirtualizer = useVirtualizer({ count: sorted.length, getScrollElement: () => parentRef.current, estimateSize: () => ROW_H, overscan: 20 });
-  const sel = useSelectionStore();
-  const onOpen = useOpen();
   const sort = useViewStore((s) => s.sort);
   const colWidths = useViewStore((s) => s.colWidths);
   const colVisible = useViewStore((s) => s.colVisible);
+  const groupBy = useViewStore((s) => s.groupBy);
   const showExtensions = useViewStore((s) => s.showExtensions);
   const setColWidth = useViewStore((s) => s.setColWidth);
+  const sel = useSelectionStore();
+  const onOpen = useOpen();
   const arrow = (field: SortField) => (sort.field === field ? (sort.asc ? ' ▲' : ' ▼') : '');
-  // Name is always shown (can't be hidden via the UI); force-include it as a
-  // safety fallback so the grid is never empty even if colVisible.name were false.
+  // Name is always shown; force-include it so the grid is never empty.
   const visibleCols = COLS.filter((c) => c.key === 'name' || colVisible[c.key]);
   const cols = visibleCols.map((c) => `${colWidths[c.widthKey]}px`).join(' ');
+
+  // Flatten into group-header + row items when grouping. `rowToFlat` maps a
+  // logical row index → flat index so keyboard navigation scrolls correctly.
+  const { flat, rowToFlat } = useMemo(() => groupEntries(sorted, groupBy), [sorted, groupBy]);
+
+  const rowVirtualizer = useVirtualizer({ count: flat.length, getScrollElement: () => parentRef.current, estimateSize: () => ROW_H, overscan: 20 });
 
   useEffect(() => {
     const onScroll = (ev: Event) => {
@@ -54,14 +60,14 @@ export function DetailsView({ entries, renamingPath, onRenameCommit }: { entries
 
   useEffect(() => {
     const onScrollTo = (ev: Event) => {
-      const idx = (ev as CustomEvent<number>).detail;
-      rowVirtualizer.scrollToIndex(idx, { align: 'auto' });
+      const rowIdx = (ev as CustomEvent<number>).detail;
+      rowVirtualizer.scrollToIndex(rowToFlat[rowIdx] ?? rowIdx, { align: 'auto' });
     };
     window.addEventListener('winfinder:scroll-to-index', onScrollTo as EventListener);
     return () => window.removeEventListener('winfinder:scroll-to-index', onScrollTo as EventListener);
-  }, [rowVirtualizer]);
+  }, [rowVirtualizer, rowToFlat]);
 
-  const startResize = (key: 'name' | 'date' | 'type' | 'size', e: React.MouseEvent) => {
+  const startResize = (key: ColKey, e: React.MouseEvent) => {
     e.preventDefault(); e.stopPropagation();
     const startX = e.clientX;
     const startW = colWidths[key];
@@ -70,6 +76,35 @@ export function DetailsView({ entries, renamingPath, onRenameCommit }: { entries
     window.addEventListener('mousemove', onMove);
     window.addEventListener('mouseup', onUp);
   };
+
+  const renderCells = (item: Entry) => visibleCols.map((c) => {
+    if (c.key === 'name') {
+      return (
+        <span className="col-name" key="name">
+          <span className="row-icon" aria-hidden><Thumbnail entry={item} size={16} /></span>
+          {renamingPath === item.path ? (
+            <input
+              className="rename-input"
+              autoFocus
+              defaultValue={item.name}
+              onClick={(e) => e.stopPropagation()}
+              onFocus={(e) => e.currentTarget.select()}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') { e.preventDefault(); (e.currentTarget as HTMLInputElement).dataset.committed = '1'; onRenameCommit?.((e.currentTarget as HTMLInputElement).value); }
+                if (e.key === 'Escape') { e.preventDefault(); (e.currentTarget as HTMLInputElement).dataset.committed = '1'; onRenameCommit?.(item.name); }
+              }}
+              onBlur={(e) => { if (!e.currentTarget.dataset.committed) onRenameCommit?.(e.currentTarget.value); }}
+            />
+          ) : (
+            <span className="name">{displayName(item, showExtensions)}</span>
+          )}
+        </span>
+      );
+    }
+    if (c.key === 'date') return <span className="col-date" key="date">{formatDate(item.modified)}</span>;
+    if (c.key === 'type') return <span className="col-type" key="type">{item.typeLabel}</span>;
+    return <span className="col-size" key="size">{item.isDir ? '' : formatSize(item.size)}</span>;
+  });
 
   return (
     <div className="details" ref={parentRef} style={{ overflow: 'auto', height: '100%' }}>
@@ -83,7 +118,19 @@ export function DetailsView({ entries, renamingPath, onRenameCommit }: { entries
       </div>
       <div style={{ height: `${rowVirtualizer.getTotalSize()}px`, position: 'relative' }}>
         {rowVirtualizer.getVirtualItems().map((vi) => {
-          const item = sorted[vi.index];
+          const fi = flat[vi.index];
+          if (fi.kind === 'group') {
+            return (
+              <div
+                key={`g-${vi.index}`}
+                className="group-header"
+                style={{ position: 'absolute', top: 0, left: 0, width: '100%', transform: `translateY(${vi.start}px)`, height: ROW_H, display: 'flex', alignItems: 'center', padding: '0 12px' }}
+              >
+                {fi.label}
+              </div>
+            );
+          }
+          const item = fi.entry!;
           const selected = sel.selected.includes(item.path);
           return (
             <div
@@ -105,34 +152,7 @@ export function DetailsView({ entries, renamingPath, onRenameCommit }: { entries
               onDoubleClick={() => { if (item.isDir) onOpen(item); else openItem(item.path); }}
               onAuxClick={(e) => { if (e.button === 1 && item.isDir) { e.preventDefault(); useLocationStore.getState().addTab(item.path); } }}
             >
-              {visibleCols.map((c) => {
-                if (c.key === 'name') {
-                  return (
-                    <span className="col-name" key="name">
-                      <span className="row-icon" aria-hidden><Thumbnail entry={item} size={16} /></span>
-                      {renamingPath === item.path ? (
-                        <input
-                          className="rename-input"
-                          autoFocus
-                          defaultValue={item.name}
-                          onClick={(e) => e.stopPropagation()}
-                          onFocus={(e) => e.currentTarget.select()}
-                          onKeyDown={(e) => {
-                            if (e.key === 'Enter') { e.preventDefault(); (e.currentTarget as HTMLInputElement).dataset.committed = '1'; onRenameCommit?.((e.currentTarget as HTMLInputElement).value); }
-                            if (e.key === 'Escape') { e.preventDefault(); (e.currentTarget as HTMLInputElement).dataset.committed = '1'; onRenameCommit?.(item.name); }
-                          }}
-                          onBlur={(e) => { if (!e.currentTarget.dataset.committed) onRenameCommit?.(e.currentTarget.value); }}
-                        />
-                      ) : (
-                        <span className="name">{displayName(item, showExtensions)}</span>
-                      )}
-                    </span>
-                  );
-                }
-                if (c.key === 'date') return <span className="col-date" key="date">{formatDate(item.modified)}</span>;
-                if (c.key === 'type') return <span className="col-type" key="type">{item.typeLabel}</span>;
-                return <span className="col-size" key="size">{item.isDir ? '' : formatSize(item.size)}</span>;
-              })}
+              {renderCells(item)}
             </div>
           );
         })}

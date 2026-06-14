@@ -24,6 +24,7 @@ beforeEach(() => {
     sort: { field: 'name', asc: true },
     showExtensions: true,
     colVisible: { name: true, date: true, type: true, size: true },
+    groupBy: null,
   });
 });
 
@@ -69,5 +70,12 @@ describe('DetailsView', () => {
     fireEvent.change(input, { target: { value: 'temp' } });
     fireEvent.keyDown(input, { key: 'Escape' });
     expect(committed).toBe('a.txt');
+  });
+
+  it('renders group headers when groupBy is set', () => {
+    useViewStore.setState({ groupBy: 'name' });
+    render(<DetailsView entries={[e('apple.txt'), e('banana.txt')]} />);
+    expect(screen.getByText('A')).toBeInTheDocument();
+    expect(screen.getByText('B')).toBeInTheDocument();
   });
 });

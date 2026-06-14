@@ -30,6 +30,7 @@ export function CommandBar({ entries }: { entries: Entry[] }) {
   const viewMode = useViewStore((s) => s.viewMode);
   const sort = useViewStore((s) => s.sort);
   const colVisible = useViewStore((s) => s.colVisible);
+  const groupBy = useViewStore((s) => s.groupBy);
   const showExtensionsFlag = useViewStore((s) => s.showExtensions);
   const showHiddenFlag = useViewStore((s) => s.showHidden);
 
@@ -68,6 +69,12 @@ export function CommandBar({ entries }: { entries: Entry[] }) {
           <ul className="flyout">
             {([['name', '名称'], ['modified', '修改日期'], ['type', '类型'], ['size', '大小']] as const).map(([f, label]) => (
               <li key={f} className={`flyout-item${sort.field === f ? ' checked' : ''}`} onClick={() => { useViewStore.getState().setSort(f); setOpen(null); }}>{label}{sort.field === f ? (sort.asc ? ' ▲' : ' ▼') : ''}</li>
+            ))}
+            <li className="flyout-sep" />
+            <li className="flyout-item flyout-static" aria-hidden>分组依据</li>
+            <li className={`flyout-item${groupBy === null ? ' checked' : ''}`} onClick={() => { useViewStore.getState().setGroupBy(null); setOpen(null); }}>(无)</li>
+            {([['name', '名称'], ['modified', '修改日期'], ['type', '类型'], ['size', '大小']] as const).map(([f, label]) => (
+              <li key={`g-${f}`} className={`flyout-item${groupBy === f ? ' checked' : ''}`} onClick={() => { useViewStore.getState().setGroupBy(f); setOpen(null); }}>{label}</li>
             ))}
             <li className="flyout-sep" />
             <li className="flyout-item flyout-static" aria-hidden>列（名称常显）</li>

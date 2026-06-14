@@ -9,12 +9,14 @@ interface ViewState {
   sort: Sort;
   colWidths: { name: number; date: number; type: number; size: number };
   colVisible: ColRecord;
+  groupBy: SortField | null;
   showHidden: boolean;
   showExtensions: boolean;
   previewPane: boolean;
   detailsPane: boolean;
   setViewMode: (m: ViewMode) => void;
   setSort: (field: SortField) => void; // click a column header
+  setGroupBy: (field: SortField | null) => void; // Group by ▾ (null = no grouping)
   setColWidth: (key: ColKey, w: number) => void;
   toggleCol: (key: ColKey) => void; // show/hide a details column
   toggleHidden: () => void;
@@ -28,6 +30,7 @@ export const useViewStore = create<ViewState>((set) => ({
   sort: { field: 'name', asc: true },
   colWidths: { name: 600, date: 180, type: 160, size: 110 },
   colVisible: { name: true, date: true, type: true, size: true },
+  groupBy: null,
   showHidden: false,
   showExtensions: false,
   previewPane: false,
@@ -40,6 +43,7 @@ export const useViewStore = create<ViewState>((set) => ({
           ? { field, asc: !s.sort.asc }
           : { field, asc: true },
     })),
+  setGroupBy: (field) => set({ groupBy: field }),
   setColWidth: (key, w) =>
     set((s) => ({ colWidths: { ...s.colWidths, [key]: Math.max(40, w) } })),
   toggleCol: (key) =>
