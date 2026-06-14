@@ -39,7 +39,7 @@ describe('StatusBar', () => {
 
   it('the view slider reflects the current mode and changes it', () => {
     render(<StatusBar count={5} entries={[]} />);
-    const slider = screen.getByTitle('视图大小') as HTMLInputElement;
+    const slider = screen.getByTitle('视图模式') as HTMLInputElement;
     expect(slider.value).toBe('6'); // details is index 5 → +1
     fireEvent.change(slider, { target: { value: '1' } });
     expect(useViewStore.getState().viewMode).toBe('extra-large');
@@ -47,7 +47,7 @@ describe('StatusBar', () => {
 
   it('the slider maps value 8 → content view', () => {
     render(<StatusBar count={5} entries={[]} />);
-    const slider = screen.getByTitle('视图大小') as HTMLInputElement;
+    const slider = screen.getByTitle('视图模式') as HTMLInputElement;
     fireEvent.change(slider, { target: { value: '8' } });
     expect(useViewStore.getState().viewMode).toBe('content');
   });

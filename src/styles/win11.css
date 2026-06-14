@@ -51,7 +51,7 @@ body { font-family: var(--font); font-size: 14px; background: var(--bg); color: 
 .theme-dark .wc:hover { background: rgba(255,255,255,0.10); }
 .wc-close:hover { background: #c42b1c; color: #fff; }
 
-.toolbar-row { height: var(--toolbar-h); display: flex; align-items: center; gap: 8px; padding: 0 12px; }
+.address-row { height: var(--toolbar-h); display: flex; align-items: center; gap: 8px; padding: 0 12px; }
 .toolbar { display: flex; gap: 4px; }
 .toolbar button { width: 36px; height: 36px; border: 0; background: transparent; color: var(--text); border-radius: 4px; font-size: 16px; cursor: pointer; }
 .toolbar button:hover:not(:disabled) { background: var(--hover-bg); }
@@ -122,7 +122,7 @@ body { font-family: var(--font); font-size: 14px; background: var(--bg); color: 
 .content-row:hover { background: var(--hover-bg); }
 .content-row.selected { background: var(--select-bg); }
 
-.command-bar { display: flex; gap: 6px; padding: 6px 12px; border-bottom: 1px solid var(--border); background: var(--main-bg); flex-shrink: 0; }
+.command-bar { display: flex; gap: 6px; padding: 6px 12px; border-bottom: 1px solid var(--border); background: var(--main-bg); flex-wrap: wrap; }
 .cmd { height: 32px; padding: 0 12px; border: 1px solid var(--border); background: var(--main-bg); color: var(--text); border-radius: 4px; cursor: pointer; font-size: 13px; }
 .cmd:hover:not(:disabled) { background: var(--hover-bg); }
 .cmd:disabled { opacity: 0.5; cursor: default; }

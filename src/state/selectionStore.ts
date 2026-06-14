@@ -36,5 +36,5 @@ export const useSelectionStore = create<SelectionState>((set, get) => ({
     set({ selected: paths.slice(lo, hi + 1), anchor });
   },
   setFocus: (i) => set({ focusIndex: i }),
-  clear: () => set({ selected: [], anchor: null }),
+  clear: () => set({ selected: [], anchor: null, focusIndex: -1 }),
 }));

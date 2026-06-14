@@ -16,19 +16,20 @@ export function useFileOps() {
   const push = useHistoryStore((s) => s.push);
 
   async function newFolder(dir: string) {
-    const path = joinPath(dir, '新建文件夹');
-    const created = await invoke('create_dir', { path });
+    // Resolve a non-colliding name ("新建文件夹 (2)"…) so it never errors on duplicate.
+    const path = await invoke<string>('unique_target', { dir, name: '新建文件夹' });
+    await invoke('create_dir', { path });
     push({
       label: '新建文件夹',
       undo: async () => { await invoke('delete_to_trash', { paths: [path] }); refresh(); },
       redo: async () => { await invoke('create_dir', { path }); refresh(); },
     });
     refresh();
-    return created;
+    return path;
   }
 
   async function newFile(dir: string) {
-    const path = joinPath(dir, '新建文本文档.txt');
+    const path = await invoke<string>('unique_target', { dir, name: '新建文本文档.txt' });
     await invoke('create_file', { path });
     push({
       label: '新建文件',

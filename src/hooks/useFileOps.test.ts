@@ -28,10 +28,13 @@ beforeEach(() => {
 
 describe('useFileOps', () => {
   it('newFolder creates a folder and pushes an undo entry', async () => {
-    m.mockResolvedValue([]);
+    m.mockImplementation((cmd: string) =>
+      cmd === 'unique_target' ? Promise.resolve('C:\\dest\\新建文件夹') : Promise.resolve([]),
+    );
     const { result } = renderHook(() => useFileOps());
     await act(async () => { await result.current.newFolder('C:\\dest'); });
-    expect(m).toHaveBeenCalledWith('create_dir', expect.objectContaining({ path: expect.stringMatching(/新建文件夹/) }));
+    expect(m).toHaveBeenCalledWith('unique_target', expect.objectContaining({ name: '新建文件夹' }));
+    expect(m).toHaveBeenCalledWith('create_dir', expect.objectContaining({ path: 'C:\\dest\\新建文件夹' }));
     expect(useHistoryStore.getState().canUndo()).toBe(true);
   });
 

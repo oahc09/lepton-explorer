@@ -60,6 +60,14 @@ fn create_file(path: String) -> Result<()> {
     ops::create_file(&path).map_err(AppError::from)
 }
 
+/// Return a non-colliding path for `dir` + `name` (auto-suffixes " (n)"), so
+/// "新建文件夹" can be created even when one already exists (Win11 auto-names).
+#[tauri::command]
+fn unique_target(dir: String, name: String) -> String {
+    let target = std::path::Path::new(&dir).join(&name);
+    ops::unique_path(&target).to_string_lossy().to_string()
+}
+
 #[tauri::command]
 fn rename(from: String, to: String) -> Result<()> {
     ops::rename(&from, &to).map_err(AppError::from)
@@ -194,6 +202,7 @@ pub fn run() {
             list_drives,
             create_dir,
             create_file,
+            unique_target,
             rename,
             copy_items,
             copy_items_with_strategy,

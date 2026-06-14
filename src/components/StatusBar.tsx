@@ -36,7 +36,7 @@ export function StatusBar({ count, entries }: { count: number; entries: Entry[] 
         max={8}
         value={idx}
         onChange={(e) => setViewMode(MODES[parseInt(e.target.value, 10) - 1])}
-        title="视图大小"
+        title="视图模式"
       />
     </footer>
   );

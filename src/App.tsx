@@ -66,7 +66,12 @@ export default function App() {
 
   // Clear selection when the active path (tab) changes; selection is global, so without this
   // switching tabs would leave stale selection that could act on the wrong folder.
-  useEffect(() => { useSelectionStore.getState().clear(); }, [path]);
+  useEffect(() => {
+    useSelectionStore.getState().clear();
+    // Clear any active search on navigation so the new folder's contents show.
+    const ss = useSearchStore.getState();
+    if (ss.query) { ss.setQuery(''); ss.setResults(null); }
+  }, [path]);
 
   const onRenameCommit = (newName: string) => {
     if (renamingPath && newName.trim()) ops.renameEntry(renamingPath, newName.trim());
@@ -254,11 +259,11 @@ export default function App() {
       if (e.ctrlKey && !e.shiftKey && (e.key === 'n' || e.key === 'N')) { e.preventDefault(); newWindow(); return; }
       if (e.ctrlKey && !e.shiftKey && (e.key === 'a' || e.key === 'A')) {
         e.preventDefault();
-        useSelectionStore.getState().select(entryRef.current);
+        useSelectionStore.getState().select(shownRef.current);
         return;
       }
       const selected = useSelectionStore.getState().selected;
-      const selEntries = entryRef.current.filter((en: Entry) => selected.includes(en.path));
+      const selEntries = shownRef.current.filter((en: Entry) => selected.includes(en.path));
       if (e.key === 'Delete') {
         e.preventDefault();
         if (e.shiftKey) opsRef.current.remove(selected, true);
@@ -271,10 +276,12 @@ export default function App() {
         return;
       }
       if (e.ctrlKey && !e.shiftKey && (e.key === 'c' || e.key === 'C')) {
+        e.preventDefault();
         useClipboardStore.getState().copy(selEntries);
         return;
       }
       if (e.ctrlKey && !e.shiftKey && (e.key === 'x' || e.key === 'X')) {
+        e.preventDefault();
         useClipboardStore.getState().cut(selEntries);
         return;
       }
@@ -298,6 +305,7 @@ export default function App() {
         useHistoryStore.getState().redo();
         return;
       }
+      if (e.key === 'F5') { e.preventDefault(); window.dispatchEvent(new CustomEvent('winfinder:refresh')); return; }
       if (e.key === 'F2' && selected.length === 1) {
         e.preventDefault();
         window.dispatchEvent(new CustomEvent('winfinder:rename', { detail: selected[0] }));
@@ -310,7 +318,7 @@ export default function App() {
       if (e.key === 'Enter' && e.altKey) {
         e.preventDefault();
         if (selected.length === 1) {
-          const en = entryRef.current.find((x: Entry) => x.path === selected[0]);
+          const en = shownRef.current.find((x: Entry) => x.path === selected[0]);
           if (en) setPropsEntryRef.current(en);
         }
         return;
@@ -323,9 +331,9 @@ export default function App() {
   return (
     <div className="app">
       <TitleBar />
-      <div className="toolbar-row">
+      <CommandBar entries={shownEntries} />
+      <div className="address-row">
         <Toolbar onRefresh={() => setRefreshKey((k) => k + 1)} />
-        <CommandBar entries={shownEntries} />
         <Breadcrumb />
         {path !== '' && <SearchBox />}
       </div>

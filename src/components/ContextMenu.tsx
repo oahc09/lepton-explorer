@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useSelectionStore } from '../state/selectionStore';
 import { useClipboardStore } from '../state/clipboardStore';
 import { useLocationStore } from '../state/locationStore';
@@ -15,17 +15,27 @@ export function ContextMenu({ entries }: { entries: Entry[] }) {
   const sel = useSelectionStore((s) => s.selected);
   const ops = useFileOps();
   const path = useLocationStore((s) => s.path);
+  const entriesRef = useRef(entries);
+  entriesRef.current = entries;
 
   useEffect(() => {
+    // Select the right-clicked item synchronously so the menu reflects it on first render.
     const onMenu = (e: MouseEvent) => {
       const t = e.target as HTMLElement;
-      if (t.closest('.main-view')) {
-        e.preventDefault();
-        setMore(false);
-        setPos({ x: e.clientX, y: e.clientY });
+      if (!t.closest('.main-view')) return;
+      e.preventDefault();
+      setMore(false);
+      const el = document.elementFromPoint(e.clientX, e.clientY)?.closest('[data-path]') as HTMLElement | null;
+      if (el?.dataset.path && !useSelectionStore.getState().selected.includes(el.dataset.path)) {
+        const en = entriesRef.current.find((x) => x.path === el.dataset.path);
+        if (en) useSelectionStore.getState().select([en]);
       }
+      setPos({ x: e.clientX, y: e.clientY });
     };
-    const onClick = () => setPos(null);
+    // Don't close when clicking inside the menu itself (lets items / "显示更多选项" work).
+    const onClick = (e: MouseEvent) => {
+      if (!(e.target as HTMLElement).closest('.context-menu')) setPos(null);
+    };
     const onOpen = (e: Event) => {
       const detail = (e as CustomEvent<{ x: number; y: number }>).detail;
       if (detail) { setMore(false); setPos({ x: detail.x, y: detail.y }); }
@@ -40,15 +50,7 @@ export function ContextMenu({ entries }: { entries: Entry[] }) {
     };
   }, []);
 
-  // Select the right-clicked item (if not already in selection) before showing the menu.
-  useEffect(() => {
-    if (!pos) return;
-    const el = document.elementFromPoint(pos.x, pos.y)?.closest('[data-path]') as HTMLElement | null;
-    if (el?.dataset.path && !sel.includes(el.dataset.path)) {
-      const en = entries.find((e) => e.path === el.dataset.path);
-      if (en) useSelectionStore.getState().select([en]);
-    }
-  }, [pos, sel, entries]);
+  // (Selection is now synced synchronously in onMenu above; no post-render effect needed.)
 
   if (!pos) return null;
   const selEntries = entries.filter((e) => sel.includes(e.path));

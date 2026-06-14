@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import type { Entry } from '../types';
 import { formatDate, formatSize } from '../utils/format';
+import { parentOf } from '../state/locationStore';
 
 export function PropertiesDialog({ entry, onClose }: { entry: Entry; onClose: () => void }) {
   const [size, setSize] = useState<number>(entry.size);
@@ -14,7 +15,7 @@ export function PropertiesDialog({ entry, onClose }: { entry: Entry; onClose: ()
         <h3>{entry.name} 属性</h3>
         <dl className="props">
           <dt>类型</dt><dd>{entry.isDir ? '文件夹' : entry.typeLabel}</dd>
-          <dt>位置</dt><dd>{entry.path.replace(/\\[^\\]*$/, '')}</dd>
+          <dt>位置</dt><dd>{parentOf(entry.path)}</dd>
           <dt>大小</dt><dd>{formatSize(size)}</dd>
           <dt>修改日期</dt><dd>{formatDate(entry.modified) || '—'}</dd>
           <dt>创建日期</dt><dd>{formatDate(entry.created) || '—'}</dd>
