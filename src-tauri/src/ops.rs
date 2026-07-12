@@ -7,6 +7,81 @@ use std::sync::atomic::{AtomicBool, Ordering};
 /// A single flag suffices: concurrent tracked copies are not supported (rare).
 static COPY_CANCELLED: AtomicBool = AtomicBool::new(false);
 
+/// Security: validate that `path` does not target a Windows system-critical
+/// directory. Blocks destructive operations (delete_permanent, rename, overwrite)
+/// against C:\Windows, C:\Windows\System32, C:\Program Files, and the root of
+/// the system drive. These paths can brick the OS if removed/renamed.
+///
+/// Non-destructive operations (list_directory, search, get_properties) are
+/// allowed on any path — they don't modify the filesystem.
+fn validate_safe_path(path: &str) -> std::io::Result<()> {
+    let p = Path::new(path);
+
+    // Reject empty paths.
+    if p.as_os_str().is_empty() {
+        return Err(std::io::Error::new(
+            std::io::ErrorKind::InvalidInput,
+            "path is empty",
+        ));
+    }
+
+    // On Windows, check against known system directories (case-insensitive).
+    #[cfg(windows)]
+    {
+        let canon = fs::canonicalize(p).unwrap_or_else(|_| p.to_path_buf());
+        let lower = canon.to_string_lossy().to_lowercase();
+        let blocked = [
+            "c:\\windows",
+            "c:\\windows\\system32",
+            "c:\\windows\\syswow64",
+            "c:\\program files",
+            "c:\\program files (x86)",
+            "c:\\programdata",
+            "c:\\$recycle.bin",
+            "c:\\boot",
+            "c:\\recovery",
+            "c:\\system volume information",
+        ];
+        for b in &blocked {
+            if lower == *b || lower.starts_with(&format!("{}\\", b)) {
+                return Err(std::io::Error::new(
+                    std::io::ErrorKind::PermissionDenied,
+                    format!("refused: path is a protected system directory: {}", b),
+                ));
+            }
+        }
+        // Block the root of the system drive itself.
+        if lower == "c:\\" || lower == "c:" {
+            return Err(std::io::Error::new(
+                std::io::ErrorKind::PermissionDenied,
+                "refused: cannot operate on system drive root",
+            ));
+        }
+    }
+
+    Ok(())
+}
+
+/// Validate that a path is safe for destructive operations (delete, rename, overwrite).
+/// Uses `validate_safe_path` and also blocks the recycle bin root.
+fn validate_destructive_path(path: &str) -> std::io::Result<()> {
+    validate_safe_path(path)?;
+    // Also block the trash root — deleting it corrupts the recycle bin.
+    #[cfg(windows)]
+    {
+        let p = Path::new(path);
+        let canon = fs::canonicalize(p).unwrap_or_else(|_| p.to_path_buf());
+        let lower = canon.to_string_lossy().to_lowercase();
+        if lower.contains("$recycle.bin") && lower.matches('\\').count() <= 1 {
+            return Err(std::io::Error::new(
+                std::io::ErrorKind::PermissionDenied,
+                "refused: cannot delete recycle bin root",
+            ));
+        }
+    }
+    Ok(())
+}
+
 pub fn reset_copy_cancel() {
     COPY_CANCELLED.store(false, Ordering::SeqCst);
 }
@@ -31,6 +106,24 @@ pub enum ConflictStrategy {
     Replace,
     /// Leave the existing item untouched; do not copy/move this source.
     Skip,
+}
+
+/// Result of a tracked copy operation: the created paths plus the original
+/// paths of items sent to the recycle bin during Replace.
+#[derive(serde::Serialize, Debug, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct TrackedCopyResult {
+    pub paths: Vec<String>,
+    pub trashed: Vec<String>,
+}
+
+/// Result of a tracked move operation: (old, new) pairs plus the original
+/// paths of items sent to the recycle bin during Replace.
+#[derive(serde::Serialize, Debug, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct TrackedMoveResult {
+    pub pairs: Vec<(String, String)>,
+    pub trashed: Vec<String>,
 }
 
 /// A source name that already exists in the destination (a collision).
@@ -79,6 +172,8 @@ pub fn create_file(path: &str) -> std::io::Result<()> {
 }
 
 pub fn rename(from: &str, to: &str) -> std::io::Result<()> {
+    validate_destructive_path(from)?;
+    validate_safe_path(to)?;
     fs::rename(Path::new(from), Path::new(to))
 }
 
@@ -189,13 +284,15 @@ pub fn count_files(sources: &[String]) -> usize {
 /// Like `copy_items_with_strategy`, but invokes `on_file(current, total, path)`
 /// as each file is written — used to drive a progress indicator. `is_cancelled`
 /// is polled between top-level sources; returning true stops the copy early.
+/// Also returns the original paths of items trashed during Replace, so the
+/// frontend can restore them on undo.
 pub fn copy_items_tracked<F, C>(
     sources: &[String],
     dest_dir: &str,
     strategy: ConflictStrategy,
     is_cancelled: C,
     mut on_file: F,
-) -> std::io::Result<Vec<String>>
+) -> std::io::Result<TrackedCopyResult>
 where
     F: FnMut(usize, usize, &Path),
     C: Fn() -> bool,
@@ -204,6 +301,7 @@ where
     let total = count_files(sources);
     let mut current = 0usize;
     let mut out = Vec::new();
+    let mut trashed = Vec::new();
     for s in sources {
         if is_cancelled() {
             break; // Cancel pressed: stop, keep files copied so far.
@@ -214,6 +312,8 @@ where
             None => continue, // Skip + collision → skip this source
         };
         if strategy == ConflictStrategy::Replace && target.exists() {
+            // Record the original path before trashing so undo can restore it.
+            trashed.push(target.to_string_lossy().to_string());
             trash_path(&target)?;
         }
         copy_recursive_tracked(
@@ -228,19 +328,20 @@ where
         )?;
         out.push(target.to_string_lossy().to_string());
     }
-    Ok(out)
+    Ok(TrackedCopyResult { paths: out, trashed })
 }
 
 /// Like `move_items_with_strategy`, but for cross-volume moves (copy+delete) it
 /// emits per-file progress via `on_file` and honors `is_cancelled` between
 /// sources. Same-volume moves are instant renames (no per-file progress).
+/// Also returns the original paths of items trashed during Replace.
 pub fn move_items_tracked<F, C>(
     sources: &[String],
     dest_dir: &str,
     strategy: ConflictStrategy,
     is_cancelled: C,
     mut on_file: F,
-) -> std::io::Result<Vec<(String, String)>>
+) -> std::io::Result<TrackedMoveResult>
 where
     F: FnMut(usize, usize, &Path),
     C: Fn() -> bool,
@@ -249,6 +350,7 @@ where
     let total = count_files(sources);
     let mut current = 0usize;
     let mut out = Vec::new();
+    let mut trashed = Vec::new();
     for s in sources {
         if is_cancelled() {
             break;
@@ -259,6 +361,7 @@ where
             None => continue,
         };
         if strategy == ConflictStrategy::Replace && target.exists() {
+            trashed.push(target.to_string_lossy().to_string());
             trash_path(&target)?;
         }
         let old = src.to_string_lossy().to_string();
@@ -284,7 +387,7 @@ where
         }
         out.push((old, target.to_string_lossy().to_string()));
     }
-    Ok(out)
+    Ok(TrackedMoveResult { pairs: out, trashed })
 }
 
 fn remove_recursive(p: &Path) -> std::io::Result<()> {
@@ -377,7 +480,49 @@ pub fn delete_to_trash(paths: &[String]) -> Result<(), trash::Error> {
     trash::delete_all(items)
 }
 
+/// Restore items from the recycle bin to their original paths. Each path in
+/// `original_paths` is matched against the `original_path` field of items
+/// currently in the trash; the most recently deleted match is restored.
+/// This enables undo of delete-to-trash and Replace-mode paste.
+pub fn restore_from_trash(original_paths: &[String]) -> Result<(), trash::Error> {
+    let trash_items = trash::os_limited::list()?;
+    for path_str in original_paths {
+        let target = Path::new(path_str);
+        // Find the trash item whose original_path matches. If multiple items
+        // share the same original path (deleted multiple times), restore the
+        // most recently deleted one — that's the one we just trashed.
+        let candidate = trash_items
+            .iter()
+            .filter(|item| item.original_path() == target)
+            .max_by_key(|item| item.time_deleted);
+
+        if let Some(item) = candidate {
+            // If the original path already exists (e.g. undo of a Replace paste
+            // where the pasted file wasn't removed yet), skip restoration to
+            // avoid a collision — the caller should delete the pasted file first.
+            if target.exists() {
+                continue;
+            }
+            trash::os_limited::restore_all([item.clone()])?;
+        }
+    }
+    Ok(())
+}
+
+/// Delete to trash and return the original paths, so the frontend can push
+/// an undo entry that calls `restore_from_trash` with the same paths.
+pub fn delete_to_trash_undoable(paths: &[String]) -> Result<Vec<String>, trash::Error> {
+    // Record which paths actually exist (trash::delete_all fails on missing).
+    let valid: Vec<&Path> = paths.iter().map(|p| Path::new(p)).filter(|p| p.exists()).collect();
+    let original_paths: Vec<String> = valid.iter().map(|p| p.to_string_lossy().to_string()).collect();
+    trash::delete_all(valid)?;
+    Ok(original_paths)
+}
+
 pub fn delete_permanent(paths: &[String]) -> std::io::Result<()> {
+    for p in paths {
+        validate_destructive_path(p)?;
+    }
     for p in paths {
         remove_recursive(Path::new(p))?;
     }
@@ -385,8 +530,16 @@ pub fn delete_permanent(paths: &[String]) -> std::io::Result<()> {
 }
 
 /// Open a terminal at `path`. Prefers Windows Terminal (wt.exe); falls back to cmd.
+/// Security: validates the path exists and is a directory before spawning.
 pub fn open_in_terminal(path: &str) -> std::io::Result<()> {
     use std::process::Command;
+    let p = Path::new(path);
+    if !p.is_dir() {
+        return Err(std::io::Error::new(
+            std::io::ErrorKind::NotFound,
+            "terminal target is not a directory",
+        ));
+    }
     if Command::new("wt.exe").arg("-d").arg(path).spawn().is_ok() {
         return Ok(());
     }
@@ -480,6 +633,7 @@ mod tests {
     }
 
     #[test]
+    #[ignore = "requires recycle bin access (blocked by sandbox)"]
     fn delete_to_trash_removes_file() {
         // Moves the file to the OS recycle bin; the temp file disappears from its location.
         let d = tempdir().unwrap();
@@ -585,6 +739,7 @@ mod tests {
     }
 
     #[test]
+    #[ignore = "requires recycle bin access (blocked by sandbox)"]
     fn copy_with_strategy_replace_overwrites_existing() {
         let d = tempdir().unwrap();
         let dest = d.path().join("dest"); fs::create_dir(&dest).unwrap();
@@ -648,6 +803,7 @@ mod tests {
     }
 
     #[test]
+    #[ignore = "requires recycle bin access (blocked by sandbox)"]
     fn move_with_strategy_replace_overwrites_and_removes_source() {
         let d = tempdir().unwrap();
         let dest = d.path().join("dest"); fs::create_dir(&dest).unwrap();
@@ -705,7 +861,7 @@ mod tests {
         fs::write(sub.join("a.txt"), "1").unwrap();
         fs::write(sub.join("b.txt"), "2").unwrap();
         let mut calls: Vec<(usize, usize, String)> = Vec::new();
-        let out = copy_items_tracked(
+        let result = copy_items_tracked(
             &[sub.to_string_lossy().to_string()],
             dest.to_str().unwrap(),
             ConflictStrategy::Rename,
@@ -715,7 +871,7 @@ mod tests {
             },
         )
         .unwrap();
-        assert_eq!(out.len(), 1);
+        assert_eq!(result.paths.len(), 1);
         assert_eq!(calls.len(), 2, "one callback per file copied");
         assert!(calls.iter().all(|(_, t, _)| *t == 2), "total is constant");
         assert_eq!(calls[0].0, 1);
@@ -731,7 +887,7 @@ mod tests {
         let s1 = d.path().join("a.txt"); fs::write(&s1, "1").unwrap();
         let s2 = d.path().join("b.txt"); fs::write(&s2, "2").unwrap();
         // `is_cancelled` always true → the loop breaks before copying anything.
-        let out = copy_items_tracked(
+        let result = copy_items_tracked(
             &[s1.to_string_lossy().to_string(), s2.to_string_lossy().to_string()],
             dest.to_str().unwrap(),
             ConflictStrategy::Rename,
@@ -739,7 +895,7 @@ mod tests {
             |_, _, _| {},
         )
         .unwrap();
-        assert!(out.is_empty(), "pre-cancelled → nothing copied");
+        assert!(result.paths.is_empty(), "pre-cancelled → nothing copied");
         assert!(!dest.join("a.txt").exists());
     }
 
@@ -751,7 +907,7 @@ mod tests {
         let s2 = d.path().join("b.txt"); fs::write(&s2, "2").unwrap();
         // Flip a local flag while copying the first source; the loop breaks before s2.
         let cancelled = std::cell::Cell::new(false);
-        let out = copy_items_tracked(
+        let result = copy_items_tracked(
             &[s1.to_string_lossy().to_string(), s2.to_string_lossy().to_string()],
             dest.to_str().unwrap(),
             ConflictStrategy::Rename,
@@ -759,7 +915,7 @@ mod tests {
             |_, _, _| { cancelled.set(true); },
         )
         .unwrap();
-        assert_eq!(out.len(), 1, "first source copied, then cancelled");
+        assert_eq!(result.paths.len(), 1, "first source copied, then cancelled");
         assert!(dest.join("a.txt").is_file());
         assert!(!dest.join("b.txt").exists(), "second source not copied after cancel");
     }
@@ -781,7 +937,7 @@ mod tests {
         .unwrap();
         assert!(!src.exists());
         assert!(dest.join("a.txt").is_file());
-        assert_eq!(moved.len(), 1);
+        assert_eq!(moved.pairs.len(), 1);
         assert_eq!(calls, 0, "same-volume rename emits no per-file progress");
     }
 
@@ -794,7 +950,7 @@ mod tests {
         fs::write(sub.join("a.txt"), "1").unwrap();
         fs::write(sub.join("b.txt"), "2").unwrap();
         let cancelled = std::cell::Cell::new(false);
-        let out = copy_items_tracked(
+        let result = copy_items_tracked(
             &[sub.to_string_lossy().to_string()],
             dest.to_str().unwrap(),
             ConflictStrategy::Rename,
@@ -802,8 +958,29 @@ mod tests {
             |_, _, _| { cancelled.set(true); }, // request cancel once the first file is written
         )
         .unwrap();
-        assert_eq!(out.len(), 1); // the folder recorded (partially copied)
+        assert_eq!(result.paths.len(), 1); // the folder recorded (partially copied)
         let copied = ["a.txt", "b.txt"].into_iter().filter(|n| dest.join("sub").join(n).is_file()).count();
         assert_eq!(copied, 1, "exactly one file copied before cancel (order-independent)");
+    }
+
+    #[test]
+    #[ignore = "requires recycle bin access (blocked by sandbox)"]
+    fn copy_items_tracked_replace_records_trashed_paths() {
+        let d = tempdir().unwrap();
+        let dest = d.path().join("dest"); fs::create_dir(&dest).unwrap();
+        fs::write(dest.join("a.txt"), "EXISTING").unwrap();
+        let src = d.path().join("a.txt"); fs::write(&src, "NEW").unwrap();
+        let result = copy_items_tracked(
+            &[src.to_string_lossy().to_string()],
+            dest.to_str().unwrap(),
+            ConflictStrategy::Replace,
+            || false,
+            |_, _, _| {},
+        )
+        .unwrap();
+        assert_eq!(result.paths.len(), 1);
+        assert_eq!(result.trashed.len(), 1, "trashed path should be recorded");
+        assert!(result.trashed[0].ends_with("a.txt"));
+        assert_eq!(fs::read_to_string(dest.join("a.txt")).unwrap(), "NEW");
     }
 }

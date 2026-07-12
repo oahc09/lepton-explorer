@@ -2,6 +2,7 @@ pub mod error;
 pub mod fs_ops;
 pub mod office;
 pub mod ops;
+pub mod shell_menu;
 pub mod special;
 pub mod thumbnails;
 pub mod watch;
@@ -36,9 +37,34 @@ fn suggest_paths(prefix: String) -> Vec<fs_ops::PathSuggestion> {
 /// §11 self-capture helper: decode a `data:image/png;base64,...` URL (produced by
 /// html2canvas in the frontend) and write the PNG bytes to `out_path`, so the
 /// rendered app can be inspected visually (§11 verification).
+///
+/// Security: `out_path` is validated to be within the system temp directory or
+/// the app's data directory, preventing path traversal to arbitrary locations.
 #[tauri::command]
 fn capture_dom_png(data_url: String, out_path: String) -> Result<()> {
     use base64::Engine;
+
+    // Security: restrict output to temp or app-data directories only.
+    let target = std::path::Path::new(&out_path);
+    let canonical = target
+        .parent()
+        .and_then(|p| p.canonicalize().ok())
+        .ok_or_else(|| AppError::InvalidName("invalid output directory".into()))?;
+
+    let temp_dir = std::env::temp_dir();
+    let temp_canonical = temp_dir.canonicalize().unwrap_or(temp_dir);
+    let is_safe = canonical.starts_with(&temp_canonical)
+        || dirs::data_dir()
+            .and_then(|d| d.canonicalize().ok())
+            .map(|d| canonical.starts_with(&d))
+            .unwrap_or(false);
+
+    if !is_safe {
+        return Err(AppError::PermissionDenied(
+            "output path must be within temp or app-data directory".into(),
+        ));
+    }
+
     let b64 = data_url.rsplit_once(',').map(|(_, b)| b).unwrap_or("");
     let bytes = base64::engine::general_purpose::STANDARD
         .decode(b64)
@@ -104,10 +130,11 @@ fn copy_with_progress(
     sources: Vec<String>,
     dest: String,
     strategy: ops::ConflictStrategy,
-) -> Result<Vec<String>> {
+) -> Result<ops::TrackedCopyResult> {
     // Copy file-by-file, emitting "fs-copy-progress" {current,total,file} per file
     // so the frontend can render a progress dialog. Runs on a background thread.
     // `cancel_copy` sets a flag checked between top-level sources.
+    // Returns paths created + original paths of items trashed during Replace.
     ops::reset_copy_cancel();
     ops::copy_items_tracked(&sources, &dest, strategy, ops::is_copy_cancelled, |current, total, path| {
         let file = path
@@ -130,9 +157,10 @@ fn move_with_progress(
     sources: Vec<String>,
     dest: String,
     strategy: ops::ConflictStrategy,
-) -> Result<Vec<(String, String)>> {
+) -> Result<ops::TrackedMoveResult> {
     // Same-volume moves are instant renames; cross-volume moves copy+delete and
     // emit per-file progress. Reuses the copy progress event + cancel flag.
+    // Returns (old,new) pairs + original paths of items trashed during Replace.
     ops::reset_copy_cancel();
     ops::move_items_tracked(&sources, &dest, strategy, ops::is_copy_cancelled, |current, total, path| {
         let file = path
@@ -169,6 +197,16 @@ fn delete_to_trash(paths: Vec<String>) -> Result<()> {
 }
 
 #[tauri::command]
+fn delete_to_trash_undoable(paths: Vec<String>) -> Result<Vec<String>> {
+    ops::delete_to_trash_undoable(&paths).map_err(AppError::from)
+}
+
+#[tauri::command]
+fn restore_from_trash(paths: Vec<String>) -> Result<()> {
+    ops::restore_from_trash(&paths).map_err(AppError::from)
+}
+
+#[tauri::command]
 fn delete_permanent(paths: Vec<String>) -> Result<()> {
     ops::delete_permanent(&paths).map_err(AppError::from)
 }
@@ -196,6 +234,12 @@ fn get_thumbnail(path: String, size: u32) -> Option<String> {
 #[tauri::command]
 fn get_icon(path: String, size: u32) -> Option<String> {
     thumbnails::get_icon(&path, size)
+}
+
+#[tauri::command]
+fn show_classic_menu(paths: Vec<String>, x: i32, y: i32) -> Result<()> {
+    shell_menu::show_classic_context_menu(&paths, x, y)
+        .map_err(|e| AppError::Unknown(e))
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -226,11 +270,20 @@ pub fn run() {
             move_with_progress,
             check_conflicts,
             delete_to_trash,
+            delete_to_trash_undoable,
+            restore_from_trash,
             delete_permanent,
             watch_directory,
             get_thumbnail,
-            get_icon
+            get_icon,
+            show_classic_menu
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }
+
+#[cfg(test)]
+mod ops_perf;
+
+#[cfg(test)]
+mod thumbnails_perf;

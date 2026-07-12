@@ -82,6 +82,10 @@ fn entry_from(name: &str, path: &str, meta: &fs::Metadata) -> Entry {
     }
 }
 
+/// Maximum number of search results to return. Prevents unbounded memory
+/// consumption when searching a large directory tree (e.g. C:\ with "" query).
+const SEARCH_MAX_RESULTS: usize = 5000;
+
 pub fn search(root: &str, query: &str) -> std::io::Result<Vec<Entry>> {
     let q = query.to_lowercase();
     let mut out = Vec::new();
@@ -93,8 +97,14 @@ pub fn search(root: &str, query: &str) -> std::io::Result<Vec<Entry>> {
         visited.insert(canon_root);
     }
     while let Some(dir) = stack.pop() {
+        if out.len() >= SEARCH_MAX_RESULTS {
+            break;
+        }
         let rd = match fs::read_dir(&dir) { Ok(r) => r, Err(_) => continue };
         for de in rd.flatten() {
+            if out.len() >= SEARCH_MAX_RESULTS {
+                break;
+            }
             let meta = match de.metadata() { Ok(m) => m, Err(_) => continue };
             let name = de.file_name().to_string_lossy().to_string();
             let path = de.path().to_string_lossy().to_string();

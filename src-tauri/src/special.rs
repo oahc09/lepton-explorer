@@ -42,7 +42,10 @@ pub fn list_drives() -> Vec<Drive> {
     {
         use windows::Win32::Storage::FileSystem::GetLogicalDriveStringsW;
         unsafe {
-            let mut buf = [0u16; 260];
+            // Query the required buffer size first, then allocate exactly enough.
+            // This avoids truncation if the system has many drives or long paths.
+            let required = GetLogicalDriveStringsW(None) as usize;
+            let mut buf = vec![0u16; required + 1];
             let len = GetLogicalDriveStringsW(Some(&mut buf)) as usize;
             let s = String::from_utf16_lossy(&buf[..len]);
             s.split('\0')
