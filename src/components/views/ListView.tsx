@@ -1,5 +1,5 @@
 import { useVirtualizer } from '@tanstack/react-virtual';
-import { useEffect, useRef } from 'react';
+import { memo, useEffect, useMemo, useRef } from 'react';
 import type { Entry } from '../../types';
 import { useSelectionStore } from '../../state/selectionStore';
 import { useLocationStore } from '../../state/locationStore';
@@ -13,11 +13,51 @@ import { Thumbnail } from '../Thumbnail';
 
 const ROW_H = 22;
 
+type ListItemProps = {
+  item: Entry;
+  showExtensions: boolean;
+  isSelected: boolean;
+};
+
+const ListItem = memo(function ListItem({ item, showExtensions, isSelected }: ListItemProps) {
+  const navigate = useLocationStore((s) => s.navigate);
+  return (
+    <div
+      data-path={item.path}
+      className={`list-item${isSelected ? ' selected' : ''}`}
+      style={{ height: ROW_H, display: 'flex', alignItems: 'center', gap: 6, padding: '0 6px' }}
+      draggable
+      onDragStart={(e) => {
+        const selPaths = useSelectionStore.getState().selected;
+        const paths = selPaths.includes(item.path) ? selPaths : [item.path];
+        setDragged(paths);
+        e.dataTransfer.effectAllowed = 'copyMove';
+        e.dataTransfer.setData('text/plain', paths.join('\n'));
+      }}
+      onDragOver={(e) => { if (item.isDir) { e.preventDefault(); e.dataTransfer.dropEffect = e.ctrlKey ? 'copy' : 'move'; } }}
+      onDrop={(e) => { if (item.isDir) { e.preventDefault(); void dropInto(item.path, e.ctrlKey); } }}
+      onClick={(ev) => handleClick(ev, item, [], useSelectionStore.getState())}
+      onDoubleClick={() => { if (item.isDir) navigate(item.path); else openItem(item.path); }}
+      onAuxClick={(e) => { if (e.button === 1 && item.isDir) { e.preventDefault(); useLocationStore.getState().addTab(item.path); } }}
+    >
+      <span className="list-icon"><Thumbnail entry={item} size={16} /></span>
+      <span className="list-name">{displayName(item, showExtensions)}</span>
+    </div>
+  );
+}, (prev, next) => {
+  return prev.item.path === next.item.path
+    && prev.item.size === next.item.size
+    && prev.item.modified === next.item.modified
+    && prev.item.isDir === next.item.isDir
+    && prev.isSelected === next.isSelected
+    && prev.showExtensions === next.showExtensions;
+});
+
 export function ListView({ entries }: { entries: Entry[] }) {
   const parentRef = useRef<HTMLDivElement>(null);
-  const sel = useSelectionStore();
-  const navigate = useLocationStore((s) => s.navigate);
   const showExtensions = useViewStore((s) => s.showExtensions);
+  const selected = useSelectionStore((s) => s.selected);
+  const selectedSet = useMemo(() => new Set(selected), [selected]);
   const v = useVirtualizer({ count: entries.length, getScrollElement: () => parentRef.current, estimateSize: () => ROW_H, overscan: 30 });
 
   useEffect(() => {
@@ -45,29 +85,12 @@ export function ListView({ entries }: { entries: Entry[] }) {
       <div style={{ height: `${v.getTotalSize()}px`, position: 'relative' }}>
         {v.getVirtualItems().map((vi) => {
           const item = entries[vi.index];
-          const selected = sel.selected.includes(item.path);
           return (
             <div
               key={item.path}
-              data-path={item.path}
-              className={`list-item${selected ? ' selected' : ''}`}
-              style={{ position: 'absolute', top: 0, left: 0, transform: `translateY(${vi.start}px)`, height: ROW_H, display: 'flex', alignItems: 'center', gap: 6, padding: '0 6px' }}
-              draggable
-              onDragStart={(e) => {
-                const selPaths = useSelectionStore.getState().selected;
-                const paths = selPaths.includes(item.path) ? selPaths : [item.path];
-                setDragged(paths);
-                e.dataTransfer.effectAllowed = 'copyMove';
-                e.dataTransfer.setData('text/plain', paths.join('\n'));
-              }}
-              onDragOver={(e) => { if (item.isDir) { e.preventDefault(); e.dataTransfer.dropEffect = e.ctrlKey ? 'copy' : 'move'; } }}
-              onDrop={(e) => { if (item.isDir) { e.preventDefault(); void dropInto(item.path, e.ctrlKey); } }}
-              onClick={(ev) => handleClick(ev, item, entries, sel)}
-              onDoubleClick={() => { if (item.isDir) navigate(item.path); else openItem(item.path); }}
-              onAuxClick={(e) => { if (e.button === 1 && item.isDir) { e.preventDefault(); useLocationStore.getState().addTab(item.path); } }}
+              style={{ position: 'absolute', top: 0, left: 0, width: '100%', transform: `translateY(${vi.start}px)`, height: ROW_H }}
             >
-              <span className="list-icon"><Thumbnail entry={item} size={16} /></span>
-              <span className="list-name">{displayName(item, showExtensions)}</span>
+              <ListItem item={item} showExtensions={showExtensions} isSelected={selectedSet.has(item.path)} />
             </div>
           );
         })}

@@ -1,3 +1,4 @@
+import { useMemo } from 'react';
 import { useViewStore } from '../state/viewStore';
 import { useSelectionStore } from '../state/selectionStore';
 import { formatSize } from '../utils/format';
@@ -15,10 +16,11 @@ export function StatusBar({ count, entries }: { count: number; entries: Entry[] 
   const themeIcon = themeMode === 'auto' ? '🖥️' : themeMode === 'light' ? '☀️' : '🌙';
   const themeLabel = themeMode === 'auto' ? '跟随系统' : themeMode === 'light' ? '浅色' : '深色';
 
-  const selEntries = entries.filter((e) => selectedPaths.includes(e.path));
+  const selSet = useMemo(() => new Set(selectedPaths), [selectedPaths]);
+  const selEntries = useMemo(() => entries.filter((e) => selSet.has(e.path)), [entries, selSet]);
   const selCount = selEntries.length;
   // Files contribute their byte size; folders are summed lazily elsewhere, so omit here.
-  const filesBytes = selEntries.filter((e) => !e.isDir).reduce((sum, e) => sum + e.size, 0);
+  const filesBytes = useMemo(() => selEntries.filter((e) => !e.isDir).reduce((sum, e) => sum + e.size, 0), [selEntries]);
 
   let left: string;
   if (selCount === 0) {

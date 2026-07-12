@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { getCurrentWindow } from '@tauri-apps/api/window';
 import { listen } from '@tauri-apps/api/event';
@@ -41,12 +41,12 @@ export default function App() {
   const searchResults = useSearchStore((s) => s.results);
   const showHidden = useViewStore((s) => s.showHidden);
   const themeMode = useViewStore((s) => s.themeMode);
-  const visibleEntries = entries.filter((e) => showHidden || !e.isHidden);
+  const visibleEntries = useMemo(() => entries.filter((e) => showHidden || !e.isHidden), [entries, showHidden]);
   const shownEntries = searchResults ?? visibleEntries;
   const previewPane = useViewStore((s) => s.previewPane);
   const detailsPane = useViewStore((s) => s.detailsPane);
   const sel = useSelectionStore((s) => s.selected);
-  const previewEntry = sel.length === 1 ? shownEntries.find((e) => e.path === sel[0]) ?? null : null;
+  const previewEntry = useMemo(() => sel.length === 1 ? shownEntries.find((e) => e.path === sel[0]) ?? null : null, [sel, shownEntries]);
   const entryRef = useRef(entries);
   entryRef.current = entries;
   const shownRef = useRef(shownEntries);
@@ -333,6 +333,28 @@ export default function App() {
     return () => window.removeEventListener('keydown', onKey);
   }, []);
 
+  // Nav pane drag-to-resize: mouse-down on the splitter starts a drag that
+  // adjusts navPaneWidth via the viewStore. Mirrors the DetailsView col
+  // resize pattern (mousedown → window mousemove/mouseup).
+  const startNavResize = (e: React.MouseEvent) => {
+    e.preventDefault();
+    const startX = e.clientX;
+    const startW = useViewStore.getState().navPaneWidth;
+    const onMove = (ev: MouseEvent) => {
+      useViewStore.getState().setNavPaneWidth(startW + (ev.clientX - startX));
+    };
+    const onUp = () => {
+      window.removeEventListener('mousemove', onMove);
+      window.removeEventListener('mouseup', onUp);
+      document.body.style.cursor = '';
+      document.body.style.userSelect = '';
+    };
+    document.body.style.cursor = 'col-resize';
+    document.body.style.userSelect = 'none';
+    window.addEventListener('mousemove', onMove);
+    window.addEventListener('mouseup', onUp);
+  };
+
   return (
     <div className="app">
       <TitleBar />
@@ -344,6 +366,7 @@ export default function App() {
       </div>
       <div className="body">
         <NavPane />
+        <div className="nav-splitter" onMouseDown={startNavResize} />
         <main className="main-view" key={`${path}-${refreshKey}`} ref={mainRef} tabIndex={0}>
           {path === '' ? (
             <HomeView onOpen={(p) => navigate(p)} />
