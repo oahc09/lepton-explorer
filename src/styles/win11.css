@@ -70,7 +70,9 @@ body { font-family: var(--font); font-size: 14px; background: var(--bg); color: 
 .sug-item.active, .sug-item:hover { background: var(--hover-bg); }
 
 .body { flex: 1; display: flex; min-height: 0; }
-.nav-pane { width: var(--navpane-w); background: var(--pane-bg); border-right: 1px solid var(--border); overflow: auto; padding: 4px; }
+.nav-pane { width: var(--navpane-w); background: var(--pane-bg); border-right: 1px solid var(--border); overflow: auto; padding: 4px; flex-shrink: 0; }
+.nav-splitter { width: 4px; cursor: col-resize; background: transparent; flex-shrink: 0; position: relative; z-index: 5; }
+.nav-splitter:hover, .nav-splitter:active { background: var(--accent); opacity: 0.5; }
 .nav-item { display: block; width: 100%; text-align: left; background: transparent; border: 0; color: var(--text); padding: 6px 10px; border-radius: 4px; cursor: pointer; font-size: 13px; }
 .nav-pane:focus-visible, .main-view:focus-visible { outline: 1px solid var(--accent); outline-offset: -2px; }
 .nav-item.drag-over { background: var(--select-bg); outline: 1px solid var(--accent); outline-offset: -1px; }
@@ -127,7 +129,7 @@ body { font-family: var(--font); font-size: 14px; background: var(--bg); color: 
 .content-row:hover { background: var(--hover-bg); }
 .content-row.selected { background: var(--select-bg); }
 
-.command-bar { display: flex; gap: 6px; padding: 6px 12px; border-bottom: 1px solid var(--border); background: var(--main-bg); flex-wrap: wrap; }
+.command-bar { display: flex; gap: 6px; padding: 6px 12px; border-bottom: 1px solid var(--border); background: var(--main-bg); overflow: hidden; white-space: nowrap; align-items: center; }
 .cmd { height: 32px; padding: 0 12px; border: 1px solid var(--border); background: var(--main-bg); color: var(--text); border-radius: 4px; cursor: pointer; font-size: 13px; }
 .cmd:hover:not(:disabled) { background: var(--hover-bg); }
 .cmd:disabled { opacity: 0.5; cursor: default; }

@@ -12,6 +12,10 @@ function refresh() {
   window.dispatchEvent(new CustomEvent('winfinder:refresh'));
 }
 
+/** Result returned by copy_with_progress / move_with_progress. */
+interface TrackedCopyResult { paths: string[]; trashed: string[]; }
+interface TrackedMoveResult { pairs: [string, string][]; trashed: string[]; }
+
 export function useFileOps() {
   const push = useHistoryStore((s) => s.push);
 
@@ -69,14 +73,28 @@ export function useFileOps() {
     if (mode === 'copy') {
       useProgressStore.getState().open();
       try {
-        const created = await invoke<string[]>('copy_with_progress', { sources, dest: destDir, strategy });
+        const result = await invoke<TrackedCopyResult>('copy_with_progress', { sources, dest: destDir, strategy });
+        const created = result.paths;
+        // Mutable ref so redo can update the trashed paths for the next undo.
+        const trashedRef = { current: result.trashed };
         push({
           label: '复制',
-          undo: async () => { await invoke('delete_to_trash', { paths: created }); refresh(); },
+          undo: async () => {
+            // Remove the pasted files first (so restore doesn't collide).
+            await invoke('delete_to_trash', { paths: created });
+            // Restore any files that were trashed during Replace.
+            if (trashedRef.current.length) {
+              await invoke('restore_from_trash', { paths: trashedRef.current });
+            }
+            refresh();
+          },
           redo: async () => {
             useProgressStore.getState().open();
-            try { await invoke('copy_with_progress', { sources, dest: destDir, strategy }); }
-            finally { useProgressStore.getState().close(); }
+            try {
+              const r = await invoke<TrackedCopyResult>('copy_with_progress', { sources, dest: destDir, strategy });
+              // Update trashed paths so the next undo restores the right files.
+              trashedRef.current = r.trashed;
+            } finally { useProgressStore.getState().close(); }
             refresh();
           },
         });
@@ -86,21 +104,28 @@ export function useFileOps() {
     } else {
       useProgressStore.getState().open();
       try {
-        const moved = await invoke<[string, string][]>('move_with_progress', { sources, dest: destDir, strategy });
-        const pairs = moved; // [(old, new), ...] for items actually moved
+        const result = await invoke<TrackedMoveResult>('move_with_progress', { sources, dest: destDir, strategy });
+        const pairs = result.pairs;
+        const trashedRef = { current: result.trashed };
         push({
           label: '移动',
           undo: async () => {
             for (const [oldP, newP] of pairs) {
               await invoke('move_items', { sources: [newP], dest: parentOf(oldP) });
             }
+            // Restore files trashed during Replace.
+            if (trashedRef.current.length) {
+              await invoke('restore_from_trash', { paths: trashedRef.current });
+            }
             refresh();
           },
           redo: async () => {
             const olds = pairs.map((p2) => p2[0]);
             useProgressStore.getState().open();
-            try { await invoke('move_with_progress', { sources: olds, dest: destDir, strategy }); }
-            finally { useProgressStore.getState().close(); }
+            try {
+              const r = await invoke<TrackedMoveResult>('move_with_progress', { sources: olds, dest: destDir, strategy });
+              trashedRef.current = r.trashed;
+            } finally { useProgressStore.getState().close(); }
             refresh();
           },
         });
@@ -113,9 +138,28 @@ export function useFileOps() {
   }
 
   async function remove(paths: string[], permanent: boolean) {
-    if (permanent) await invoke('delete_permanent', { paths });
-    else await invoke('delete_to_trash', { paths });
-    // Delete is not undoable in this plan.
+    if (permanent) {
+      await invoke('delete_permanent', { paths });
+      // Permanent delete is not undoable.
+    } else {
+      // Undoable delete: record original paths, push a history entry that
+      // restores from recycle bin on undo and re-deletes on redo.
+      const originalPaths = await invoke<string[]>('delete_to_trash_undoable', { paths });
+      if (originalPaths.length) {
+        const pathsRef = { current: originalPaths };
+        push({
+          label: '删除',
+          undo: async () => {
+            await invoke('restore_from_trash', { paths: pathsRef.current });
+            refresh();
+          },
+          redo: async () => {
+            pathsRef.current = await invoke<string[]>('delete_to_trash_undoable', { paths: pathsRef.current });
+            refresh();
+          },
+        });
+      }
+    }
     refresh();
   }
 

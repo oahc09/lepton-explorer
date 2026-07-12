@@ -12,4 +12,10 @@ describe('paths', () => {
     expect(s.map((x) => x.name)).toEqual(['C:', 'Users', 'caosh']);
     expect(s[1].path).toBe('C:\\Users');
   });
+  it('pathSegments preserves backslash separators for deep paths', () => {
+    const s = pathSegments('C:\\Users\\caosh\\Documents');
+    expect(s.map((x) => x.name)).toEqual(['C:', 'Users', 'caosh', 'Documents']);
+    expect(s[2].path).toBe('C:\\Users\\caosh');
+    expect(s[3].path).toBe('C:\\Users\\caosh\\Documents');
+  });
 });

@@ -10,8 +10,8 @@ export function pathSegments(p: string): { name: string; path: string }[] {
       // Drive root: keep trailing separator ("C:\").
       acc = part + '\\';
     } else {
-      // acc already ends with a backslash, so append the part directly.
-      acc = acc + part;
+      // Strip any trailing backslash from acc, then add separator + part.
+      acc = acc.replace(/\\+$/, '') + '\\' + part;
     }
     segs.push({ name: part, path: acc });
   });

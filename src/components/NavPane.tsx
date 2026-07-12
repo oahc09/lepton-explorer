@@ -3,6 +3,7 @@ import { invoke } from '@tauri-apps/api/core';
 import type { SpecialFolder, Drive } from '../types';
 import { useLocationStore } from '../state/locationStore';
 import { usePinnedStore } from '../state/pinnedStore';
+import { useViewStore } from '../state/viewStore';
 import { dropInto } from '../utils/drop';
 
 export function NavPane() {
@@ -13,6 +14,7 @@ export function NavPane() {
   const [expanded, setExpanded] = useState(true);
   const navRef = useRef<HTMLElement>(null);
   const [dragOver, setDragOver] = useState<string | null>(null);
+  const navPaneWidth = useViewStore((s) => s.navPaneWidth);
 
   useEffect(() => {
     invoke<SpecialFolder[]>('special_folders').then(setFolders);
@@ -36,7 +38,7 @@ export function NavPane() {
   }, []);
 
   return (
-    <nav className="nav-pane" ref={navRef} tabIndex={0}>
+    <nav className="nav-pane" ref={navRef} tabIndex={0} style={{ width: navPaneWidth }}>
       {pinned.length > 0 && (
         <div className="nav-section">
           {pinned.map((p) => (

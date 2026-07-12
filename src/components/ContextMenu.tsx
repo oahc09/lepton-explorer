@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { invoke } from '@tauri-apps/api/core';
 import { useSelectionStore } from '../state/selectionStore';
 import { useClipboardStore } from '../state/clipboardStore';
 import { useLocationStore } from '../state/locationStore';
@@ -13,7 +14,6 @@ interface Pos { x: number; y: number; }
 
 export function ContextMenu({ entries }: { entries: Entry[] }) {
   const [pos, setPos] = useState<Pos | null>(null);
-  const [more, setMore] = useState(false);
   const sel = useSelectionStore((s) => s.selected);
   const ops = useFileOps();
   const path = useLocationStore((s) => s.path);
@@ -26,7 +26,6 @@ export function ContextMenu({ entries }: { entries: Entry[] }) {
       const t = e.target as HTMLElement;
       if (!t.closest('.main-view')) return;
       e.preventDefault();
-      setMore(false);
       const el = document.elementFromPoint(e.clientX, e.clientY)?.closest('[data-path]') as HTMLElement | null;
       if (el?.dataset.path && !useSelectionStore.getState().selected.includes(el.dataset.path)) {
         const en = entriesRef.current.find((x) => x.path === el.dataset.path);
@@ -34,13 +33,13 @@ export function ContextMenu({ entries }: { entries: Entry[] }) {
       }
       setPos({ x: e.clientX, y: e.clientY });
     };
-    // Don't close when clicking inside the menu itself (lets items / "显示更多选项" work).
+    // Don't close when clicking inside the menu itself (lets items work).
     const onClick = (e: MouseEvent) => {
       if (!(e.target as HTMLElement).closest('.context-menu')) setPos(null);
     };
     const onOpen = (e: Event) => {
       const detail = (e as CustomEvent<{ x: number; y: number }>).detail;
-      if (detail) { setMore(false); setPos({ x: detail.x, y: detail.y }); }
+      if (detail) { setPos({ x: detail.x, y: detail.y }); }
     };
     document.addEventListener('contextmenu', onMenu);
     document.addEventListener('click', onClick);
@@ -52,14 +51,27 @@ export function ContextMenu({ entries }: { entries: Entry[] }) {
     };
   }, []);
 
-  // (Selection is now synced synchronously in onMenu above; no post-render effect needed.)
-
   if (!pos) return null;
   const selEntries = entries.filter((e) => sel.includes(e.path));
   const hasSel = selEntries.length > 0;
   const item = (label: string, fn: () => void, disabled = false) => (
     <li className={`cm-item${disabled ? ' disabled' : ''}`} onClick={() => { if (!disabled) { fn(); setPos(null); } }}>{label}</li>
   );
+
+  // "显示更多选项": invoke the real Windows Shell classic context menu via
+  // the Rust backend (IContextMenu COM). Falls back gracefully on error.
+  const showMoreOptions = async () => {
+    setPos(null);
+    const targets = hasSel ? sel : (path ? [path] : []);
+    if (!targets.length) return;
+    try {
+      await invoke('show_classic_menu', { paths: targets, x: Math.round(pos.x), y: Math.round(pos.y) });
+      refresh();
+    } catch {
+      // Non-Windows or COM failure — silently ignore.
+    }
+  };
+
   return (
     <ul className="context-menu" style={{ left: pos.x, top: pos.y }}>
       {hasSel && item('打开', () => selEntries.forEach((e) => (e.isDir ? useLocationStore.getState().navigate(e.path) : openItem(e.path))))}
@@ -101,20 +113,19 @@ export function ContextMenu({ entries }: { entries: Entry[] }) {
       </li>
       {item('属性', () => { const en = selEntries[0]; if (en) window.dispatchEvent(new CustomEvent('winfinder:properties', { detail: en })); }, sel.length !== 1)}
       <li className="cm-sep" />
-      {!more && (
-        <li className="cm-item" onClick={(e) => { e.stopPropagation(); setMore(true); }}>显示更多选项 ▾</li>
-      )}
-      {more && (
-        <>
-          {item('全选', () => useSelectionStore.getState().select(entries))}
-          {item('反转选择', () => {
-            const cur = useSelectionStore.getState().selected;
-            const newSel = entries.filter((e) => !cur.includes(e.path)).map((e) => e.path);
-            useSelectionStore.setState({ selected: newSel, anchor: newSel[newSel.length - 1] ?? null });
-          })}
-          {item('刷新', () => window.dispatchEvent(new CustomEvent('winfinder:refresh')))}
-        </>
-      )}
+      {item('全选', () => useSelectionStore.getState().select(entries))}
+      {item('反转选择', () => {
+        const cur = useSelectionStore.getState().selected;
+        const newSel = entries.filter((e) => !cur.includes(e.path)).map((e) => e.path);
+        useSelectionStore.setState({ selected: newSel, anchor: newSel[newSel.length - 1] ?? null });
+      })}
+      {item('刷新', () => window.dispatchEvent(new CustomEvent('winfinder:refresh')))}
+      <li className="cm-sep" />
+      <li className="cm-item" onClick={(e) => { e.stopPropagation(); void showMoreOptions(); }}>显示更多选项 ▾</li>
     </ul>
   );
+}
+
+function refresh() {
+  window.dispatchEvent(new CustomEvent('winfinder:refresh'));
 }
