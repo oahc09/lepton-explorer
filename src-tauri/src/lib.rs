@@ -1,6 +1,7 @@
 pub mod error;
 pub mod fs_ops;
 pub mod office;
+pub mod open_with;
 pub mod ops;
 pub mod shell_menu;
 pub mod special;
@@ -242,6 +243,21 @@ fn show_classic_menu(paths: Vec<String>, x: i32, y: i32) -> Result<()> {
         .map_err(|e| AppError::Unknown(e))
 }
 
+#[tauri::command]
+fn get_open_with(path: String) -> open_with::OpenWithInfo {
+    open_with::get_open_with(&path)
+}
+
+#[tauri::command]
+fn open_with_path(path: String, exe: String) -> Result<()> {
+    open_with::open_with_path(&path, &exe)
+}
+
+#[tauri::command]
+fn open_with_dialog(path: String) -> Result<()> {
+    open_with::open_with_dialog(&path)
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -276,7 +292,10 @@ pub fn run() {
             watch_directory,
             get_thumbnail,
             get_icon,
-            show_classic_menu
+            show_classic_menu,
+            get_open_with,
+            open_with_path,
+            open_with_dialog
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

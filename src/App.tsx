@@ -10,6 +10,7 @@ import { FileList } from './components/FileList';
 import { StatusBar } from './components/StatusBar';
 import { ContextMenu } from './components/ContextMenu';
 import { PropertiesDialog } from './components/PropertiesDialog';
+import { OpenWithDialog } from './components/OpenWithDialog';
 import { ConflictModal } from './components/ConflictModal';
 import { ProgressModal } from './components/ProgressModal';
 import { CommandBar } from './components/CommandBar';
@@ -60,6 +61,7 @@ export default function App() {
   const [propsEntry, setPropsEntry] = useState<Entry | null>(null);
   const setPropsEntryRef = useRef(setPropsEntry);
   setPropsEntryRef.current = setPropsEntry;
+  const [openWithEntry, setOpenWithEntry] = useState<Entry | null>(null);
   const [renamingPath, setRenamingPath] = useState<string | null>(null);
   const [fs, setFs] = useState(false);
 
@@ -113,6 +115,13 @@ export default function App() {
     const onRename = (e: Event) => setRenamingPath((e as CustomEvent<string>).detail);
     window.addEventListener('winfinder:rename', onRename as EventListener);
     return () => window.removeEventListener('winfinder:rename', onRename as EventListener);
+  }, []);
+
+  // Context menu dispatches winfinder:open-with (detail = Entry); open the dialog.
+  useEffect(() => {
+    const onOpenWith = (e: Event) => setOpenWithEntry((e as CustomEvent<Entry>).detail);
+    window.addEventListener('winfinder:open-with', onOpenWith as EventListener);
+    return () => window.removeEventListener('winfinder:open-with', onOpenWith as EventListener);
   }, []);
 
   // Watch the current path for filesystem changes; re-list on fs-changed.
@@ -386,6 +395,7 @@ export default function App() {
       <StatusBar count={shownEntries.length} entries={shownEntries} />
       <ContextMenu entries={shownEntries} />
       {propsEntry && <PropertiesDialog entry={propsEntry} onClose={() => setPropsEntry(null)} />}
+      {openWithEntry && <OpenWithDialog entry={openWithEntry} onClose={() => setOpenWithEntry(null)} />}
       <ConflictModal />
       <ProgressModal />
     </div>
