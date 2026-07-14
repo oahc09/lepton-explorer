@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { useViewStore } from './viewStore';
+import type { FolderView } from '../types';
 
 beforeEach(() => useViewStore.setState({ viewMode: 'details', sort: { field: 'name', asc: true }, colWidths: { name: 600, date: 180, type: 160, size: 110 }, colVisible: { name: true, date: true, type: true, size: true }, showHidden: false, showExtensions: false, previewPane: false, detailsPane: false }));
 
@@ -48,5 +49,29 @@ describe('viewStore', () => {
     useViewStore.getState().toggleDetails();
     expect(useViewStore.getState().detailsPane).toBe(true);
     expect(useViewStore.getState().previewPane).toBe(false);
+  });
+});
+
+describe('viewStore.applyFolderOverrides', () => {
+  const sample: FolderView = {
+    viewMode: 'tiles',
+    sortField: 'modified',
+    sortAsc: false,
+    colWidths: { name: 320, date: 170, type: 150, size: 120 },
+  };
+
+  it('applies view mode, sort and column widths from a FolderView', () => {
+    useViewStore.getState().applyFolderOverrides(sample);
+    const s = useViewStore.getState();
+    expect(s.viewMode).toBe('tiles');
+    expect(s.sort).toEqual({ field: 'modified', asc: false });
+    expect(s.colWidths.type).toBe(150);
+    expect(s.colWidths.size).toBe(120);
+  });
+
+  it('does not mutate unrelated state (e.g. navPaneWidth, themeMode)', () => {
+    const before = useViewStore.getState().navPaneWidth;
+    useViewStore.getState().applyFolderOverrides(sample);
+    expect(useViewStore.getState().navPaneWidth).toBe(before);
   });
 });

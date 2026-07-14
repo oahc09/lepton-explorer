@@ -2,6 +2,8 @@ import { create } from 'zustand';
 
 export function parentOf(p: string): string {
   if (!p) return '';
+  // Virtual roots (network:/gallery:) have no parent.
+  if (p === 'network:' || p === 'gallery:') return '';
   const norm = p.replace(/\//g, '\\').replace(/\\+$/, '');
   if (/^[A-Za-z]:$/.test(norm)) return norm + '\\';
   const idx = norm.lastIndexOf('\\');
@@ -9,7 +11,11 @@ export function parentOf(p: string): string {
   return norm.slice(0, idx);
 }
 
-const titleOf = (p: string) => (p ? p.replace(/^.*[\\/]/, '') || p : '主页');
+const titleOf = (p: string) => {
+  if (p === 'network:') return '网络';
+  if (p === 'gallery:') return 'Gallery';
+  return p ? p.replace(/^.*[\\/]/, '') || p : '主页';
+};
 
 export interface Tab {
   id: string;

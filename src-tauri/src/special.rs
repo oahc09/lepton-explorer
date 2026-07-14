@@ -63,6 +63,47 @@ pub fn list_drives() -> Vec<Drive> {
     }
 }
 
+/// Resolve a well-known folder to its absolute path. Used by the NavPane for
+/// OneDrive (which `dirs` does not expose) and as a reusable helper for Gallery
+/// (Pictures) and other quick-access nodes. Returns `None` when unavailable
+/// (e.g. OneDrive not signed in, or on non-Windows for `onedrive`).
+pub fn get_special_folder(kind: &str) -> Option<String> {
+    match kind {
+        "onedrive" => {
+            #[cfg(windows)]
+            {
+                use windows::Win32::System::Com::CoTaskMemFree;
+                use windows::Win32::UI::Shell::{FOLDERID_SkyDrive, KNOWN_FOLDER_FLAG, SHGetKnownFolderPath};
+                // The windows wrapper returns the allocated PWSTR directly.
+                let pw = unsafe {
+                    SHGetKnownFolderPath(&FOLDERID_SkyDrive, KNOWN_FOLDER_FLAG(0), None)
+                };
+                if let Ok(pw) = pw {
+                    if !pw.is_null() {
+                        let s = unsafe { windows::core::PCWSTR::from_raw(pw.0).to_string() }
+                            .unwrap_or_default();
+                        unsafe { CoTaskMemFree(Some(pw.0 as *const core::ffi::c_void)) };
+                        return if s.is_empty() { None } else { Some(s) };
+                    }
+                }
+                None
+            }
+            #[cfg(not(windows))]
+            {
+                None
+            }
+        }
+        "pictures" => dirs::picture_dir().map(|p| p.display().to_string()),
+        "videos" => dirs::video_dir().map(|p| p.display().to_string()),
+        "music" => dirs::audio_dir().map(|p| p.display().to_string()),
+        "desktop" => dirs::desktop_dir().map(|p| p.display().to_string()),
+        "documents" => dirs::document_dir().map(|p| p.display().to_string()),
+        "downloads" => dirs::download_dir().map(|p| p.display().to_string()),
+        "home" => dirs::home_dir().map(|p| p.display().to_string()),
+        _ => None,
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

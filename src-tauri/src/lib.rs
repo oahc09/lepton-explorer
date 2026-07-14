@@ -1,5 +1,8 @@
 pub mod error;
+pub mod folder_views;
 pub mod fs_ops;
+pub mod gallery;
+pub mod network;
 pub mod office;
 pub mod open_with;
 pub mod ops;
@@ -223,6 +226,37 @@ fn list_drives() -> Vec<special::Drive> {
 }
 
 #[tauri::command]
+fn get_special_folder(kind: String) -> Option<String> {
+    special::get_special_folder(&kind)
+}
+
+#[tauri::command]
+fn list_network() -> Vec<fs_ops::Entry> {
+    network::list_network()
+}
+
+#[tauri::command]
+fn list_gallery() -> Vec<fs_ops::Entry> {
+    gallery::list_gallery()
+}
+
+#[tauri::command]
+fn get_folder_view(path: String) -> Option<folder_views::FolderView> {
+    folder_views::get_folder_view(&path)
+}
+
+#[tauri::command]
+fn set_folder_view(
+    path: String,
+    view_mode: String,
+    sort_field: String,
+    sort_asc: bool,
+    col_widths: folder_views::ColWidths,
+) {
+    folder_views::set_folder_view(&path, &view_mode, &sort_field, sort_asc, col_widths);
+}
+
+#[tauri::command]
 fn watch_directory(app: tauri::AppHandle, path: String, state: tauri::State<'_, watch::WatcherState>) {
     watch::watch_directory(app, path, &state);
 }
@@ -271,6 +305,11 @@ pub fn run() {
             get_properties,
             special_folders,
             list_drives,
+            get_special_folder,
+            list_network,
+            list_gallery,
+            get_folder_view,
+            set_folder_view,
             create_dir,
             create_file,
             create_typed_file,

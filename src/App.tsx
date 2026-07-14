@@ -27,7 +27,8 @@ import { useClipboardStore } from './state/clipboardStore';
 import { useSelectionStore } from './state/selectionStore';
 import { usePinnedStore } from './state/pinnedStore';
 import { useRecentStore } from './state/recentStore';
-import type { Entry } from './types';
+import type { Entry, FolderView } from './types';
+import { isVirtualPath } from './types';
 import { HomeView } from './components/views/HomeView';
 import { VIEW_SHORTCUTS } from './shortcuts';
 import { openItem } from './utils/open';
@@ -65,6 +66,18 @@ export default function App() {
   const [renamingPath, setRenamingPath] = useState<string | null>(null);
   const [fs, setFs] = useState(false);
 
+  // Per-folder view persistence: which folder's overrides are currently applied,
+  // and a debounce timer for writes back to the backend.
+  const appliedPathRef = useRef('');
+  const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Open-with initial ?path= query (set by a New Window so it starts on the same folder).
+  useEffect(() => {
+    const p = new URLSearchParams(window.location.search).get('path');
+    if (p) navigate(p);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   useEffect(() => { getCurrentWindow().setFullscreen(fs).catch(() => {}); }, [fs]);
 
   // Clear selection when the active path (tab) changes; selection is global, so without this
@@ -75,6 +88,46 @@ export default function App() {
     const ss = useSearchStore.getState();
     if (ss.query) { ss.setQuery(''); ss.setResults(null); }
   }, [path]);
+
+  // Per-folder view persistence: load saved overrides when entering a real folder.
+  // Virtual roots (network:/gallery:) are not persisted.
+  useEffect(() => {
+    appliedPathRef.current = path;
+    if (!path || isVirtualPath(path)) return;
+    let cancelled = false;
+    invoke<FolderView | null>('get_folder_view', { path })
+      .then((fv) => {
+        if (!cancelled && fv) useViewStore.getState().applyFolderOverrides(fv);
+      })
+      .catch(() => {});
+    return () => { cancelled = true; };
+  }, [path]);
+
+  // Persist view changes (view mode / sort / column widths) back to the backend for
+  // the currently-applied folder. Debounced; skipped for virtual roots.
+  useEffect(() => {
+    const unsub = useViewStore.subscribe((state, prev) => {
+      if (state.viewMode === prev.viewMode && state.sort === prev.sort && state.colWidths === prev.colWidths) return;
+      const p = appliedPathRef.current;
+      if (!p || isVirtualPath(p)) return;
+      if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+      const { viewMode, sort, colWidths } = state;
+      saveTimerRef.current = setTimeout(() => {
+        void invoke('set_folder_view', {
+          path: p,
+          viewMode,
+          sortField: sort.field,
+          sortAsc: sort.asc,
+          colWidths,
+        });
+      }, 400);
+    });
+    return () => {
+      unsub();
+      if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+    };
+  }, []);
+
 
   const onRenameCommit = (newName: string) => {
     if (renamingPath && newName.trim()) ops.renameEntry(renamingPath, newName.trim());
@@ -126,8 +179,8 @@ export default function App() {
 
   // Watch the current path for filesystem changes; re-list on fs-changed.
   useEffect(() => {
-    if (!path) return;
-    invoke('watch_directory', { path });
+    if (!path || isVirtualPath(path)) return;
+    invoke('watch_directory', { path }).catch(() => {});
     const un = listen<string>('fs-changed', (e) => {
       if (e.payload === path) setRefreshKey((k) => k + 1);
     });
@@ -270,7 +323,7 @@ export default function App() {
         }
         return;
       }
-      if (e.ctrlKey && !e.shiftKey && (e.key === 'n' || e.key === 'N')) { e.preventDefault(); newWindow(); return; }
+      if (e.ctrlKey && !e.shiftKey && (e.key === 'n' || e.key === 'N')) { e.preventDefault(); newWindow(isVirtualPath(path) ? '' : path); return; }
       if (e.ctrlKey && !e.shiftKey && (e.key === 'a' || e.key === 'A')) {
         e.preventDefault();
         useSelectionStore.getState().select(shownRef.current);

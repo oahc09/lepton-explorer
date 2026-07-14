@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import type { SpecialFolder, Drive } from '../types';
+import { GALLERY_ROOT, NETWORK_ROOT } from '../types';
 import { useLocationStore } from '../state/locationStore';
 import { usePinnedStore } from '../state/pinnedStore';
 import { useViewStore } from '../state/viewStore';
@@ -53,7 +54,17 @@ export function NavPane() {
       <button className="nav-item" onClick={() => navigate('')}>
         <span aria-hidden>🏠</span><span>主页</span>
       </button>
-      <button className="nav-item" onClick={() => {}}>
+      <button className="nav-item" onClick={() => {
+        invoke<string>('get_special_folder', { kind: 'onedrive' })
+          .then((p) => { if (p) navigate(p); })
+          .catch(() => {});
+      }}>
+        <span aria-hidden>☁️</span><span>OneDrive</span>
+      </button>
+      <button className="nav-item" onClick={() => {
+        navigate(GALLERY_ROOT);
+        useViewStore.getState().setViewMode('large');
+      }}>
         <span aria-hidden>🖼️</span><span>Gallery</span>
       </button>
       <div className="nav-item nav-group-label" onClick={() => setExpanded((e) => !e)}>
@@ -71,7 +82,7 @@ export function NavPane() {
               <span aria-hidden>💽</span><span>{d.letter}</span>
             </button>
           ))}
-          <button className="nav-item nav-child" onClick={() => {}}>
+          <button className="nav-item nav-child" onClick={() => navigate(NETWORK_ROOT)}>
             <span aria-hidden>🌐</span><span>网络</span>
           </button>
         </div>

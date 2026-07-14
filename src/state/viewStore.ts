@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import type { Sort, SortField, ViewMode } from '../types';
+import type { FolderView, Sort, SortField, ViewMode } from '../types';
 
 type ColKey = 'name' | 'date' | 'type' | 'size';
 type ColRecord = Record<ColKey, boolean>;
@@ -28,6 +28,8 @@ interface ViewState {
   togglePreview: () => void;
   toggleDetails: () => void;
   setNavPaneWidth: (w: number) => void;
+  /** Apply per-folder overrides loaded from the backend (no auto-persist). */
+  applyFolderOverrides: (fv: FolderView) => void;
 }
 
 export const useViewStore = create<ViewState>()(
@@ -67,6 +69,17 @@ export const useViewStore = create<ViewState>()(
       togglePreview: () => set((s) => ({ previewPane: !s.previewPane, detailsPane: false })),
       toggleDetails: () => set((s) => ({ detailsPane: !s.detailsPane, previewPane: false })),
       setNavPaneWidth: (w) => set({ navPaneWidth: Math.max(160, Math.min(480, w)) }),
+      applyFolderOverrides: (fv) =>
+        set({
+          viewMode: fv.viewMode,
+          sort: { field: fv.sortField, asc: fv.sortAsc },
+          colWidths: {
+            name: fv.colWidths.name,
+            date: fv.colWidths.date,
+            type: fv.colWidths.type,
+            size: fv.colWidths.size,
+          },
+        }),
     }),
     {
       name: 'winfinder-view',

@@ -48,3 +48,16 @@ export interface ConflictInfo { name: string; }
 
 /** Address-bar autocomplete suggestion (mirrors Rust PathSuggestion). */
 export interface PathSuggestion { name: string; path: string; isDir: boolean; }
+
+/** Per-folder view settings persisted on the backend (mirrors Rust FolderView). */
+export interface FolderView {
+  viewMode: ViewMode;
+  sortField: SortField;
+  sortAsc: boolean;
+  colWidths: { name: number; date: number; type: number; size: number };
+}
+
+/** Virtual (non-filesystem) navigation roots surfaced by the NavPane. */
+export const NETWORK_ROOT = 'network:';
+export const GALLERY_ROOT = 'gallery:';
+export const isVirtualPath = (p: string) => p === NETWORK_ROOT || p === GALLERY_ROOT;

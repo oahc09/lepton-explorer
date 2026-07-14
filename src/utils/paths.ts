@@ -1,5 +1,7 @@
 // Split "C:\Users\caosh" into segments [{name:'C:',path:'C:\'},{name:'Users',path:'C:\Users'},...]
 export function pathSegments(p: string): { name: string; path: string }[] {
+  if (p === 'network:') return [{ name: '网络', path: 'network:' }];
+  if (p === 'gallery:') return [{ name: 'Gallery', path: 'gallery:' }];
   if (!p) return [];
   const norm = p.replace(/\//g, '\\').replace(/\\+$/, '');
   const parts = norm.split('\\').filter(Boolean);
