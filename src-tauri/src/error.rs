@@ -35,4 +35,10 @@ impl From<trash::Error> for AppError {
     }
 }
 
+impl From<zip::result::ZipError> for AppError {
+    fn from(e: zip::result::ZipError) -> Self {
+        AppError::Unknown(e.to_string())
+    }
+}
+
 pub type Result<T> = std::result::Result<T, AppError>;

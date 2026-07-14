@@ -6,7 +6,7 @@ beforeEach(() => useProgressStore.setState({ active: false, current: 0, total: 0
 describe('progressStore', () => {
   it('open resets counters and activates', () => {
     useProgressStore.setState({ current: 5, total: 10, file: 'old' });
-    useProgressStore.getState().open();
+    useProgressStore.getState().open('copy');
     const s = useProgressStore.getState();
     expect(s.active).toBe(true);
     expect(s.current).toBe(0);
@@ -23,7 +23,7 @@ describe('progressStore', () => {
   });
 
   it('close deactivates (keeps last values)', () => {
-    useProgressStore.getState().open();
+    useProgressStore.getState().open('copy');
     useProgressStore.getState().update(7, 10, 'b.txt');
     useProgressStore.getState().close();
     const s = useProgressStore.getState();

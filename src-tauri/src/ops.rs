@@ -14,7 +14,7 @@ static COPY_CANCELLED: AtomicBool = AtomicBool::new(false);
 ///
 /// Non-destructive operations (list_directory, search, get_properties) are
 /// allowed on any path — they don't modify the filesystem.
-fn validate_safe_path(path: &str) -> std::io::Result<()> {
+pub(crate) fn validate_safe_path(path: &str) -> std::io::Result<()> {
     let p = Path::new(path);
 
     // Reject empty paths.

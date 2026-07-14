@@ -10,6 +10,7 @@ pub mod shell_menu;
 pub mod special;
 pub mod thumbnails;
 pub mod watch;
+pub mod zip;
 
 use error::{AppError, Result};
 use tauri::Emitter;
@@ -292,6 +293,61 @@ fn open_with_dialog(path: String) -> Result<()> {
     open_with::open_with_dialog(&path)
 }
 
+#[tauri::command]
+fn create_archive(
+    app: tauri::AppHandle,
+    sources: Vec<String>,
+    dest_zip: String,
+) -> Result<()> {
+    // Compress `sources` into `dest_zip`, emitting "fs-zip-progress"
+    // {current,total,file} per file so the frontend can drive a progress
+    // dialog. Runs on a background thread; `cancel_zip` sets a flag checked
+    // between top-level sources.
+    zip::reset_zip_cancel();
+    zip::zip_items_tracked(
+        &sources,
+        &dest_zip,
+        zip::is_zip_cancelled,
+        |current, total, path| {
+            let file = path
+                .file_name()
+                .map(|f| f.to_string_lossy().to_string())
+                .unwrap_or_default();
+            let _ = app.emit("fs-zip-progress", CopyProgress { current, total, file });
+        },
+    )
+    .map_err(AppError::from)
+}
+
+#[tauri::command]
+fn extract_archive(
+    app: tauri::AppHandle,
+    zip_path: String,
+    dest_dir: String,
+) -> Result<usize> {
+    // Extract `zip_path` into `dest_dir`, emitting per-file progress. Returns
+    // the number of files written. Skips Zip-Slip entries (handled in zip.rs).
+    zip::reset_zip_cancel();
+    zip::unzip_items_tracked(
+        &zip_path,
+        &dest_dir,
+        zip::is_zip_cancelled,
+        |current, total, path| {
+            let file = path
+                .file_name()
+                .map(|f| f.to_string_lossy().to_string())
+                .unwrap_or_default();
+            let _ = app.emit("fs-zip-progress", CopyProgress { current, total, file });
+        },
+    )
+    .map_err(AppError::from)
+}
+
+#[tauri::command]
+fn cancel_zip() {
+    zip::request_zip_cancel();
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -334,7 +390,10 @@ pub fn run() {
             show_classic_menu,
             get_open_with,
             open_with_path,
-            open_with_dialog
+            open_with_dialog,
+            create_archive,
+            extract_archive,
+            cancel_zip
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

@@ -54,6 +54,9 @@ export function ContextMenu({ entries }: { entries: Entry[] }) {
   if (!pos) return null;
   const selEntries = entries.filter((e) => sel.includes(e.path));
   const hasSel = selEntries.length > 0;
+  // Only allow zip/unzip on real filesystem paths (not virtual roots like
+  // network: / gallery: where the backend can't resolve a destination).
+  const realPath = !path.endsWith(':') && !path.startsWith('network:') && !path.startsWith('gallery:');
   const item = (label: string, fn: () => void, disabled = false) => (
     <li className={`cm-item${disabled ? ' disabled' : ''}`} onClick={() => { if (!disabled) { fn(); setPos(null); } }}>{label}</li>
   );
@@ -102,6 +105,14 @@ export function ContextMenu({ entries }: { entries: Entry[] }) {
           ))}
         </ul>
       </li>
+      <li className="cm-sep" />
+      {item('压缩为 ZIP', () => ops.zip(selEntries.map((e) => e.path), path), !hasSel || !realPath)}
+      {(() => {
+        const en = selEntries[0];
+        const show = realPath && sel.length === 1 && en && !en.isDir && /\.zip$/i.test(en.name);
+        if (!show) return null;
+        return item('解压到文件夹', () => ops.unzip(en.path, path));
+      })()}
       {item('剪切', () => useClipboardStore.getState().cut(selEntries), !hasSel)}
       {item('复制', () => useClipboardStore.getState().copy(selEntries), !hasSel)}
       {item('复制路径', () => ops.copyPath(sel.join('\n')), !hasSel)}

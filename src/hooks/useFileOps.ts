@@ -71,7 +71,7 @@ export function useFileOps() {
     }
 
     if (mode === 'copy') {
-      useProgressStore.getState().open();
+      useProgressStore.getState().open('copy');
       try {
         const result = await invoke<TrackedCopyResult>('copy_with_progress', { sources, dest: destDir, strategy });
         const created = result.paths;
@@ -89,7 +89,7 @@ export function useFileOps() {
             refresh();
           },
           redo: async () => {
-            useProgressStore.getState().open();
+            useProgressStore.getState().open('copy');
             try {
               const r = await invoke<TrackedCopyResult>('copy_with_progress', { sources, dest: destDir, strategy });
               // Update trashed paths so the next undo restores the right files.
@@ -102,7 +102,7 @@ export function useFileOps() {
         useProgressStore.getState().close();
       }
     } else {
-      useProgressStore.getState().open();
+      useProgressStore.getState().open('copy');
       try {
         const result = await invoke<TrackedMoveResult>('move_with_progress', { sources, dest: destDir, strategy });
         const pairs = result.pairs;
@@ -121,7 +121,7 @@ export function useFileOps() {
           },
           redo: async () => {
             const olds = pairs.map((p2) => p2[0]);
-            useProgressStore.getState().open();
+            useProgressStore.getState().open('copy');
             try {
               const r = await invoke<TrackedMoveResult>('move_with_progress', { sources: olds, dest: destDir, strategy });
               trashedRef.current = r.trashed;
@@ -186,5 +186,39 @@ export function useFileOps() {
     try { await invoke('open_in_terminal', { path }); } catch { /* ignore */ }
   }
 
-  return { newFolder, newFile, newTypedFile, renameEntry, paste, remove, copyPath, openTerminal };
+  /** Compress `sources` into a single .zip placed in `destDir`. Undoable-free
+   * (the archive is a new file); shows a progress dialog while compressing. */
+  async function zip(sources: string[], destDir: string) {
+    if (!sources.length) return;
+    // Archive name derives from the first selected item (Explorer behavior).
+    const first = sources[0].replace(/[\\/]+$/, '');
+    const base = first.split(/[\\/]/).pop() || 'Archive';
+    const stem = base.includes('.') ? base.slice(0, base.lastIndexOf('.')) : base;
+    const destZip = await invoke<string>('unique_target', { dir: destDir, name: `${stem}.zip` });
+    useProgressStore.getState().open('compress');
+    try {
+      await invoke('create_archive', { sources, dest_zip: destZip });
+    } finally {
+      useProgressStore.getState().close();
+    }
+    refresh();
+  }
+
+  /** Extract the .zip at `zipPath` into a sibling folder (auto-suffixed on
+   * collision) under `destDir`. Shows a progress dialog while extracting. */
+  async function unzip(zipPath: string, destDir: string) {
+    const name = zipPath.split(/[\\/]/).pop() || 'Archive';
+    const stem = name.toLowerCase().endsWith('.zip') ? name.slice(0, -4) : name;
+    const dest = await invoke<string>('unique_target', { dir: destDir, name: stem });
+    await invoke('create_dir', { path: dest });
+    useProgressStore.getState().open('extract');
+    try {
+      await invoke('extract_archive', { zip_path: zipPath, dest_dir: dest });
+    } finally {
+      useProgressStore.getState().close();
+    }
+    refresh();
+  }
+
+  return { newFolder, newFile, newTypedFile, renameEntry, paste, remove, copyPath, openTerminal, zip, unzip };
 }

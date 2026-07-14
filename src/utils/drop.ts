@@ -23,7 +23,7 @@ export async function dropInto(destDir: string, copy: boolean) {
       strategy = choice;
     }
 
-    useProgressStore.getState().open();
+    useProgressStore.getState().open('copy');
     try {
       if (copy) await invoke('copy_with_progress', { sources, dest: destDir, strategy });
       else await invoke('move_with_progress', { sources, dest: destDir, strategy });
