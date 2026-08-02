@@ -59,9 +59,12 @@ body { font-family: var(--font); font-size: 14px; background: var(--bg); color: 
 
 .breadcrumb { flex: 1; min-width: 0; height: 32px; display: flex; align-items: center; background: var(--main-bg); border: 1px solid var(--border); border-radius: 6px; padding: 0 8px; gap: 2px; overflow: hidden; }
 .theme-dark .breadcrumb { background: rgba(255,255,255,0.05); }
-.breadcrumb .crumb { background: transparent; border: 0; color: var(--text); cursor: pointer; font-size: 13px; padding: 2px 4px; border-radius: 4px; }
+.breadcrumb .crumb-group { display: inline-flex; align-items: center; min-width: 0; gap: 2px; }
+.breadcrumb .crumb-group:not(:last-child) { flex-shrink: 1; }
+.breadcrumb .crumb-group:last-child { flex-shrink: 0; }
+.breadcrumb .crumb { background: transparent; border: 0; color: var(--text); cursor: pointer; font-size: 13px; padding: 2px 4px; border-radius: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
 .breadcrumb .crumb:hover { background: var(--hover-bg); }
-.breadcrumb .chevron { color: var(--text-sub); }
+.breadcrumb .chevron { color: var(--text-sub); flex-shrink: 0; }
 .breadcrumb-input { flex: 1; height: 32px; border: 1px solid var(--accent); border-radius: 6px; padding: 0 8px; font-family: var(--font); color: var(--text); background: var(--main-bg); }
 .breadcrumb-edit { position: relative; flex: 1; }
 .breadcrumb-edit .breadcrumb-input { width: 100%; }
