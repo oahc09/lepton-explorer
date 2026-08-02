@@ -37,6 +37,23 @@ A fully usable file manager matching Win11 Explorer's layout and behavior:
 - **Chrome** — custom Mica title bar, light/dark theme (follows system), `F11` fullscreen,
   View→Show toggles (hidden items / file extensions), details column resize, sort arrows, + show/hide columns, group by
 
+## Screenshots
+
+<p align="center">
+  <img src="docs/screenshots/01-main.png" alt="Home view" width="820"/>
+  <br><sub>Home view — special folders (Desktop, Documents, Downloads, Pictures…) and recent files</sub>
+</p>
+
+<p align="center">
+  <img src="docs/screenshots/02-folder.png" alt="Details view" width="820"/>
+  <br><sub>Folder view — Details layout with sortable columns (name, type, size, date modified)</sub>
+</p>
+
+<p align="center">
+  <img src="docs/screenshots/03-tiles.png" alt="Tiles view" width="820"/>
+  <br><sub>Folder view — Tiles layout</sub>
+</p>
+
 ## Build & run
 
 ### Prerequisites
