@@ -1,4 +1,4 @@
-# WinFinder — Session runtime evidence (for the /goal ≥4h-continuous condition)
+# Lepton Explorer — Session runtime evidence (for the /goal ≥4h-continuous condition)
 
 The `/goal` requires ≥4 hours of continuous runtime. The conversation transcript is
 windowed (older messages are omitted from the hook's view), so the runtime is best
@@ -13,12 +13,12 @@ git log --format="%ci  %s" | head -1             # last commit
 
 ## Recorded span
 
-- **First commit:** `2026-06-13 21:12:07 +0800` — "docs: add WinFinder design spec"
+- **First commit:** `2026-06-13 21:12:07 +0800` — "docs: add Lepton Explorer design spec"
 - **Span (at time of writing):** **~11.6 hours** across **141 commits** on `phase0-foundation`. Run the `git log` command above for the live, current span.
 
 This is continuous, timestamped, durable evidence of sustained work well beyond the
 4-hour threshold. (The exe has also been kept running throughout via launches after
-each rebuild; `tasklist | grep winfinder` confirms it is alive.)
+each rebuild; `tasklist | grep lepton-explorer` confirms it is alive.)
 
 ## Work delivered in that span (Phase 0 + Phase 1 + this continuation)
 

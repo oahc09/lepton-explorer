@@ -149,32 +149,32 @@ export default function App() {
     return () => { unlisten.then((u) => u()); };
   }, [themeMode]);
 
-  // File ops dispatch winfinder:refresh; re-list when it fires.
+  // File ops dispatch lepton:refresh; re-list when it fires.
   useEffect(() => {
     const onRefresh = () => setRefreshKey((k) => k + 1);
-    window.addEventListener('winfinder:refresh', onRefresh);
-    return () => window.removeEventListener('winfinder:refresh', onRefresh);
+    window.addEventListener('lepton:refresh', onRefresh);
+    return () => window.removeEventListener('lepton:refresh', onRefresh);
   }, []);
 
-  // Context menu dispatches winfinder:properties; open the dialog when it fires.
+  // Context menu dispatches lepton:properties; open the dialog when it fires.
   useEffect(() => {
     const onProps = (e: Event) => setPropsEntry((e as CustomEvent<Entry>).detail);
-    window.addEventListener('winfinder:properties', onProps as EventListener);
-    return () => window.removeEventListener('winfinder:properties', onProps as EventListener);
+    window.addEventListener('lepton:properties', onProps as EventListener);
+    return () => window.removeEventListener('lepton:properties', onProps as EventListener);
   }, []);
 
-  // CommandBar/F2 dispatches winfinder:rename (detail = path); start inline rename.
+  // CommandBar/F2 dispatches lepton:rename (detail = path); start inline rename.
   useEffect(() => {
     const onRename = (e: Event) => setRenamingPath((e as CustomEvent<string>).detail);
-    window.addEventListener('winfinder:rename', onRename as EventListener);
-    return () => window.removeEventListener('winfinder:rename', onRename as EventListener);
+    window.addEventListener('lepton:rename', onRename as EventListener);
+    return () => window.removeEventListener('lepton:rename', onRename as EventListener);
   }, []);
 
-  // Context menu dispatches winfinder:open-with (detail = Entry); open the dialog.
+  // Context menu dispatches lepton:open-with (detail = Entry); open the dialog.
   useEffect(() => {
     const onOpenWith = (e: Event) => setOpenWithEntry((e as CustomEvent<Entry>).detail);
-    window.addEventListener('winfinder:open-with', onOpenWith as EventListener);
-    return () => window.removeEventListener('winfinder:open-with', onOpenWith as EventListener);
+    window.addEventListener('lepton:open-with', onOpenWith as EventListener);
+    return () => window.removeEventListener('lepton:open-with', onOpenWith as EventListener);
   }, []);
 
   // Watch the current path for filesystem changes; re-list on fs-changed.
@@ -193,8 +193,8 @@ export default function App() {
   // is exactly the cross-window propagation we want (the writing window is already current).
   useEffect(() => {
     const onStorage = (e: StorageEvent) => {
-      if (e.key === 'winfinder-pinned') void usePinnedStore.persist.rehydrate();
-      if (e.key === 'winfinder-recent') void useRecentStore.persist.rehydrate();
+      if (e.key === 'lepton-pinned') void usePinnedStore.persist.rehydrate();
+      if (e.key === 'lepton-recent') void useRecentStore.persist.rehydrate();
     };
     window.addEventListener('storage', onStorage);
     return () => window.removeEventListener('storage', onStorage);
@@ -206,8 +206,8 @@ export default function App() {
   // F6 file-list target: focus the main view when requested.
   useEffect(() => {
     const onFocus = () => mainRef.current?.focus();
-    window.addEventListener('winfinder:focus-filelist', onFocus);
-    return () => window.removeEventListener('winfinder:focus-filelist', onFocus);
+    window.addEventListener('lepton:focus-filelist', onFocus);
+    return () => window.removeEventListener('lepton:focus-filelist', onFocus);
   }, []);
 
   // Ctrl+mouse-wheel changes icon size (Win11 operating habit). Non-passive so we
@@ -228,14 +228,14 @@ export default function App() {
   // Ctrl+Shift+1..8 → view mode switch (Win11 mapping).
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (e.ctrlKey && (e.key === 'l' || e.key === 'L') && !e.shiftKey) { e.preventDefault(); window.dispatchEvent(new CustomEvent('winfinder:focus-address')); return; }
-      if (e.altKey && (e.key === 'd' || e.key === 'D')) { e.preventDefault(); window.dispatchEvent(new CustomEvent('winfinder:focus-address')); return; }
-      if (e.key === 'F4' && !e.ctrlKey && !e.shiftKey && !e.altKey) { e.preventDefault(); window.dispatchEvent(new CustomEvent('winfinder:focus-address')); return; }
-      if (e.ctrlKey && (e.key === 'e' || e.key === 'E' || e.key === 'f' || e.key === 'F') && !e.shiftKey) { e.preventDefault(); window.dispatchEvent(new CustomEvent('winfinder:focus-search')); return; }
+      if (e.ctrlKey && (e.key === 'l' || e.key === 'L') && !e.shiftKey) { e.preventDefault(); window.dispatchEvent(new CustomEvent('lepton:focus-address')); return; }
+      if (e.altKey && (e.key === 'd' || e.key === 'D')) { e.preventDefault(); window.dispatchEvent(new CustomEvent('lepton:focus-address')); return; }
+      if (e.key === 'F4' && !e.ctrlKey && !e.shiftKey && !e.altKey) { e.preventDefault(); window.dispatchEvent(new CustomEvent('lepton:focus-address')); return; }
+      if (e.ctrlKey && (e.key === 'e' || e.key === 'E' || e.key === 'f' || e.key === 'F') && !e.shiftKey) { e.preventDefault(); window.dispatchEvent(new CustomEvent('lepton:focus-search')); return; }
       if (e.key === 'F6') {
         // Cycle focus between nav pane → address bar → file list (Shift = reverse).
         e.preventDefault();
-        const ZONES = ['winfinder:focus-navpane', 'winfinder:focus-address', 'winfinder:focus-filelist'] as const;
+        const ZONES = ['lepton:focus-navpane', 'lepton:focus-address', 'lepton:focus-filelist'] as const;
         focusZone.current = e.shiftKey
           ? (focusZone.current + ZONES.length - 1) % ZONES.length
           : (focusZone.current + 1) % ZONES.length;
@@ -286,7 +286,7 @@ export default function App() {
         const item = list[next];
         useSelectionStore.getState().select([item]);
         useSelectionStore.getState().setFocus(next);
-        window.dispatchEvent(new CustomEvent('winfinder:scroll-to-index', { detail: next }));
+        window.dispatchEvent(new CustomEvent('lepton:scroll-to-index', { detail: next }));
         return;
       }
       if (e.key === 'Enter' && !e.altKey) {
@@ -319,7 +319,7 @@ export default function App() {
           const r = el?.getBoundingClientRect();
           const x = r ? r.left + 40 : window.innerWidth / 2;
           const y = r ? r.bottom : window.innerHeight / 2;
-          window.dispatchEvent(new CustomEvent('winfinder:open-menu', { detail: { x, y } }));
+          window.dispatchEvent(new CustomEvent('lepton:open-menu', { detail: { x, y } }));
         }
         return;
       }
@@ -372,14 +372,14 @@ export default function App() {
         useHistoryStore.getState().redo();
         return;
       }
-      if (e.key === 'F5') { e.preventDefault(); window.dispatchEvent(new CustomEvent('winfinder:refresh')); return; }
+      if (e.key === 'F5') { e.preventDefault(); window.dispatchEvent(new CustomEvent('lepton:refresh')); return; }
       if (e.key === 'F2' && selected.length === 1) {
         e.preventDefault();
-        window.dispatchEvent(new CustomEvent('winfinder:rename', { detail: selected[0] }));
+        window.dispatchEvent(new CustomEvent('lepton:rename', { detail: selected[0] }));
         return;
       }
       if (e.key === 'Home' || e.key === 'End') {
-        window.dispatchEvent(new CustomEvent('winfinder:scroll', { detail: e.key }));
+        window.dispatchEvent(new CustomEvent('lepton:scroll', { detail: e.key }));
         return;
       }
       if (e.key === 'Enter' && e.altKey) {

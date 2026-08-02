@@ -34,8 +34,8 @@ export function NavPane() {
   // F6 pane-focus cycling: focus this pane when requested.
   useEffect(() => {
     const onFocus = () => navRef.current?.focus();
-    window.addEventListener('winfinder:focus-navpane', onFocus);
-    return () => window.removeEventListener('winfinder:focus-navpane', onFocus);
+    window.addEventListener('lepton:focus-navpane', onFocus);
+    return () => window.removeEventListener('lepton:focus-navpane', onFocus);
   }, []);
 
   return (

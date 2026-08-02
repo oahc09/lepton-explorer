@@ -82,7 +82,7 @@ export const useViewStore = create<ViewState>()(
         }),
     }),
     {
-      name: 'winfinder-view',
+      name: 'lepton-view',
       partialize: (s) => ({ navPaneWidth: s.navPaneWidth }),
     }
   )

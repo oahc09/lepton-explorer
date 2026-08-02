@@ -1,4 +1,4 @@
-# WinFinder — Phase 1d: Navigation/Info Layer · Implementation Plan
+# Lepton Explorer — Phase 1d: Navigation/Info Layer · Implementation Plan
 
 > **For agentic workers:** subagent-driven-development / executing-plans. Checkbox steps.
 
@@ -223,8 +223,8 @@ export function PropertiesDialog({ entry, onClose }: { entry: Entry; onClose: ()
   );
 }
 ```
-- [ ] **Step 2: App wiring** — App holds `const [propsEntry, setPropsEntry] = useState<Entry | null>(null);`. Listen for a `winfinder:properties` CustomEvent (detail = Entry) → setPropsEntry. Also bind Alt+Enter in the keydown handler (when exactly one selected) → dispatch the event with that entry. Render `{propsEntry && <PropertiesDialog entry={propsEntry} onClose={() => setPropsEntry(null)} />}`. Add `import { PropertiesDialog } from './components/PropertiesDialog';`. (You need the selected Entry object — resolve from `shownEntries` by the selected path.)
-- [ ] **Step 3: Context menu** — add a Properties item to ContextMenu: `item('属性', () => { const en = selEntries[0]; if (en) window.dispatchEvent(new CustomEvent('winfinder:properties', { detail: en })); }, sel.length !== 1)`.
+- [ ] **Step 2: App wiring** — App holds `const [propsEntry, setPropsEntry] = useState<Entry | null>(null);`. Listen for a `lepton:properties` CustomEvent (detail = Entry) → setPropsEntry. Also bind Alt+Enter in the keydown handler (when exactly one selected) → dispatch the event with that entry. Render `{propsEntry && <PropertiesDialog entry={propsEntry} onClose={() => setPropsEntry(null)} />}`. Add `import { PropertiesDialog } from './components/PropertiesDialog';`. (You need the selected Entry object — resolve from `shownEntries` by the selected path.)
+- [ ] **Step 3: Context menu** — add a Properties item to ContextMenu: `item('属性', () => { const en = selEntries[0]; if (en) window.dispatchEvent(new CustomEvent('lepton:properties', { detail: en })); }, sel.length !== 1)`.
 - [ ] **Step 4: CSS** — `.modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.35); display: flex; align-items: center; justify-content: center; z-index: 2000; } .modal { background: var(--main-bg); border-radius: 8px; padding: 20px; min-width: 320px; box-shadow: 0 12px 32px rgba(0,0,0,0.25); } .modal h3 { margin-bottom: 16px; } .props { display: grid; grid-template-columns: 90px 1fr; gap: 8px 12px; font-size: 13px; } .props dt { color: var(--text-sub); } .modal-actions { margin-top: 16px; text-align: right; }`.
 - [ ] **Step 5:** tsc; test; build. Commit `feat(ui): properties dialog (Alt+Enter / context menu)`.
 
@@ -232,7 +232,7 @@ export function PropertiesDialog({ entry, onClose }: { entry: Entry; onClose: ()
 
 **Files:** Modify `src/components/FileList.tsx`, `DetailsView.tsx`, `IconsView.tsx`, `src/App.tsx`.
 
-- [ ] **Step 1: App holds renamingPath** — `const [renamingPath, setRenamingPath] = useState<string | null>(null);`. Listen for `winfinder:rename` (detail=path) → setRenamingPath. (If rename started on a path not in selection, select it.) Pass `renamingPath` + `onRenameCommit(newName)` to `<FileList>`.
+- [ ] **Step 1: App holds renamingPath** — `const [renamingPath, setRenamingPath] = useState<string | null>(null);`. Listen for `lepton:rename` (detail=path) → setRenamingPath. (If rename started on a path not in selection, select it.) Pass `renamingPath` + `onRenameCommit(newName)` to `<FileList>`.
 - [ ] **Step 2: FileList threads props** — `FileList({ entries, renamingPath, onRenameCommit })` passes them to DetailsView + IconsView.
 - [ ] **Step 3: DetailsView inline input** — when `renamingPath === item.path`, render an `<input className="rename-input" autoFocus defaultValue={item.name}>` instead of the name span; on Enter → `onRenameCommit(value)` + clear; Esc → clear. (onRenameCommit calls useFileOps.renameEntry — App passes a handler that does so and setRenamingPath(null).)
 - [ ] **Step 4: IconsView inline input** — same pattern in the tile-name area.

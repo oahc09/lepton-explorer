@@ -20,6 +20,6 @@ export const useRecentStore = create<RecentState>()(
         }),
       clear: () => set({ recent: [] }),
     }),
-    { name: 'winfinder-recent' }
+    { name: 'lepton-recent' }
   )
 );

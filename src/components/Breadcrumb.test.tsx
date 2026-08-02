@@ -29,7 +29,7 @@ describe('Breadcrumb', () => {
         : Promise.resolve([]),
     );
     render(<Breadcrumb />);
-    act(() => window.dispatchEvent(new Event('winfinder:focus-address')));
+    act(() => window.dispatchEvent(new Event('lepton:focus-address')));
     const input = await screen.findByRole('textbox');
     fireEvent.change(input, { target: { value: 'C:\\Do' } });
     await waitFor(() => expect(screen.getByText(/Documents/)).toBeInTheDocument());

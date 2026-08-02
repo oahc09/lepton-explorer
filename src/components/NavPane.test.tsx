@@ -27,14 +27,14 @@ describe('NavPane', () => {
     expect(useLocationStore.getState().path).toBe('C:\\');
   });
 
-  it('focuses the pane on the winfinder:focus-navpane event (F6 target)', async () => {
+  it('focuses the pane on the lepton:focus-navpane event (F6 target)', async () => {
     mockInvoke.mockResolvedValue([]);
     render(<NavPane />);
     await waitFor(() => screen.getByText('主页'));
     const nav = document.querySelector('.nav-pane') as HTMLElement;
     expect(nav).not.toBeNull();
     expect(document.activeElement).not.toBe(nav);
-    window.dispatchEvent(new Event('winfinder:focus-navpane'));
+    window.dispatchEvent(new Event('lepton:focus-navpane'));
     expect(document.activeElement).toBe(nav);
   });
 });

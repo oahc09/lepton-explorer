@@ -177,8 +177,8 @@ export function DetailsView({ entries, renamingPath, onRenameCommit }: { entries
       if (key === 'Home') el.scrollTop = 0;
       if (key === 'End') el.scrollTop = el.scrollHeight;
     };
-    window.addEventListener('winfinder:scroll', onScroll as EventListener);
-    return () => window.removeEventListener('winfinder:scroll', onScroll as EventListener);
+    window.addEventListener('lepton:scroll', onScroll as EventListener);
+    return () => window.removeEventListener('lepton:scroll', onScroll as EventListener);
   }, []);
 
   useEffect(() => {
@@ -186,8 +186,8 @@ export function DetailsView({ entries, renamingPath, onRenameCommit }: { entries
       const rowIdx = (ev as CustomEvent<number>).detail;
       rowVirtualizer.scrollToIndex(rowToFlat[rowIdx] ?? rowIdx, { align: 'auto' });
     };
-    window.addEventListener('winfinder:scroll-to-index', onScrollTo as EventListener);
-    return () => window.removeEventListener('winfinder:scroll-to-index', onScrollTo as EventListener);
+    window.addEventListener('lepton:scroll-to-index', onScrollTo as EventListener);
+    return () => window.removeEventListener('lepton:scroll-to-index', onScrollTo as EventListener);
   }, [rowVirtualizer, rowToFlat]);
 
   const startResize = (key: ColKey, e: React.MouseEvent) => {

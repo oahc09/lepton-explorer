@@ -1,4 +1,4 @@
-# WinFinder — 完整验收核对（Phase 0 + 1 + 2，规格 §11）
+# Lepton Explorer — 完整验收核对（Phase 0 + 1 + 2，规格 §11）
 
 > 判据（§11.1）：布局几何 ≤1px、核心颜色 ΔE≤2、字体（Segoe UI Variable）一致、
 > 图标取系统级一致；各交互态逐状态比对。豁免（§11.3）：Mica/亚克力色调、字体
@@ -13,7 +13,7 @@
 | 类型检查 | `tsc --noEmit` | ✅ clean |
 | 前端构建 | `pnpm run build` | ✅ ok |
 | 发布打包 | `pnpm tauri build` | ✅ exe + msi + nsis |
-| 运行验证 | 启动 `winfinder.exe` | ✅ 进程存活、无 panic |
+| 运行验证 | 启动 `lepton-explorer.exe` | ✅ 进程存活、无 panic |
 | 代码评审 | 3 轮 holistic review | ✅ 所有发现已修复 |
 
 ## 功能验收

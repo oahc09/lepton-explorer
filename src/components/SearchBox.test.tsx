@@ -45,11 +45,11 @@ describe('SearchBox', () => {
     expect(screen.getByPlaceholderText('搜索')).toBeTruthy();
   });
 
-  it('focuses the input on the winfinder:focus-search event', () => {
+  it('focuses the input on the lepton:focus-search event', () => {
     render(<SearchBox />);
     const input = screen.getByPlaceholderText('搜索 folder');
     expect(document.activeElement).not.toBe(input);
-    act(() => { window.dispatchEvent(new Event('winfinder:focus-search')); });
+    act(() => { window.dispatchEvent(new Event('lepton:focus-search')); });
     expect(document.activeElement).toBe(input);
   });
 });

@@ -1,6 +1,6 @@
 # §11 视觉零偏差 · 截图采集清单（Capture Checklist）
 
-本文件是「视觉零偏差打磨」阶段的操作手册。目标：在真机 Win11 与 WinFinder 渲染**相同内容**，
+本文件是「视觉零偏差打磨」阶段的操作手册。目标：在真机 Win11 与 Lepton Explorer 渲染**相同内容**，
 逐区域并排比对，几何 ≤1px、颜色 ΔE≤2、字体/图标一致；偏差回报后由我修复 `win11.css` 与对应组件，直至全绿。
 
 ## 前置条件（双方一致）
@@ -9,7 +9,7 @@
 - 分辨率 **1080p+**，窗口**最大化**。
 - 关闭**高对比度**模式。
 - **浅色**与**深色**主题各采一套（设置 → 个性化 → 颜色 → 模式）。
-- 同一份 `Dataset/`（见下）在真机 Win11 文件资源管理器 **和** WinFinder 中各打开一次。
+- 同一份 `Dataset/`（见下）在真机 Win11 文件资源管理器 **和** Lepton Explorer 中各打开一次。
 
 ## 标准数据集 `Dataset/`
 
@@ -29,7 +29,7 @@ Dataset/
 ## 采集区域矩阵（区域 × 状态 × 主题）
 
 命名：`<app>-<区域>-<状态>-<主题>.png`
-（`win11-` = 真机黄金基准；`winf-` = WinFinder 自采；主题 `light`/`dark`）
+（`win11-` = 真机黄金基准；`winf-` = Lepton Explorer 自采；主题 `light`/`dark`）
 
 | # | 区域 | 状态 | 主题 | 文件示例 |
 |---|---|---|---|---|
@@ -63,11 +63,11 @@ Dataset/
 
 > 至少覆盖 #1–#16、#26（Phase 0+1 核心）。其余按需补充。
 
-## WinFinder 自采步骤
+## Lepton Explorer 自采步骤
 
 ```bash
 pnpm install
-pnpm tauri dev          # 启动 WinFinder
+pnpm tauri dev          # 启动 Lepton Explorer
 # 打开 Dataset/，按上表逐区域截图，存为 winf-<区域>-<状态>-<主题>.png
 ```
 

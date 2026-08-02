@@ -14,8 +14,8 @@ export function SearchBox() {
 
   useEffect(() => {
     const onFocus = () => inputRef.current?.focus();
-    window.addEventListener('winfinder:focus-search', onFocus);
-    return () => window.removeEventListener('winfinder:focus-search', onFocus);
+    window.addEventListener('lepton:focus-search', onFocus);
+    return () => window.removeEventListener('lepton:focus-search', onFocus);
   }, []);
 
   useEffect(() => {

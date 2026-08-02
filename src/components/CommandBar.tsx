@@ -147,7 +147,7 @@ export function CommandBar({ entries }: { entries: Entry[] }) {
       {cmdButton('new', '新建 ▾', { onClick: () => setOpen(open === 'new' ? null : 'new'), hasFlyout: true })}
       {cmdButton('cut', '剪切', { disabled: !hasSel, onClick: () => useClipboardStore.getState().cut(selEntries) })}
       {cmdButton('copy', '复制', { disabled: !hasSel, onClick: () => useClipboardStore.getState().copy(selEntries) })}
-      {cmdButton('rename', '重命名', { disabled: selected.length !== 1, onClick: () => window.dispatchEvent(new CustomEvent('winfinder:rename', { detail: selected[0] })) })}
+      {cmdButton('rename', '重命名', { disabled: selected.length !== 1, onClick: () => window.dispatchEvent(new CustomEvent('lepton:rename', { detail: selected[0] })) })}
       {cmdButton('delete', '删除', { disabled: !hasSel, onClick: () => ops.remove(selected, false) })}
       {cmdButton('paste', '粘贴', { onClick: () => ops.paste(path) })}
       {cmdButton('view', '视图 ▾', { onClick: () => setOpen(open === 'view' ? null : 'view'), hasFlyout: true })}
@@ -161,7 +161,7 @@ export function CommandBar({ entries }: { entries: Entry[] }) {
               {overflowItems.includes('new') && <li className="flyout-item" onClick={() => { setOpen('new'); }}>新建 ▾</li>}
               {overflowItems.includes('cut') && <li className={`flyout-item${!hasSel ? ' disabled' : ''}`} onClick={() => { if (hasSel) { useClipboardStore.getState().cut(selEntries); setOpen(null); } }}>剪切</li>}
               {overflowItems.includes('copy') && <li className={`flyout-item${!hasSel ? ' disabled' : ''}`} onClick={() => { if (hasSel) { useClipboardStore.getState().copy(selEntries); setOpen(null); } }}>复制</li>}
-              {overflowItems.includes('rename') && <li className={`flyout-item${selected.length !== 1 ? ' disabled' : ''}`} onClick={() => { if (selected.length === 1) { window.dispatchEvent(new CustomEvent('winfinder:rename', { detail: selected[0] })); setOpen(null); } }}>重命名</li>}
+              {overflowItems.includes('rename') && <li className={`flyout-item${selected.length !== 1 ? ' disabled' : ''}`} onClick={() => { if (selected.length === 1) { window.dispatchEvent(new CustomEvent('lepton:rename', { detail: selected[0] })); setOpen(null); } }}>重命名</li>}
               {overflowItems.includes('delete') && <li className={`flyout-item${!hasSel ? ' disabled' : ''}`} onClick={() => { if (hasSel) { ops.remove(selected, false); setOpen(null); } }}>删除</li>}
               {overflowItems.includes('paste') && <li className="flyout-item" onClick={() => { ops.paste(path); setOpen(null); }}>粘贴</li>}
               {overflowItems.includes('view') && <li className="flyout-item" onClick={() => { setOpen('view'); }}>视图 ▾</li>}

@@ -41,7 +41,7 @@ describe('dropInto', () => {
     await dropInto('C:\\dest', true);
     expect(m).toHaveBeenCalledWith('check_conflicts', { sources: ['C:\\src\\a.txt'], dest: 'C:\\dest' });
     expect(m).toHaveBeenCalledWith('copy_with_progress', expect.objectContaining({ dest: 'C:\\dest', strategy: 'rename' }));
-    expect(spy).toHaveBeenCalledWith(expect.objectContaining({ type: 'winfinder:refresh' }));
+    expect(spy).toHaveBeenCalledWith(expect.objectContaining({ type: 'lepton:refresh' }));
     expect(useProgressStore.getState().active).toBe(false);
     spy.mockRestore();
   });
@@ -82,7 +82,7 @@ describe('dropInto', () => {
     const spy = vi.spyOn(window, 'dispatchEvent');
     await dropInto('C:\\dest', true);
     expect(m).toHaveBeenCalled();
-    expect(spy).not.toHaveBeenCalledWith(expect.objectContaining({ type: 'winfinder:refresh' }));
+    expect(spy).not.toHaveBeenCalledWith(expect.objectContaining({ type: 'lepton:refresh' }));
     expect(useProgressStore.getState().active).toBe(false); // closed in finally even on error
     spy.mockRestore();
   });

@@ -9,7 +9,7 @@ import type { ConflictInfo, ConflictStrategy } from '../types';
 
 function refresh() {
   // App listens for this and bumps its refreshKey to re-list.
-  window.dispatchEvent(new CustomEvent('winfinder:refresh'));
+  window.dispatchEvent(new CustomEvent('lepton:refresh'));
 }
 
 /** Result returned by copy_with_progress / move_with_progress. */

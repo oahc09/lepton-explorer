@@ -1,4 +1,4 @@
-# WinFinder — Phase 1c: Richness Layer · Implementation Plan
+# Lepton Explorer — Phase 1c: Richness Layer · Implementation Plan
 
 > **For agentic workers:** subagent-driven-development / executing-plans. Checkbox steps.
 
@@ -8,7 +8,7 @@
 
 **Tech Stack:** Rust (notify, image, windows crate GDI), React + TS. Tests: cargo test (where feasible), Vitest + RTL.
 
-**Spec ref:** `docs/superpowers/specs/2026-06-13-winfinder-design.md` §2.1 (thumbnails, watching, context menu), §5 (watch/thumbnails/shell_icons modules), §4 (context menu), §9.6 (watching).
+**Spec ref:** `docs/superpowers/specs/2026-06-13-design.md` §2.1 (thumbnails, watching, context menu), §5 (watch/thumbnails/shell_icons modules), §4 (context menu), §9.6 (watching).
 
 **Pragmatic scope:**
 - Thumbnails: real thumbnails for **image files** (jpg/png/gif/bmp/webp) via the `image` crate. Non-image files use **file-type icons** via SHGetFileInfo (real Win11 icons); if shell-icon extraction fails, fall back to a curated emoji. Disk-cached.
@@ -336,7 +336,7 @@ export function ContextMenu({ entries }: { entries: Entry[] }) {
       {item('剪切', () => useClipboardStore.getState().cut(selEntries), !hasSel)}
       {item('复制', () => useClipboardStore.getState().copy(selEntries), !hasSel)}
       {item('粘贴', () => ops.paste(path))}
-      {item('重命名', () => window.dispatchEvent(new CustomEvent('winfinder:rename', { detail: sel[0] })), sel.length !== 1)}
+      {item('重命名', () => window.dispatchEvent(new CustomEvent('lepton:rename', { detail: sel[0] })), sel.length !== 1)}
       {item('删除', () => ops.remove(sel, false), !hasSel)}
       <li className="cm-sep" />
       {item('显示更多选项', () => {})}
@@ -371,7 +371,7 @@ useEffect(() => {
 }, [path]);
 ```
 - [ ] **Step 2:** `npx tsc --noEmit`; `pnpm test`; `pnpm run build`.
-- [ ] **Step 3: Release exe** — kill any running winfinder.exe; `pnpm tauri build` → exe + bundles (exit 0). Launch the exe; confirm it opens, lists files, shows image thumbnails + type icons, right-click shows the menu, and creating/deleting a file externally refreshes the view.
+- [ ] **Step 3: Release exe** — kill any running lepton-explorer.exe; `pnpm tauri build` → exe + bundles (exit 0). Launch the exe; confirm it opens, lists files, shows image thumbnails + type icons, right-click shows the menu, and creating/deleting a file externally refreshes the view.
 - [ ] **Step 4: Commit** any fixes.
 
 ## Definition of Done (Phase 1c)

@@ -1,4 +1,4 @@
-# WinFinder — Phase 1b: Mutation Layer · Implementation Plan
+# Lepton Explorer — Phase 1b: Mutation Layer · Implementation Plan
 
 > **For agentic workers:** REQUIRED SUB-SKILL: superpowers:subagent-driven-development or superpowers:executing-plans. Checkbox steps.
 
@@ -8,7 +8,7 @@
 
 **Tech Stack:** Rust (tauri, std::fs, `trash`), React + TS, Zustand. Tests: Rust `cargo test` (tempdir), Vitest + RTL.
 
-**Spec ref:** `docs/superpowers/specs/2026-06-13-winfinder-design.md` §2.1, §7.2 (commands), §8 (errors/conflicts), §9.2 (file ops), §9.3 (undo/redo), §9.4 (shortcuts).
+**Spec ref:** `docs/superpowers/specs/2026-06-13-design.md` §2.1, §7.2 (commands), §8 (errors/conflicts), §9.2 (file ops), §9.3 (undo/redo), §9.4 (shortcuts).
 
 **Scope guardrails (pragmatic for this plan — full polish is Plan 5):**
 - Copy/move are **synchronous** (await; no streaming progress bar). Acceptable for typical files; large-file progress is Plan 5.
@@ -484,7 +484,7 @@ import { joinPath } from '../utils/paths';
 async function refresh(path: string) {
   // Trigger a re-list by bumping the location's navigate to the same path via a custom event.
   // Simplest: re-invoke is handled by the App refreshKey; here we dispatch a window event.
-  window.dispatchEvent(new CustomEvent('winfinder:refresh'));
+  window.dispatchEvent(new CustomEvent('lepton:refresh'));
 }
 
 export function useFileOps() {
@@ -589,7 +589,7 @@ export function CommandBar() {
   const cut = useClipboardStore((s) => s.cut);
   const copy = useClipboardStore((s) => s.copy);
   // rename handled via inline-edit in views; CommandBar Rename triggers a custom event
-  const onRename = () => window.dispatchEvent(new CustomEvent('winfinder:start-rename', { detail: sel[0] }));
+  const onRename = () => window.dispatchEvent(new CustomEvent('lepton:start-rename', { detail: sel[0] }));
   return (
     <div className="command-bar">
       <button className="cmd" onClick={() => ops.newFolder(path)}>新建文件夹</button>
@@ -606,8 +606,8 @@ NOTE: `cut`/`copy` take `Entry[]` not `string[]`. Fix: keep the selected Entries
 - [ ] **Step 2: Wire CommandBar + shortcuts + refresh + rename into App.tsx**:
   - Import `CommandBar`, `useFileOps`, `useHistoryStore`, `useClipboardStore`, `useSelectionStore`.
   - Render `<CommandBar entries={entries} />` inside `.toolbar-row` (next to the view select).
-  - Add a `refresh` mechanism: in App, `useEffect` listens for `window` event `winfinder:refresh` → `setRefreshKey(k => k+1)`.
-  - Extend the existing keydown effect to handle (when not in an input): `Delete`/`Ctrl+D` → ops.remove(selectedPaths, false); `Shift+Delete` → ops.remove(selectedPaths, true); `Ctrl+C` → clipboard.copy(selEntries); `Ctrl+X` → clipboard.cut(selEntries); `Ctrl+V` → ops.paste(path); `Ctrl+Shift+N` → ops.newFolder(path); `Ctrl+Z` → history.undo(); `Ctrl+Y` → history.redo(); `F2` → dispatch `winfinder:start-rename`.
+  - Add a `refresh` mechanism: in App, `useEffect` listens for `window` event `lepton:refresh` → `setRefreshKey(k => k+1)`.
+  - Extend the existing keydown effect to handle (when not in an input): `Delete`/`Ctrl+D` → ops.remove(selectedPaths, false); `Shift+Delete` → ops.remove(selectedPaths, true); `Ctrl+C` → clipboard.copy(selEntries); `Ctrl+X` → clipboard.cut(selEntries); `Ctrl+V` → ops.paste(path); `Ctrl+Shift+N` → ops.newFolder(path); `Ctrl+Z` → history.undo(); `Ctrl+Y` → history.redo(); `F2` → dispatch `lepton:start-rename`.
 - [ ] **Step 3: Double-click a FILE opens it** — in `DetailsView.tsx`, `IconsView.tsx`, `ListView.tsx`, `TilesView.tsx`, `ContentView.tsx`: change `onDoubleClick={() => item.isDir && navigate(item.path)}` to:
 ```tsx
 onDoubleClick={() => { if (item.isDir) navigate(item.path); else openItem(item.path); }}
@@ -624,8 +624,8 @@ Import `openItem` in each view. (Ensure `@tauri-apps/plugin-opener` is installed
 
 ## Task 9: Build the exe & verify it runs
 
-- [ ] **Step 1:** `pnpm tauri build` → produces `src-tauri/target/release/winfinder.exe` + installers (exit 0).
-- [ ] **Step 2:** Launch `src-tauri/target/release/winfinder.exe`; confirm it opens, lists files, and the new CommandBar + file ops are present (New folder, Copy/Cut/Paste, Rename, Delete all work on a test folder). No crash.
+- [ ] **Step 1:** `pnpm tauri build` → produces `src-tauri/target/release/lepton-explorer.exe` + installers (exit 0).
+- [ ] **Step 2:** Launch `src-tauri/target/release/lepton-explorer.exe`; confirm it opens, lists files, and the new CommandBar + file ops are present (New folder, Copy/Cut/Paste, Rename, Delete all work on a test folder). No crash.
 - [ ] **Step 3:** Commit any final fixes.
 
 ## Definition of Done (Phase 1b)

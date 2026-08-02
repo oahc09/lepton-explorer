@@ -11,7 +11,7 @@ PNG and verify its actual style values against the measured Win11 targets**
 
 1. `html2canvas` renders the live app's `.app` element to a canvas at launch.
 2. A Tauri command `capture_dom_png(dataUrl, outPath)` decodes the PNG and writes
-   it to `docs/acceptance/reference/winfinder-capture.png`.
+   it to `docs/acceptance/reference/lepton-capture.png`.
 3. The captured PNG is inspected (vision) and its values compared to the targets
    in `win11-visual-spec.md`.
 
@@ -36,7 +36,7 @@ without a fresh Win11 baseline of identical content.
 
 ## Details-view capture — found and fixed a real fidelity bug
 
-A second self-capture (`winfinder-capture-details.png`) targeted the details view
+A second self-capture (`lepton-capture-details.png`) targeted the details view
 of the `Dataset/` folder. It surfaced a genuine bug: with the default Name-column
 width of 600px, the other columns (修改日期/类型/大小) overflowed off-screen in
 an 800×600 window — only Name was visible. Win11 shrinks the Name column so all
@@ -57,7 +57,7 @@ real Win11 baseline remains the user step.
 ## What remains (user-gated)
 
 A pixel-exact comparison requires:
-- The same `Dataset/` open in real Win11 File Explorer AND in WinFinder.
+- The same `Dataset/` open in real Win11 File Explorer AND in Lepton Explorer.
 - Both at 100% scale, matching theme.
 - Side-by-side screenshots of each region.
 

@@ -16,8 +16,8 @@ export function Breadcrumb() {
 
   useEffect(() => {
     const onFocus = () => { setDraft(path); setEditing(true); setTimeout(() => inputRef.current?.focus(), 0); };
-    window.addEventListener('winfinder:focus-address', onFocus);
-    return () => window.removeEventListener('winfinder:focus-address', onFocus);
+    window.addEventListener('lepton:focus-address', onFocus);
+    return () => window.removeEventListener('lepton:focus-address', onFocus);
   }, [path]);
 
   // Debounced address-bar autocomplete while editing.

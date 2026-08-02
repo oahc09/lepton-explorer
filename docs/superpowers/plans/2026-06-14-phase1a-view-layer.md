@@ -1,4 +1,4 @@
-# WinFinder — Phase 1a: View Layer · Implementation Plan
+# Lepton Explorer — Phase 1a: View Layer · Implementation Plan
 
 > **For agentic workers:** REQUIRED SUB-SKILL: superpowers:subagent-driven-development or superpowers:executing-plans. Checkbox (`- [ ]`) steps.
 
@@ -8,8 +8,8 @@
 
 **Tech Stack:** React 18 + TS, Zustand, @tanstack/react-virtual, Vitest + RTL (all from Phase 0).
 
-**Spec ref:** `docs/superpowers/specs/2026-06-13-winfinder-design.md` §2.1 (8 views, selection, sorting), §9.1 (selection), §9.4 (Ctrl+Shift+1-8 = view style: 1 XL icons, 2 L icons, 3 M icons, 4 S icons, 5 List, 6 Details, 7 Tiles, 8 Content).
-**Builds on:** `docs/superpowers/plans/2026-06-13-winfinder-phase0-foundation.md` (Phase 0 done).
+**Spec ref:** `docs/superpowers/specs/2026-06-13-design.md` §2.1 (8 views, selection, sorting), §9.1 (selection), §9.4 (Ctrl+Shift+1-8 = view style: 1 XL icons, 2 L icons, 3 M icons, 4 S icons, 5 List, 6 Details, 7 Tiles, 8 Content).
+**Builds on:** `docs/superpowers/plans/2026-06-13-phase0-foundation.md` (Phase 0 done).
 
 **Deferred to later plans (not here):** rubber-band selection (fiddly + virtualization), Details column resize, command-bar View flyout (Plan 5 polish). This plan delivers all 8 view modes rendering correctly + Ctrl+A + sort arrows.
 

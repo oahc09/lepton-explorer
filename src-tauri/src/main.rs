@@ -2,5 +2,5 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 fn main() {
-    winfinder_lib::run()
+    lepton_explorer_lib::run()
 }

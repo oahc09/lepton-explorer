@@ -76,8 +76,8 @@ export function TilesView({ entries }: { entries: Entry[] }) {
       if (key === 'Home') el.scrollTop = 0;
       if (key === 'End') el.scrollTop = el.scrollHeight;
     };
-    window.addEventListener('winfinder:scroll', onScroll as EventListener);
-    return () => window.removeEventListener('winfinder:scroll', onScroll as EventListener);
+    window.addEventListener('lepton:scroll', onScroll as EventListener);
+    return () => window.removeEventListener('lepton:scroll', onScroll as EventListener);
   }, []);
 
   useEffect(() => {
@@ -85,8 +85,8 @@ export function TilesView({ entries }: { entries: Entry[] }) {
       const idx = (ev as CustomEvent<number>).detail;
       v.scrollToIndex(Math.floor(idx / perRow), { align: 'auto' });
     };
-    window.addEventListener('winfinder:scroll-to-index', onScrollTo as EventListener);
-    return () => window.removeEventListener('winfinder:scroll-to-index', onScrollTo as EventListener);
+    window.addEventListener('lepton:scroll-to-index', onScrollTo as EventListener);
+    return () => window.removeEventListener('lepton:scroll-to-index', onScrollTo as EventListener);
   }, [v]);
 
   return (

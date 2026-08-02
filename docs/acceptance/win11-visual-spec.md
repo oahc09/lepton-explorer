@@ -5,7 +5,7 @@
 
 ## 全局令牌（Segoe UI Variable / Fluent）
 
-| 令牌 | 浅色 | 深色 | WinFinder 当前 (`win11.css`) |
+| 令牌 | 浅色 | 深色 | Lepton Explorer 当前 (`win11.css`) |
 |---|---|---|---|
 | 字体 | Segoe UI Variable Text, 14px | 同 | `--font: "Segoe UI Variable","Segoe UI"...` ✅ |
 | 默认强调色（系统） | `#0078D4`(实测) | `#60CDFF` | `--accent: #0078d4` / `#60cdff` ✅ |
@@ -22,7 +22,7 @@
 
 ## 区域尺寸（100% DPI / 96dpi）
 
-| 区域 | Win11 目标 | WinFinder 当前 |
+| 区域 | Win11 目标 | Lepton Explorer 当前 |
 |---|---|---|
 | 标题栏（含标签）高度 | ~40px | `--titlebar-h: 40px` ✅ |
 | 标签高 | ~32px | `.tab { height: 32px }` ✅ |
@@ -38,7 +38,7 @@
 
 ## 交互态（§11.1 要求逐态比对）
 
-- 默认 / hover / 选中 / 多选 / 禁用 / 键盘聚焦 / 拖拽悬停 —— WinFinder 已实现各态
+- 默认 / hover / 选中 / 多选 / 禁用 / 键盘聚焦 / 拖拽悬停 —— Lepton Explorer 已实现各态
   的背景/边框切换（hover→`--hover-bg`，selected→`--select-bg`，disabled→opacity .5）。
 - 关闭按钮 hover：红 `#C42B1C` + 白前景 ✅。
 - 列头排序激活：强调色 + ▲/▼ ✅。
@@ -51,7 +51,7 @@
 
 ## 比对流程（用户执行）
 
-1. 真机 Win11（23H2/24H2）+ WinFinder 各开同一 `Dataset/`（见 dataset/README.md）。
+1. 真机 Win11（23H2/24H2）+ Lepton Explorer 各开同一 `Dataset/`（见 dataset/README.md）。
 2. 100% 缩放、浅/深主题，逐区域截图并排比对（区域表见 phase1-checklist.md）。
 3. 几何 ≤1px、颜色 ΔE≤2、字体/图标一致；偏差项回报，我将按本表目标修复 `win11.css`
    与对应组件，直至全绿。

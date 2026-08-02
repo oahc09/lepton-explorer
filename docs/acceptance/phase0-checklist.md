@@ -10,11 +10,11 @@
 - [x] 前端类型检查通过（`tsc --noEmit` 无错误）。
 - [x] 前端构建通过（`pnpm run build`，59 模块）。
 - [x] 全部单元测试通过（`pnpm test`，23 项；`cargo test`，5 项）。
-- [x] 应用可启动：`pnpm tauri dev` 启动无 panic，窗口正常打开（winfinder.exe 运行）。
+- [x] 应用可启动：`pnpm tauri dev` 启动无 panic，窗口正常打开（lepton-explorer.exe 运行）。
 
 ## 视觉比对部分（需用户完成）
 
-按下表采集真机 Win11 基准与 WinFinder 截图并并排比对，逐项填结论。任何"偏差"非空项
+按下表采集真机 Win11 基准与 Lepton Explorer 截图并并排比对，逐项填结论。任何"偏差"非空项
 须返回对应组件修复后重比，直至全 ✅。
 
 | 区域 | 状态 | 主题 | 偏差 | 结论 |

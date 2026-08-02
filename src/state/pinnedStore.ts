@@ -18,6 +18,6 @@ export const usePinnedStore = create<PinnedState>()(
       unpin: (path) => set((s) => ({ pinned: s.pinned.filter((p) => p.path !== path) })),
       isPinned: (path) => get().pinned.some((p) => p.path === path),
     }),
-    { name: 'winfinder-pinned' }
+    { name: 'lepton-pinned' }
   )
 );

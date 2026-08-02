@@ -1,4 +1,4 @@
-# WinFinder — Phase 1e: Polish & Complete · Implementation Plan
+# Lepton Explorer — Phase 1e: Polish & Complete · Implementation Plan
 
 > **For agentic workers:** subagent-driven-development / executing-plans. Checkbox steps.
 
@@ -12,7 +12,7 @@
 
 ## Task 1: F11 fullscreen + Shift+F10 context menu
 - [ ] App keydown: `F11` → `getCurrentWindow().toggleMaximize()` is wrong for fullscreen — use `setFullscreen(!isFullscreen)`. Add `const [fs, setFs] = useState(false)` + effect syncing `getCurrentWindow().setFullscreen(fs)`. F11 toggles `fs`.
-- [ ] `Shift+F10` in keydown (when selection) → open context menu at the selected row's position: dispatch `winfinder:open-menu` with the selected item's bounding rect; ContextMenu listens and positions there. (Simpler: dispatch with screen-center coords if rect unknown.) Implement a minimal version: Shift+F10 sets the context menu position to the last-focused row center, else viewport center.
+- [ ] `Shift+F10` in keydown (when selection) → open context menu at the selected row's position: dispatch `lepton:open-menu` with the selected item's bounding rect; ContextMenu listens and positions there. (Simpler: dispatch with screen-center coords if rect unknown.) Implement a minimal version: Shift+F10 sets the context menu position to the last-focused row center, else viewport center.
 - [ ] tsc/test/build; commit.
 
 ## Task 2: Details column resize

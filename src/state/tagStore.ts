@@ -36,6 +36,6 @@ export const useTagStore = create<TagState>()(
           return { tags: rest };
         }),
     }),
-    { name: 'winfinder-tags' },
+    { name: 'lepton-tags' },
   ),
 );

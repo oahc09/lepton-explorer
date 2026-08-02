@@ -43,11 +43,11 @@ export function ContextMenu({ entries }: { entries: Entry[] }) {
     };
     document.addEventListener('contextmenu', onMenu);
     document.addEventListener('click', onClick);
-    window.addEventListener('winfinder:open-menu', onOpen as EventListener);
+    window.addEventListener('lepton:open-menu', onOpen as EventListener);
     return () => {
       document.removeEventListener('contextmenu', onMenu);
       document.removeEventListener('click', onClick);
-      window.removeEventListener('winfinder:open-menu', onOpen as EventListener);
+      window.removeEventListener('lepton:open-menu', onOpen as EventListener);
     };
   }, []);
 
@@ -83,7 +83,7 @@ export function ContextMenu({ entries }: { entries: Entry[] }) {
         const show = sel.length === 1 && !en?.isDir;
         if (!show) return null;
         return item('打开方式', () =>
-          window.dispatchEvent(new CustomEvent('winfinder:open-with', { detail: en })),
+          window.dispatchEvent(new CustomEvent('lepton:open-with', { detail: en })),
         );
       })()}
       {item('在新标签页中打开', () => { const en = selEntries[0]; if (en?.isDir) useLocationStore.getState().addTab(en.path); }, !(sel.length === 1 && selEntries[0]?.isDir))}
@@ -118,7 +118,7 @@ export function ContextMenu({ entries }: { entries: Entry[] }) {
       {item('复制路径', () => ops.copyPath(sel.join('\n')), !hasSel)}
       {item('粘贴', () => ops.paste(path))}
       {item('在终端打开', () => { const en = selEntries[0]; ops.openTerminal(en && en.isDir ? en.path : path); })}
-      {item('重命名', () => window.dispatchEvent(new CustomEvent('winfinder:rename', { detail: sel[0] })), sel.length !== 1)}
+      {item('重命名', () => window.dispatchEvent(new CustomEvent('lepton:rename', { detail: sel[0] })), sel.length !== 1)}
       {item('删除', () => ops.remove(sel, false), !hasSel)}
       <li className={`cm-item cm-has-submenu${sel.length === 1 ? '' : ' disabled'}`}>标签 ▸
         <ul className="cm-submenu">
@@ -130,7 +130,7 @@ export function ContextMenu({ entries }: { entries: Entry[] }) {
           ))}
         </ul>
       </li>
-      {item('属性', () => { const en = selEntries[0]; if (en) window.dispatchEvent(new CustomEvent('winfinder:properties', { detail: en })); }, sel.length !== 1)}
+      {item('属性', () => { const en = selEntries[0]; if (en) window.dispatchEvent(new CustomEvent('lepton:properties', { detail: en })); }, sel.length !== 1)}
       <li className="cm-sep" />
       {item('全选', () => useSelectionStore.getState().select(entries))}
       {item('反转选择', () => {
@@ -138,7 +138,7 @@ export function ContextMenu({ entries }: { entries: Entry[] }) {
         const newSel = entries.filter((e) => !cur.includes(e.path)).map((e) => e.path);
         useSelectionStore.setState({ selected: newSel, anchor: newSel[newSel.length - 1] ?? null });
       })}
-      {item('刷新', () => window.dispatchEvent(new CustomEvent('winfinder:refresh')))}
+      {item('刷新', () => window.dispatchEvent(new CustomEvent('lepton:refresh')))}
       <li className="cm-sep" />
       <li className="cm-item" onClick={(e) => { e.stopPropagation(); void showMoreOptions(); }}>显示更多选项 ▾</li>
     </ul>
@@ -146,5 +146,5 @@ export function ContextMenu({ entries }: { entries: Entry[] }) {
 }
 
 function refresh() {
-  window.dispatchEvent(new CustomEvent('winfinder:refresh'));
+  window.dispatchEvent(new CustomEvent('lepton:refresh'));
 }

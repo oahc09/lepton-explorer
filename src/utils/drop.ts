@@ -30,7 +30,7 @@ export async function dropInto(destDir: string, copy: boolean) {
     } finally {
       useProgressStore.getState().close();
     }
-    window.dispatchEvent(new CustomEvent('winfinder:refresh'));
+    window.dispatchEvent(new CustomEvent('lepton:refresh'));
   } catch (e) {
     // op errors (permission denied, in-use, etc.) — don't refresh on failure, but log for diagnosis
     console.warn('dropInto failed', e);

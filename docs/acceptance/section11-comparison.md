@@ -1,22 +1,22 @@
-# §11 — Screenshot comparison: WinFinder (self-captured) vs real Windows 11
+# §11 — Screenshot comparison: Lepton Explorer (self-captured) vs real Windows 11
 
-The §11 spec calls for a screenshot comparison of WinFinder against real Windows 11
+The §11 spec calls for a screenshot comparison of Lepton Explorer against real Windows 11
 File Explorer. Two real images are compared here:
 
-- **WinFinder:** the running app rendered to a PNG via html2canvas +
+- **Lepton Explorer:** the running app rendered to a PNG via html2canvas +
   `capture_dom_png` (Home/chrome view). Captured 2026-06-14.
 - **Windows 11:** a real Win11 File Explorer screenshot
   (`static0.xdaimages.com/.../file-explorer-view-2.jpg`), vision-analyzed for its
   design values.
 
 Both were vision-analyzed with the same value-extraction goal. The table below is
-the resulting comparison (the file CONTENTS differ — WinFinder shows its Dataset,
+the resulting comparison (the file CONTENTS differ — Lepton Explorer shows its Dataset,
 the reference shows its own files — so this compares **style/layout/chrome**, which
 is what §11 fidelity measures).
 
-## Comparison (WinFinder captured value vs real Win11 value)
+## Comparison (Lepton Explorer captured value vs real Win11 value)
 
-| Region / token | Real Win11 (reference) | WinFinder (self-captured) | Deviation |
+| Region / token | Real Win11 (reference) | Lepton Explorer (self-captured) | Deviation |
 |---|---|---|---|
 | Accent blue | `#0078D4` | `#0078D4` | none |
 | Command/toolbar bar height | 40px | 40px | none |
@@ -33,7 +33,7 @@ is what §11 fidelity measures).
 
 ## Assessment
 
-Every measurable style token **matches exactly** between WinFinder's actual render
+Every measurable style token **matches exactly** between Lepton Explorer's actual render
 and the real Windows 11 reference (accent, command-bar/status-bar heights, button
 radius, theme, font, pane/content backgrounds, borders). The full Win11 chrome
 (title bar, command bar, nav pane, breadcrumb, file list, status bar) is present

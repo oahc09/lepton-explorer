@@ -1,4 +1,4 @@
-# WinFinder
+# Lepton Explorer
 
 A replica of the **Windows 11 File Explorer**, built with **Tauri v2** (Rust backend) + **React + TypeScript**. Runs on Windows 10 and Windows 11.
 
@@ -72,7 +72,7 @@ pnpm tauri build
 
 Produces an optimized native binary plus installers:
 
-- Standalone exe — `src-tauri/target/release/winfinder.exe`
+- Standalone exe — `src-tauri/target/release/lepton-explorer.exe`
 - MSI installer — `src-tauri/target/release/bundle/msi/*.msi`
 - NSIS installer — `src-tauri/target/release/bundle/nsis/*-setup.exe`
 
@@ -113,7 +113,7 @@ compress / extract) emit `fs-*-progress` events driving a shared cancelable prog
 
 ## Documentation
 
-- Design spec: `docs/superpowers/specs/2026-06-13-winfinder-design.md`
+- Design spec: `docs/superpowers/specs/2026-06-13-lepton-design.md`
 - Implementation plans: `docs/superpowers/plans/`
 - Performance benchmarks: `docs/PERFORMANCE.md`
 - Acceptance: `docs/acceptance/` (dataset, reference procedure, checklist, Win11 visual spec)
@@ -125,7 +125,7 @@ compress / extract) emit `fs-*-progress` events driving a shared cancelable prog
   delete-to-trash undo fully.)
 - Copy, cross-volume move, ZIP compress/extract, and redo all show a cancelable progress dialog
   (same-volume move is an instant rename). Cancel is honored between and within items.
-- §11 visual acceptance: a screenshot comparison was performed — WinFinder's self-captured render
+- §11 visual acceptance: a screenshot comparison was performed — Lepton Explorer's self-captured render
   vs a real Win11 File Explorer screenshot — with **zero deviation on all measured style tokens**
   (accent `#0078D4`, command bar 40px, status bar 24px, button radius 4px, theme, font,
   backgrounds); see `docs/acceptance/section11-comparison.md`. (A pixel check on the user's own

@@ -36,7 +36,7 @@ static STATE: Lazy<Mutex<Store>> = Lazy::new(|| Mutex::new(load()));
 
 fn config_path() -> Option<std::path::PathBuf> {
     let base = dirs::data_dir()?;
-    Some(base.join("WinFinder").join("folder_views.json"))
+    Some(base.join("Lepton Explorer").join("folder_views.json"))
 }
 
 fn load() -> Store {
@@ -96,7 +96,7 @@ mod tests {
 
     #[test]
     fn set_then_get_roundtrips() {
-        let path = "C:\\__winfinder_test_folder__";
+        let path = "C:\\__lepton-explorer_test_folder__";
         let cw = ColWidths { name: 320, date: 170, type_: 150, size: 120 };
         set_folder_view(path, "tiles", "modified", false, cw);
         let fv = get_folder_view(path).expect("should exist after set");

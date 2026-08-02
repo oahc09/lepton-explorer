@@ -16,7 +16,7 @@ records the assessment and the safeguards added.
   columns stay visible in narrow windows (see `section11-self-capture.md`).
 - Icon tiles wrap (`flex` rows) — fewer per row in narrow windows.
 
-**Tested:** a self-capture at **600×400** (`winfinder-capture-small.png`) confirmed
+**Tested:** a self-capture at **600×400** (`lepton-capture-small.png`) confirmed
 the toolbar row (back/forward/up/refresh + 8 command buttons + breadcrumb + search),
 nav pane, content, and status bar all fit with **no overflow, no clipping, no
 horizontal scrollbar** — the breadcrumb (`flex:1`) and search (`flex:0 1`) absorb
@@ -34,7 +34,7 @@ the width change.
 
 ## 2. DPI scaling (125% / 150% / 200%)
 
-WinFinder renders in a **WebView2 (Chromium)** surface, which is fully DPI-aware:
+Lepton Explorer renders in a **WebView2 (Chromium)** surface, which is fully DPI-aware:
 - The OS DPI scale is applied automatically by the compositor; all `px` units, fonts,
   and hit-targets scale proportionally — a 14px font and a 36px button render larger
   at 150% exactly as Win11's own controls do.

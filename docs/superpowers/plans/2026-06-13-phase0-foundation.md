@@ -1,4 +1,4 @@
-# WinFinder — Phase 0: Foundation Vertical Slice · Implementation Plan
+# Lepton Explorer — Phase 0: Foundation Vertical Slice · Implementation Plan
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
@@ -8,7 +8,7 @@
 
 **Tech Stack:** Rust (tauri 2, serde, thiserror, dirs, windows; jwalk/anyhow/trash/notify arrive in later plans), React 18 + TypeScript, Vite, Zustand, @tanstack/react-virtual, Vitest + React Testing Library, pnpm.
 
-**Spec reference:** `docs/superpowers/specs/2026-06-13-winfinder-design.md` (§3 architecture, §4 UI, §5 backend, §6 frontend, §7 data model, §11 acceptance).
+**Spec reference:** `docs/superpowers/specs/2026-06-13-design.md` (§3 architecture, §4 UI, §5 backend, §6 frontend, §7 data model, §11 acceptance).
 
 **Plan sequence note:** This is Plan 1 of 5. Phase 1 (the rest of §2.1) is covered by Plans 2–5 above. This plan delivers Phase 0 only: the foundation slice that later plans extend.
 
@@ -21,7 +21,7 @@
 **Backend (`src-tauri/`)**
 - `Cargo.toml` — dependencies.
 - `src/lib.rs` — Tauri builder + `#[tauri::command]` handlers (`run()`).
-- `src/main.rs` — calls `winfinder_lib::run()` (scaffold default).
+- `src/main.rs` — calls `lepton_explorer_lib::run()` (scaffold default).
 - `src/fs_ops.rs` — `Entry` model + `list_directory`.
 - `src/special.rs` — `SpecialFolder`, `Drive`, `special_folders()`, `list_drives()`.
 - `src/error.rs` — `AppError` + `Result`.
@@ -56,7 +56,7 @@
 
 - [ ] **Step 1: Scaffold into the current directory**
 
-Run from `D:\AI\WinFinder`:
+Run from `D:\AI\Lepton Explorer`:
 ```bash
 pnpm create tauri-app@latest . --template react-ts --manager pnpm -y
 ```
@@ -1646,7 +1646,7 @@ import { useLocationStore } from '../state/locationStore';
 
 export function TitleBar() {
   const path = useLocationStore((s) => s.path);
-  const title = path ? path.replace(/\\/g, ' › ') : 'WinFinder';
+  const title = path ? path.replace(/\\/g, ' › ') : 'Lepton Explorer';
   const [maximized, setMaximized] = useState(false);
   const win = getCurrentWindow();
 
@@ -1955,7 +1955,7 @@ This task executes spec **§11** for the Phase 0 regions. It is the gate: Phase 
 ```markdown
 # 验收固定数据集
 
-用于截图比对的标准目录样本（在真机 Win11 与 WinFinder 中各建一份相同内容）：
+用于截图比对的标准目录样本（在真机 Win11 与 Lepton Explorer 中各建一份相同内容）：
 
 - `Dataset/`（根）
   - 文件夹 `子文件夹A/`（含 1 个 txt）
@@ -1986,7 +1986,7 @@ details(默认)、details(选中)、icons-large(默认)、statusbar。
 
 On a Win11 machine: open the real File Explorer to the Dataset folder, screenshot each Phase 0 region in light then dark theme, save into `docs/acceptance/reference/` using the naming above.
 
-- [ ] **Step 4: Capture WinFinder screenshots**
+- [ ] **Step 4: Capture Lepton Explorer screenshots**
 
 Run `pnpm tauri dev`, navigate to the same Dataset folder, screenshot the same regions/themes, save as `docs/acceptance/winf-<区域>-<状态>-<主题>.png` for comparison.
 
