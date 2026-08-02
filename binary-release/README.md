@@ -1,0 +1,55 @@
+# binary-release（发布产物）
+
+本目录存放 **Lepton Explorer** 经过优化的原生二进制及安装包，由 `tauri build`（release 构建）生成，可直接分发，无需从源码重新编译。
+
+## 版本
+
+- **应用版本：1.0.0**
+- 标识符（identifier）：`com.lepton.explorer`
+- 产品名（productName）：`Lepton Explorer`
+- 平台 / 架构：Windows / x64
+
+## 目录内容
+
+| 文件 | 说明 | 约大小 |
+| --- | --- | --- |
+| `lepton-explorer.exe` | 独立可执行文件（已打包前端资源，双击即可运行，无需安装） | ~11 MB |
+| `msi/Lepton Explorer_1.0.0_x64_en-US.msi` | MSI 安装包（WiX 打包，支持标准 Windows 安装/卸载） | ~4 MB |
+| `nsis/Lepton Explorer_1.0.0_x64-setup.exe` | NSIS 安装包（makensis 打包，体积小、安装引导友好） | ~2.6 MB |
+
+> 文件名中的版本号（如 `1.0.0`）与下方构建配置保持一致。
+
+## 构建方式（如何重新生成）
+
+全部产物由一次发布构建生成：
+
+```bash
+# 前端依赖安装（可选，首次或依赖变更时）
+pnpm install
+
+# 发布构建：先 vite 打包前端，再 cargo --release 编译 Rust，
+# 最后自动产出 MSI 与 NSIS 安装包
+pnpm tauri build
+```
+
+构建输出位置：
+
+- 原生二进制：`src-tauri/target/release/lepton-explorer.exe`
+- MSI：`src-tauri/target/release/bundle/msi/*.msi`
+- NSIS：`src-tauri/target/release/bundle/nsis/*-setup.exe`
+
+构建完成后，将以上三个文件按本目录结构复制进来即可。
+
+## 版本号定义位置
+
+如需变更版本，请同步修改以下三处（保持一致）：
+
+- `package.json` → `"version"`
+- `src-tauri/Cargo.toml` → `[package] version`
+- `src-tauri/tauri.conf.json` → `"version"`（决定安装包文件名与安装器显示版本）
+
+## 说明
+
+- 这些二进制为**发布（release / optimized）**构建，已内联前端资源与图标。
+- 本目录下的文件为构建产物，建议通过上面的命令重新生成，而非手动编辑。
+- 出于体积考虑，重新构建前可清理 `src-tauri/target/release/` 下的旧产物。
