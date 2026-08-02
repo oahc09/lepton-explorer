@@ -1,7 +1,7 @@
 # Lepton Explorer — Performance Benchmarks
 
 Last updated: 2026-07-13 (after the security + memory hardening pass; see
-`docs/acceptance/phase1-checklist.md` for functional acceptance).
+`docs/acceptance/README.md` for functional acceptance).
 
 ## How to run
 

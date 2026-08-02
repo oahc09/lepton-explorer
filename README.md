@@ -130,10 +130,10 @@ Rust 后端 (src-tauri/src/)            前端 (src/)
 
 ## 文档
 
-- 设计规范：`docs/superpowers/specs/2026-06-13-lepton-design.md`
-- 实现计划：`docs/superpowers/plans/`
-- 性能基准：`docs/PERFORMANCE.md`
-- 验收材料：`docs/acceptance/`（数据集、参考流程、检查清单、Win11 视觉规范）
+- 设计规范：`docs/design.md`
+- 实现记录（分阶段计划合并版）：`docs/plans/IMPLEMENTATION.md`
+- 性能基准：`docs/performance.md`
+- 验收报告（含视觉规格、比对流程、已知限制）：`docs/acceptance/README.md`
 
 ## 已知限制
 

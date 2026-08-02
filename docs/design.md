@@ -1,7 +1,7 @@
 # Lepton Explorer — Windows 11 文件资源管理器复刻 · 设计规格
 
 - **日期**：2026-06-13
-- **状态**：待评审
+- **状态**：已实现（配套 plans/IMPLEMENTATION.md 与 acceptance/README.md）
 - **平台**：Windows 10、Windows 11
 - **框架**：Tauri v2（Rust 后端 + React/TypeScript 前端）
 - **本规格覆盖**：Phase 0（基础纵切）+ Phase 1（核心可用版）
