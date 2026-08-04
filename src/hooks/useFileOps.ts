@@ -102,7 +102,7 @@ export function useFileOps() {
         useProgressStore.getState().close();
       }
     } else {
-      useProgressStore.getState().open('copy');
+      useProgressStore.getState().open('move');
       try {
         const result = await invoke<TrackedMoveResult>('move_with_progress', { sources, dest: destDir, strategy });
         const pairs = result.pairs;
@@ -121,7 +121,7 @@ export function useFileOps() {
           },
           redo: async () => {
             const olds = pairs.map((p2) => p2[0]);
-            useProgressStore.getState().open('copy');
+            useProgressStore.getState().open('move');
             try {
               const r = await invoke<TrackedMoveResult>('move_with_progress', { sources: olds, dest: destDir, strategy });
               trashedRef.current = r.trashed;

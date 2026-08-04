@@ -58,6 +58,10 @@ pub fn list_network() -> Vec<fs_ops::Entry> {
                     break;
                 }
                 let nr = unsafe { *ptr.add(i) };
+                // Guard: lpRemoteName can be null (undefined behavior to deref).
+                if nr.lpRemoteName.is_null() {
+                    continue;
+                }
                 let remote = unsafe {
                     PCWSTR::from_raw(nr.lpRemoteName.0 as *const u16)
                         .to_string()

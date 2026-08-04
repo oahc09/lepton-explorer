@@ -24,14 +24,27 @@ struct CopyProgress {
     file: String,
 }
 
-#[tauri::command]
-fn list_directory(dir: String) -> Result<Vec<fs_ops::Entry>> {
-    fs_ops::list_directory(&dir).map_err(AppError::from)
+/// Run blocking filesystem work on the async runtime's blocking thread pool,
+/// keeping Tauri's main thread (and the UI) responsive. Maps join failures to
+/// AppError::Unknown.
+async fn blocking<T, F>(f: F) -> Result<T>
+where
+    T: Send + 'static,
+    F: FnOnce() -> Result<T> + Send + 'static,
+{
+    tauri::async_runtime::spawn_blocking(f)
+        .await
+        .map_err(|e| AppError::Unknown(format!("task join error: {e}")))?
 }
 
 #[tauri::command]
-fn search(root: String, query: String) -> Result<Vec<fs_ops::Entry>> {
-    fs_ops::search(&root, &query).map_err(AppError::from)
+async fn list_directory(dir: String) -> Result<Vec<fs_ops::Entry>> {
+    blocking(move || fs_ops::list_directory(&dir).map_err(AppError::from)).await
+}
+
+#[tauri::command]
+async fn search(root: String, query: String) -> Result<Vec<fs_ops::Entry>> {
+    blocking(move || fs_ops::search(&root, &query).map_err(AppError::from)).await
 }
 
 #[tauri::command]
@@ -45,41 +58,53 @@ fn suggest_paths(prefix: String) -> Vec<fs_ops::PathSuggestion> {
 ///
 /// Security: `out_path` is validated to be within the system temp directory or
 /// the app's data directory, preventing path traversal to arbitrary locations.
+/// Only available in debug builds — this is a development/acceptance helper
+/// and is refused outright in release binaries.
 #[tauri::command]
 fn capture_dom_png(data_url: String, out_path: String) -> Result<()> {
-    use base64::Engine;
-
-    // Security: restrict output to temp or app-data directories only.
-    let target = std::path::Path::new(&out_path);
-    let canonical = target
-        .parent()
-        .and_then(|p| p.canonicalize().ok())
-        .ok_or_else(|| AppError::InvalidName("invalid output directory".into()))?;
-
-    let temp_dir = std::env::temp_dir();
-    let temp_canonical = temp_dir.canonicalize().unwrap_or(temp_dir);
-    let is_safe = canonical.starts_with(&temp_canonical)
-        || dirs::data_dir()
-            .and_then(|d| d.canonicalize().ok())
-            .map(|d| canonical.starts_with(&d))
-            .unwrap_or(false);
-
-    if !is_safe {
+    #[cfg(not(debug_assertions))]
+    {
+        let _ = (data_url, out_path);
         return Err(AppError::PermissionDenied(
-            "output path must be within temp or app-data directory".into(),
+            "capture_dom_png is a debug-only helper".into(),
         ));
     }
+    #[cfg(debug_assertions)]
+    {
+        use base64::Engine;
 
-    let b64 = data_url.rsplit_once(',').map(|(_, b)| b).unwrap_or("");
-    let bytes = base64::engine::general_purpose::STANDARD
-        .decode(b64)
-        .map_err(|e| AppError::Unknown(e.to_string()))?;
-    std::fs::write(&out_path, bytes).map_err(AppError::from)
+        // Security: restrict output to temp or app-data directories only.
+        let target = std::path::Path::new(&out_path);
+        let canonical = target
+            .parent()
+            .and_then(|p| p.canonicalize().ok())
+            .ok_or_else(|| AppError::InvalidName("invalid output directory".into()))?;
+
+        let temp_dir = std::env::temp_dir();
+        let temp_canonical = temp_dir.canonicalize().unwrap_or(temp_dir);
+        let is_safe = canonical.starts_with(&temp_canonical)
+            || dirs::data_dir()
+                .and_then(|d| d.canonicalize().ok())
+                .map(|d| canonical.starts_with(&d))
+                .unwrap_or(false);
+
+        if !is_safe {
+            return Err(AppError::PermissionDenied(
+                "output path must be within temp or app-data directory".into(),
+            ));
+        }
+
+        let b64 = data_url.rsplit_once(',').map(|(_, b)| b).unwrap_or("");
+        let bytes = base64::engine::general_purpose::STANDARD
+            .decode(b64)
+            .map_err(|e| AppError::Unknown(e.to_string()))?;
+        std::fs::write(&out_path, bytes).map_err(AppError::from)
+    }
 }
 
 #[tauri::command]
-fn get_properties(path: String) -> Result<u64> {
-    fs_ops::folder_size(&path).map_err(AppError::from)
+async fn get_properties(path: String) -> Result<u64> {
+    blocking(move || fs_ops::folder_size(&path).map_err(AppError::from)).await
 }
 
 #[tauri::command]
@@ -116,39 +141,44 @@ fn rename(from: String, to: String) -> Result<()> {
 }
 
 #[tauri::command]
-fn copy_items(sources: Vec<String>, dest: String) -> Result<Vec<String>> {
-    ops::copy_items(&sources, &dest).map_err(AppError::from)
+async fn copy_items(sources: Vec<String>, dest: String) -> Result<Vec<String>> {
+    blocking(move || ops::copy_items(&sources, &dest).map_err(AppError::from)).await
 }
 
 #[tauri::command]
-fn copy_items_with_strategy(
+async fn copy_items_with_strategy(
     sources: Vec<String>,
     dest: String,
     strategy: ops::ConflictStrategy,
 ) -> Result<Vec<String>> {
-    ops::copy_items_with_strategy(&sources, &dest, strategy).map_err(AppError::from)
+    blocking(move || ops::copy_items_with_strategy(&sources, &dest, strategy).map_err(AppError::from))
+        .await
 }
 
 #[tauri::command]
-fn copy_with_progress(
+async fn copy_with_progress(
     app: tauri::AppHandle,
     sources: Vec<String>,
     dest: String,
     strategy: ops::ConflictStrategy,
 ) -> Result<ops::TrackedCopyResult> {
     // Copy file-by-file, emitting "fs-copy-progress" {current,total,file} per file
-    // so the frontend can render a progress dialog. Runs on a background thread.
+    // so the frontend can render a progress dialog. Runs on a blocking thread so
+    // the main thread stays free to deliver those very progress events.
     // `cancel_copy` sets a flag checked between top-level sources.
     // Returns paths created + original paths of items trashed during Replace.
-    ops::reset_copy_cancel();
-    ops::copy_items_tracked(&sources, &dest, strategy, ops::is_copy_cancelled, |current, total, path| {
-        let file = path
-            .file_name()
-            .map(|f| f.to_string_lossy().to_string())
-            .unwrap_or_default();
-        let _ = app.emit("fs-copy-progress", CopyProgress { current, total, file });
+    blocking(move || {
+        ops::reset_copy_cancel();
+        ops::copy_items_tracked(&sources, &dest, strategy, ops::is_copy_cancelled, |current, total, path| {
+            let file = path
+                .file_name()
+                .map(|f| f.to_string_lossy().to_string())
+                .unwrap_or_default();
+            let _ = app.emit("fs-copy-progress", CopyProgress { current, total, file });
+        })
+        .map_err(AppError::from)
     })
-    .map_err(AppError::from)
+    .await
 }
 
 #[tauri::command]
@@ -157,7 +187,7 @@ fn cancel_copy() {
 }
 
 #[tauri::command]
-fn move_with_progress(
+async fn move_with_progress(
     app: tauri::AppHandle,
     sources: Vec<String>,
     dest: String,
@@ -166,29 +196,33 @@ fn move_with_progress(
     // Same-volume moves are instant renames; cross-volume moves copy+delete and
     // emit per-file progress. Reuses the copy progress event + cancel flag.
     // Returns (old,new) pairs + original paths of items trashed during Replace.
-    ops::reset_copy_cancel();
-    ops::move_items_tracked(&sources, &dest, strategy, ops::is_copy_cancelled, |current, total, path| {
-        let file = path
-            .file_name()
-            .map(|f| f.to_string_lossy().to_string())
-            .unwrap_or_default();
-        let _ = app.emit("fs-copy-progress", CopyProgress { current, total, file });
+    blocking(move || {
+        ops::reset_copy_cancel();
+        ops::move_items_tracked(&sources, &dest, strategy, ops::is_copy_cancelled, |current, total, path| {
+            let file = path
+                .file_name()
+                .map(|f| f.to_string_lossy().to_string())
+                .unwrap_or_default();
+            let _ = app.emit("fs-copy-progress", CopyProgress { current, total, file });
+        })
+        .map_err(AppError::from)
     })
-    .map_err(AppError::from)
+    .await
 }
 
 #[tauri::command]
-fn move_items(sources: Vec<String>, dest: String) -> Result<Vec<(String, String)>> {
-    ops::move_items(&sources, &dest).map_err(AppError::from)
+async fn move_items(sources: Vec<String>, dest: String) -> Result<Vec<(String, String)>> {
+    blocking(move || ops::move_items(&sources, &dest).map_err(AppError::from)).await
 }
 
 #[tauri::command]
-fn move_items_with_strategy(
+async fn move_items_with_strategy(
     sources: Vec<String>,
     dest: String,
     strategy: ops::ConflictStrategy,
 ) -> Result<Vec<(String, String)>> {
-    ops::move_items_with_strategy(&sources, &dest, strategy).map_err(AppError::from)
+    blocking(move || ops::move_items_with_strategy(&sources, &dest, strategy).map_err(AppError::from))
+        .await
 }
 
 #[tauri::command]
@@ -197,23 +231,23 @@ fn check_conflicts(sources: Vec<String>, dest: String) -> Vec<ops::ConflictInfo>
 }
 
 #[tauri::command]
-fn delete_to_trash(paths: Vec<String>) -> Result<()> {
-    ops::delete_to_trash(&paths).map_err(AppError::from)
+async fn delete_to_trash(paths: Vec<String>) -> Result<()> {
+    blocking(move || ops::delete_to_trash(&paths).map_err(AppError::from)).await
 }
 
 #[tauri::command]
-fn delete_to_trash_undoable(paths: Vec<String>) -> Result<Vec<String>> {
-    ops::delete_to_trash_undoable(&paths).map_err(AppError::from)
+async fn delete_to_trash_undoable(paths: Vec<String>) -> Result<Vec<String>> {
+    blocking(move || ops::delete_to_trash_undoable(&paths).map_err(AppError::from)).await
 }
 
 #[tauri::command]
-fn restore_from_trash(paths: Vec<String>) -> Result<()> {
-    ops::restore_from_trash(&paths).map_err(AppError::from)
+async fn restore_from_trash(paths: Vec<String>) -> Result<()> {
+    blocking(move || ops::restore_from_trash(&paths).map_err(AppError::from)).await
 }
 
 #[tauri::command]
-fn delete_permanent(paths: Vec<String>) -> Result<()> {
-    ops::delete_permanent(&paths).map_err(AppError::from)
+async fn delete_permanent(paths: Vec<String>) -> Result<()> {
+    blocking(move || ops::delete_permanent(&paths).map_err(AppError::from)).await
 }
 
 #[tauri::command]
@@ -258,18 +292,32 @@ fn set_folder_view(
 }
 
 #[tauri::command]
-fn watch_directory(app: tauri::AppHandle, path: String, state: tauri::State<'_, watch::WatcherState>) {
-    watch::watch_directory(app, path, &state);
+fn watch_directory(
+    app: tauri::AppHandle,
+    window: tauri::Window,
+    path: String,
+    state: tauri::State<'_, watch::WatcherState>,
+) {
+    // Per-window watcher: keyed by the calling window's label so multi-window
+    // navigation no longer replaces each other's watchers.
+    watch::watch_directory(app, window.label(), path, &state);
 }
 
 #[tauri::command]
-fn get_thumbnail(path: String, size: u32) -> Option<String> {
-    thumbnails::get_thumbnail(&path, size)
+async fn get_thumbnail(path: String, size: u32) -> Option<String> {
+    // Image decode is CPU+memory heavy; keep it off the main thread.
+    tauri::async_runtime::spawn_blocking(move || thumbnails::get_thumbnail(&path, size))
+        .await
+        .ok()
+        .flatten()
 }
 
 #[tauri::command]
-fn get_icon(path: String, size: u32) -> Option<String> {
-    thumbnails::get_icon(&path, size)
+async fn get_icon(path: String, size: u32) -> Option<String> {
+    tauri::async_runtime::spawn_blocking(move || thumbnails::get_icon(&path, size))
+        .await
+        .ok()
+        .flatten()
 }
 
 #[tauri::command]
@@ -294,53 +342,60 @@ fn open_with_dialog(path: String) -> Result<()> {
 }
 
 #[tauri::command]
-fn create_archive(
+async fn create_archive(
     app: tauri::AppHandle,
     sources: Vec<String>,
     dest_zip: String,
 ) -> Result<()> {
     // Compress `sources` into `dest_zip`, emitting "fs-zip-progress"
     // {current,total,file} per file so the frontend can drive a progress
-    // dialog. Runs on a background thread; `cancel_zip` sets a flag checked
-    // between top-level sources.
-    zip::reset_zip_cancel();
-    zip::zip_items_tracked(
-        &sources,
-        &dest_zip,
-        zip::is_zip_cancelled,
-        |current, total, path| {
-            let file = path
-                .file_name()
-                .map(|f| f.to_string_lossy().to_string())
-                .unwrap_or_default();
-            let _ = app.emit("fs-zip-progress", CopyProgress { current, total, file });
-        },
-    )
-    .map_err(AppError::from)
+    // dialog. Runs on a blocking thread so progress events are delivered
+    // promptly; `cancel_zip` sets a flag checked between top-level sources.
+    blocking(move || {
+        zip::reset_zip_cancel();
+        zip::zip_items_tracked(
+            &sources,
+            &dest_zip,
+            zip::is_zip_cancelled,
+            |current, total, path| {
+                let file = path
+                    .file_name()
+                    .map(|f| f.to_string_lossy().to_string())
+                    .unwrap_or_default();
+                let _ = app.emit("fs-zip-progress", CopyProgress { current, total, file });
+            },
+        )
+        .map_err(AppError::from)
+    })
+    .await
 }
 
 #[tauri::command]
-fn extract_archive(
+async fn extract_archive(
     app: tauri::AppHandle,
     zip_path: String,
     dest_dir: String,
 ) -> Result<usize> {
     // Extract `zip_path` into `dest_dir`, emitting per-file progress. Returns
-    // the number of files written. Skips Zip-Slip entries (handled in zip.rs).
-    zip::reset_zip_cancel();
-    zip::unzip_items_tracked(
-        &zip_path,
-        &dest_dir,
-        zip::is_zip_cancelled,
-        |current, total, path| {
-            let file = path
-                .file_name()
-                .map(|f| f.to_string_lossy().to_string())
-                .unwrap_or_default();
-            let _ = app.emit("fs-zip-progress", CopyProgress { current, total, file });
-        },
-    )
-    .map_err(AppError::from)
+    // the number of files written. Skips Zip-Slip entries and enforces the
+    // decompressed-size quota (handled in zip.rs).
+    blocking(move || {
+        zip::reset_zip_cancel();
+        zip::unzip_items_tracked(
+            &zip_path,
+            &dest_dir,
+            zip::is_zip_cancelled,
+            |current, total, path| {
+                let file = path
+                    .file_name()
+                    .map(|f| f.to_string_lossy().to_string())
+                    .unwrap_or_default();
+                let _ = app.emit("fs-zip-progress", CopyProgress { current, total, file });
+            },
+        )
+        .map_err(AppError::from)
+    })
+    .await
 }
 
 #[tauri::command]

@@ -36,6 +36,22 @@ describe('DetailsView', () => {
     expect(useSelectionStore.getState().selected).toEqual(['C:\\a.txt']);
   });
 
+  it('shift-click selects the range from the anchor', () => {
+    // Regression: rows used to pass an empty allInOrder, so selectRange
+    // computed indexOf on [] and shift-click silently did nothing.
+    render(<DetailsView entries={[e('a.txt'), e('b.txt'), e('c.txt'), e('d.txt')]} />);
+    fireEvent.click(screen.getByText('b.txt')); // sets anchor
+    fireEvent.click(screen.getByText('d.txt'), { shiftKey: true });
+    expect(useSelectionStore.getState().selected).toEqual(['C:\\b.txt', 'C:\\c.txt', 'C:\\d.txt']);
+  });
+
+  it('shift-click selects backwards ranges too', () => {
+    render(<DetailsView entries={[e('a.txt'), e('b.txt'), e('c.txt'), e('d.txt')]} />);
+    fireEvent.click(screen.getByText('c.txt')); // anchor
+    fireEvent.click(screen.getByText('a.txt'), { shiftKey: true });
+    expect(useSelectionStore.getState().selected).toEqual(['C:\\a.txt', 'C:\\b.txt', 'C:\\c.txt']);
+  });
+
   it('shows sort direction arrow on the active column', () => {
     useViewStore.setState({ sort: { field: 'size', asc: false } });
     render(<DetailsView entries={[e('a.txt')]} />);

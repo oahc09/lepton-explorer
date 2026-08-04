@@ -19,14 +19,19 @@ fn with_cache<F>(key: (String, u32), compute: F) -> Option<String>
 where
     F: FnOnce() -> Option<String>,
 {
-    // Fast path: try to get from cache with a short-lived lock.
-    if let Some(hit) = THUMB_CACHE.lock().unwrap().get(&key) {
+    // Fast path: try to get from cache with a short-lived lock. A poisoned
+    // mutex (a thread panicked while holding it) is recovered via into_inner
+    // instead of crashing the command.
+    if let Some(hit) = THUMB_CACHE.lock().unwrap_or_else(|e| e.into_inner()).get(&key) {
         return Some(hit.clone());
     }
     // Miss → compute.
     let result = compute()?;
     // Store in cache (put() evicts LRU if over capacity).
-    THUMB_CACHE.lock().unwrap().put(key, result.clone());
+    THUMB_CACHE
+        .lock()
+        .unwrap_or_else(|e| e.into_inner())
+        .put(key, result.clone());
     Some(result)
 }
 
@@ -150,15 +155,29 @@ pub fn get_icon(_path: &str, _size: u32) -> Option<String> {
     None
 }
 
+/// Hard pixel-count cap for thumbnail sources. Decoding a 50 MP photo costs
+/// ~200 MB of RGBA before any resize — far too much for a 200 px thumbnail.
+/// 16 MP (typical binned phone photo) decodes to ~64 MB transient, which is
+/// acceptable; anything larger falls back to the generic icon (frontend emoji).
+/// (The `image` 0.25 jpeg backend no longer exposes DCT downscale decoding,
+/// so a pixel cap is the effective memory guard.)
+const MAX_THUMB_PIXELS: u64 = 16_000_000;
+
 pub fn get_thumbnail(path: &str, size: u32) -> Option<String> {
     let key = (path.to_string(), size);
     with_cache(key, || {
-        let img = image::open(std::path::Path::new(path)).ok()?;
+        let p = std::path::Path::new(path);
+        // Pre-check dimensions WITHOUT decoding; refuse oversized sources.
+        let (ow, oh) = image::image_dimensions(p).ok()?;
+        if (ow as u64).saturating_mul(oh as u64) > MAX_THUMB_PIXELS {
+            return None;
+        }
+        let img = image::open(p).ok()?;
         // Preserve aspect ratio: scale to fit within size×size without cropping.
-        let (ow, oh) = img.dimensions();
-        let scale = (size as f64 / ow.max(1) as f64).min(size as f64 / oh.max(1) as f64);
-        let nw = (ow as f64 * scale).round().max(1.0) as u32;
-        let nh = (oh as f64 * scale).round().max(1.0) as u32;
+        let (dw, dh) = img.dimensions();
+        let scale = (size as f64 / dw.max(1) as f64).min(size as f64 / dh.max(1) as f64);
+        let nw = (dw as f64 * scale).round().max(1.0) as u32;
+        let nh = (dh as f64 * scale).round().max(1.0) as u32;
         // For small thumbnails (≤64px), Triangle is 5-10× faster than Lanczos3
         // with visually identical results at those sizes. For larger thumbnails,
         // Lanczos3 preserves detail better.

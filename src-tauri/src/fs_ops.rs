@@ -22,9 +22,17 @@ pub struct Entry {
 
 pub fn list_directory(dir: &str) -> std::io::Result<Vec<Entry>> {
     let mut entries = Vec::new();
+    // Skip individual unreadable entries (locked file, race with a delete)
+    // instead of failing the whole listing — same degradation as `search`.
     for rd in fs::read_dir(dir)? {
-        let rd = rd?;
-        let meta = rd.metadata()?;
+        let rd = match rd {
+            Ok(e) => e,
+            Err(_) => continue,
+        };
+        let meta = match rd.metadata() {
+            Ok(m) => m,
+            Err(_) => continue,
+        };
         let name = rd.file_name().to_string_lossy().to_string();
         let path = rd.path().to_string_lossy().to_string();
         entries.push(entry_from(&name, &path, &meta));

@@ -17,9 +17,10 @@ type ListItemProps = {
   item: Entry;
   showExtensions: boolean;
   isSelected: boolean;
+  allInOrder: Entry[];
 };
 
-const ListItem = memo(function ListItem({ item, showExtensions, isSelected }: ListItemProps) {
+const ListItem = memo(function ListItem({ item, showExtensions, isSelected, allInOrder }: ListItemProps) {
   const navigate = useLocationStore((s) => s.navigate);
   return (
     <div
@@ -36,7 +37,7 @@ const ListItem = memo(function ListItem({ item, showExtensions, isSelected }: Li
       }}
       onDragOver={(e) => { if (item.isDir) { e.preventDefault(); e.dataTransfer.dropEffect = e.ctrlKey ? 'copy' : 'move'; } }}
       onDrop={(e) => { if (item.isDir) { e.preventDefault(); void dropInto(item.path, e.ctrlKey); } }}
-      onClick={(ev) => handleClick(ev, item, [], useSelectionStore.getState())}
+      onClick={(ev) => handleClick(ev, item, allInOrder, useSelectionStore.getState())}
       onDoubleClick={() => { if (item.isDir) navigate(item.path); else openItem(item.path); }}
       onAuxClick={(e) => { if (e.button === 1 && item.isDir) { e.preventDefault(); useLocationStore.getState().addTab(item.path); } }}
     >
@@ -50,7 +51,8 @@ const ListItem = memo(function ListItem({ item, showExtensions, isSelected }: Li
     && prev.item.modified === next.item.modified
     && prev.item.isDir === next.item.isDir
     && prev.isSelected === next.isSelected
-    && prev.showExtensions === next.showExtensions;
+    && prev.showExtensions === next.showExtensions
+    && prev.allInOrder === next.allInOrder;
 });
 
 export function ListView({ entries }: { entries: Entry[] }) {
@@ -90,7 +92,7 @@ export function ListView({ entries }: { entries: Entry[] }) {
               key={item.path}
               style={{ position: 'absolute', top: 0, left: 0, width: '100%', transform: `translateY(${vi.start}px)`, height: ROW_H }}
             >
-              <ListItem item={item} showExtensions={showExtensions} isSelected={selectedSet.has(item.path)} />
+              <ListItem item={item} showExtensions={showExtensions} isSelected={selectedSet.has(item.path)} allInOrder={entries} />
             </div>
           );
         })}

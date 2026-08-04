@@ -1,13 +1,13 @@
 import { create } from 'zustand';
 
 /**
- * Progress dialog state for long-running file ops (copy / compress / extract).
- * `open(kind)` shows the dialog (reset); the ProgressModal listens to the
- * `fs-copy-progress` / `fs-zip-progress` events and calls `update()`;
+ * Progress dialog state for long-running file ops (copy / move / compress /
+ * extract). `open(kind)` shows the dialog (reset); the ProgressModal listens
+ * to the `fs-copy-progress` / `fs-zip-progress` events and calls `update()`;
  * `close()` hides it when the op completes. `kind` drives the title and which
  * cancel command is invoked.
  */
-export type ProgressKind = 'copy' | 'compress' | 'extract';
+export type ProgressKind = 'copy' | 'move' | 'compress' | 'extract';
 
 interface ProgressState {
   active: boolean;

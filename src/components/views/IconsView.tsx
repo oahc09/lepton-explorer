@@ -31,9 +31,10 @@ type IconTileProps = {
   isSelected: boolean;
   isDragOver: boolean;
   onDragOverChange: (path: string | null) => void;
+  allInOrder: Entry[];
 };
 
-const IconTile = memo(function IconTile({ item, tileW, tileH, font, nameMax, showExtensions, renamingPath, onRenameCommit, isSelected, isDragOver, onDragOverChange }: IconTileProps) {
+const IconTile = memo(function IconTile({ item, tileW, tileH, font, nameMax, showExtensions, renamingPath, onRenameCommit, isSelected, isDragOver, onDragOverChange, allInOrder }: IconTileProps) {
   const navigate = useLocationStore((s) => s.navigate);
   const tagColor = useTagStore((s) => s.tags[item.path] ?? null);
 
@@ -65,7 +66,7 @@ const IconTile = memo(function IconTile({ item, tileW, tileH, font, nameMax, sho
           void dropInto(item.path, e.ctrlKey);
         }
       }}
-      onClick={(ev) => handleClick(ev, item, [] as Entry[], useSelectionStore.getState())}
+      onClick={(ev) => handleClick(ev, item, allInOrder, useSelectionStore.getState())}
       onDoubleClick={() => {
         if (item.isDir) navigate(item.path); else openItem(item.path);
       }}
@@ -124,7 +125,8 @@ const IconTile = memo(function IconTile({ item, tileW, tileH, font, nameMax, sho
     prev.tileW === next.tileW &&
     prev.tileH === next.tileH &&
     prev.font === next.font &&
-    prev.nameMax === next.nameMax
+    prev.nameMax === next.nameMax &&
+    prev.allInOrder === next.allInOrder
   );
 });
 
@@ -226,6 +228,7 @@ export function IconsView({ entries, size = 'large', renamingPath, onRenameCommi
                   isSelected={selectedSet.has(item.path)}
                   isDragOver={dragOver === item.path}
                   onDragOverChange={setDragOver}
+                  allInOrder={entries}
                 />
               ))}
             </div>

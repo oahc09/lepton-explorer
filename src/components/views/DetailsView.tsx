@@ -35,9 +35,10 @@ type DetailsRowProps = {
   isSelected: boolean;
   isDragOver: boolean;
   onDragOverChange: (path: string | null) => void;
+  allInOrder: Entry[];
 };
 
-const DetailsRow = memo(function DetailsRow({ item, cols, visibleColKeys, showExtensions, renamingPath, onRenameCommit, isSelected, isDragOver, onDragOverChange }: DetailsRowProps) {
+const DetailsRow = memo(function DetailsRow({ item, cols, visibleColKeys, showExtensions, renamingPath, onRenameCommit, isSelected, isDragOver, onDragOverChange, allInOrder }: DetailsRowProps) {
   const onOpen = useOpen();
   const tagColor = useTagStore((s) => s.tags[item.path] ?? null);
 
@@ -117,7 +118,7 @@ const DetailsRow = memo(function DetailsRow({ item, cols, visibleColKeys, showEx
           void dropInto(item.path, e.ctrlKey);
         }
       }}
-      onClick={(ev) => handleClick(ev, item, [] as Entry[], useSelectionStore.getState())}
+      onClick={(ev) => handleClick(ev, item, allInOrder, useSelectionStore.getState())}
       onDoubleClick={() => {
         if (item.isDir) onOpen(item); else openItem(item.path);
       }}
@@ -142,7 +143,8 @@ const DetailsRow = memo(function DetailsRow({ item, cols, visibleColKeys, showEx
     prev.renamingPath === next.renamingPath &&
     prev.showExtensions === next.showExtensions &&
     prev.cols === next.cols &&
-    prev.visibleColKeys === next.visibleColKeys
+    prev.visibleColKeys === next.visibleColKeys &&
+    prev.allInOrder === next.allInOrder
   );
 });
 
@@ -268,6 +270,7 @@ export function DetailsView({ entries, renamingPath, onRenameCommit }: { entries
                 isSelected={selectedSet.has(item.path)}
                 isDragOver={dragOver === item.path}
                 onDragOverChange={setDragOver}
+                allInOrder={sorted}
               />
             </div>
           );

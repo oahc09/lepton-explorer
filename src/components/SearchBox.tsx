@@ -10,6 +10,7 @@ export function SearchBox() {
   const setResults = useSearchStore((s) => s.setResults);
   const path = useLocationStore((s) => s.path);
   const t = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const reqSeq = useRef(0);
   const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -21,8 +22,12 @@ export function SearchBox() {
   useEffect(() => {
     if (t.current) clearTimeout(t.current);
     if (!query.trim()) { setResults(null); return; }
+    // Request-id guard: a slow earlier search must not overwrite newer results.
+    const reqId = ++reqSeq.current;
     t.current = setTimeout(() => {
-      invoke<Entry[]>('search', { root: path, query }).then(setResults).catch(() => setResults([]));
+      invoke<Entry[]>('search', { root: path, query })
+        .then((r) => { if (reqSeq.current === reqId) setResults(r); })
+        .catch(() => { if (reqSeq.current === reqId) setResults([]); });
     }, 250);
     return () => { if (t.current) clearTimeout(t.current); };
   }, [query, path, setResults]);

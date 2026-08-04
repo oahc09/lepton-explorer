@@ -32,9 +32,13 @@ export function ProgressModal() {
 
   if (!active) return null;
   const pct = total > 0 ? Math.min(100, Math.round((current / total) * 100)) : 0;
-  const title = kind === 'extract' ? '正在解压' : kind === 'compress' ? '正在压缩' : '正在复制';
+  const title =
+    kind === 'extract' ? '正在解压'
+    : kind === 'compress' ? '正在压缩'
+    : kind === 'move' ? '正在移动'
+    : '正在复制';
   const onCancel = () => {
-    if (kind === 'copy') void invoke('cancel_copy');
+    if (kind === 'copy' || kind === 'move') void invoke('cancel_copy');
     else void invoke('cancel_zip');
   };
   return (

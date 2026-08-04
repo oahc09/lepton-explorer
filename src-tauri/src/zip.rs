@@ -1,5 +1,5 @@
 use std::fs;
-use std::io;
+use std::io::{self, Read};
 use std::path::Path;
 use std::sync::atomic::{AtomicBool, Ordering};
 
@@ -35,6 +35,9 @@ fn zip_options() -> FileOptions<'static, ExtendedFileOptions> {
 /// Recursively add `path` to the archive under `entry_name` (forward-slash
 /// separated, mirroring Explorer's "compress selected items" layout). Invokes
 /// `on_file` once per stored file with running (current, total) counts.
+/// Best-effort: per-item failures are collected into `errors` and skipped
+/// instead of aborting the whole archive. Links to directories (incl. Windows
+/// junctions) are skipped entirely — consistent with `ops` copy semantics.
 fn add_entry(
     writer: &mut ZipWriter<fs::File>,
     path: &Path,
@@ -42,24 +45,55 @@ fn add_entry(
     on_file: &mut dyn FnMut(usize, usize, &Path),
     current: &mut usize,
     total: usize,
+    errors: &mut Vec<String>,
 ) -> Result<()> {
     if is_zip_cancelled() {
         return Ok(());
     }
-    let meta = fs::symlink_metadata(path)?;
+    let meta = match fs::symlink_metadata(path) {
+        Ok(m) => m,
+        Err(e) => {
+            errors.push(format!("{}: {}", path.display(), e));
+            return Ok(());
+        }
+    };
     if meta.file_type().is_symlink() {
-        // Store symlinks as regular files (their target content), consistent
-        // with the copy behavior in `ops` (a symlink counts as one unit).
+        // Directory links (junctions) can't be stored as files — skip them
+        // (they were counted as 0 by ops::count_files). File links are stored
+        // as regular files (their target content).
+        let target_is_dir = fs::metadata(path).map(|m| m.is_dir()).unwrap_or(true);
+        if target_is_dir {
+            return Ok(());
+        }
         writer.start_file(&entry_name, zip_options())?;
-        let mut f = fs::File::open(path)?;
+        let mut f = match fs::File::open(path) {
+            Ok(f) => f,
+            Err(e) => {
+                errors.push(format!("{}: {}", path.display(), e));
+                return Ok(());
+            }
+        };
         io::copy(&mut f, writer)?;
         *current += 1;
         on_file(*current, total, path);
     } else if meta.is_dir() {
         // Directory marker entry (trailing slash).
         writer.start_file(&format!("{}/", entry_name), zip_options())?;
-        for child in fs::read_dir(path)? {
-            let child = child?;
+        let rd = match fs::read_dir(path) {
+            Ok(r) => r,
+            Err(e) => {
+                errors.push(format!("{}: {}", path.display(), e));
+                return Ok(());
+            }
+        };
+        for child in rd {
+            let child = match child {
+                Ok(c) => c,
+                Err(e) => {
+                    errors.push(format!("{}: {}", path.display(), e));
+                    continue;
+                }
+            };
             let cname = child.file_name().to_string_lossy().replace('\\', "/");
             add_entry(
                 writer,
@@ -68,11 +102,18 @@ fn add_entry(
                 on_file,
                 current,
                 total,
+                errors,
             )?;
         }
     } else {
         writer.start_file(&entry_name, zip_options())?;
-        let mut f = fs::File::open(path)?;
+        let mut f = match fs::File::open(path) {
+            Ok(f) => f,
+            Err(e) => {
+                errors.push(format!("{}: {}", path.display(), e));
+                return Ok(());
+            }
+        };
         io::copy(&mut f, writer)?;
         *current += 1;
         on_file(*current, total, path);
@@ -104,6 +145,7 @@ where
     let mut writer = ZipWriter::new(file);
     let total = ops::count_files(sources);
     let mut current = 0usize;
+    let mut errors = Vec::new();
     for s in sources {
         if is_cancelled() {
             break;
@@ -113,9 +155,14 @@ where
             .file_name()
             .map(|n| n.to_string_lossy().replace('\\', "/"))
             .unwrap_or_else(|| "item".into());
-        add_entry(&mut writer, src, root, &mut on_file, &mut current, total)?;
+        add_entry(&mut writer, src, root, &mut on_file, &mut current, total, &mut errors)?;
     }
     writer.finish().map(|_| ())?;
+    if !errors.is_empty() {
+        // Best-effort archiving completed; log skipped/failed items (the IPC
+        // contract returns (), so there is no error channel to the frontend).
+        eprintln!("[zip] {} item(s) skipped/failed: {}", errors.len(), errors.join("; "));
+    }
     // If cancelled before any file was written, don't leave an empty archive.
     if current == 0 && is_cancelled() {
         let _ = fs::remove_file(dest);
@@ -123,9 +170,14 @@ where
     Ok(())
 }
 
+/// Maximum total decompressed bytes written by a single extraction. Guards
+/// against zip-bomb archives (tiny archive expanding to fill the disk).
+const MAX_EXTRACT_BYTES: u64 = 10 * 1024 * 1024 * 1024; // 10 GiB
+
 /// Extract `zip_path` into `dest_dir` (created if missing). Hardened against
-/// Zip Slip via `ZipFile::enclosed_name()` (skips entries escaping `dest_dir`).
-/// Returns the number of files written.
+/// Zip Slip via `ZipFile::enclosed_name()` (skips entries escaping `dest_dir`)
+/// and against zip bombs via `MAX_EXTRACT_BYTES`. Returns the number of files
+/// written.
 pub fn unzip_items_tracked<F, C>(
     zip_path: &str,
     dest_dir: &str,
@@ -139,11 +191,15 @@ where
     ops::validate_safe_path(dest_dir)?;
     let dest = Path::new(dest_dir);
     fs::create_dir_all(dest)?;
+    // Canonicalize the destination so the containment re-check below cannot be
+    // redirected by a pre-planted symlink/junction inside `dest`.
+    let dest_canon = fs::canonicalize(dest).unwrap_or_else(|_| dest.to_path_buf());
     let file = fs::File::open(zip_path)?;
     let mut archive = ZipArchive::new(file)?;
     let total = archive.len() as usize;
     let mut current = 0usize;
     let mut written = 0usize;
+    let mut total_bytes: u64 = 0;
     for i in 0..archive.len() {
         if is_cancelled() {
             break;
@@ -157,7 +213,7 @@ where
         };
         let outpath = dest.join(&name);
         // Defense in depth: re-confirm the resolved path stays within dest.
-        if !outpath.starts_with(dest) {
+        if !outpath.starts_with(&dest_canon) && !outpath.starts_with(dest) {
             continue;
         }
         if entry.is_dir() {
@@ -165,9 +221,31 @@ where
         } else {
             if let Some(parent) = outpath.parent() {
                 fs::create_dir_all(parent)?;
+                // A pre-planted symlink/junction inside `dest` could redirect
+                // the write outside of it; verify the resolved parent stays in.
+                if let Ok(canon_parent) = fs::canonicalize(parent) {
+                    if !canon_parent.starts_with(&dest_canon) {
+                        continue;
+                    }
+                }
             }
             let mut outfile = fs::File::create(&outpath)?;
-            io::copy(&mut entry, &mut outfile)?;
+            // Zip-bomb quota: stream through `take` so actual written bytes can
+            // never exceed the remaining budget (declared sizes can lie). One
+            // extra byte is allowed through purely to detect the overflow.
+            let remaining = MAX_EXTRACT_BYTES.saturating_sub(total_bytes);
+            let n = io::copy(&mut entry.by_ref().take(remaining.saturating_add(1)), &mut outfile)?;
+            total_bytes = total_bytes.saturating_add(n);
+            if n > remaining {
+                return Err(std::io::Error::new(
+                    std::io::ErrorKind::Other,
+                    format!(
+                        "refused: archive exceeds the {} GiB extraction limit (zip-bomb protection)",
+                        MAX_EXTRACT_BYTES / (1024 * 1024 * 1024)
+                    ),
+                )
+                .into());
+            }
             written += 1;
         }
         current += 1;

@@ -429,7 +429,7 @@ export default function App() {
       <div className="body">
         <NavPane />
         <div className="nav-splitter" onMouseDown={startNavResize} />
-        <main className="main-view" key={`${path}-${refreshKey}`} ref={mainRef} tabIndex={0}>
+        <main className="main-view" key={path} ref={mainRef} tabIndex={0}>
           {path === '' ? (
             <HomeView onOpen={(p) => navigate(p)} />
           ) : loading ? (

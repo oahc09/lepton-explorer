@@ -19,9 +19,10 @@ type Tile2ItemProps = {
   item: Entry;
   showExtensions: boolean;
   isSelected: boolean;
+  allInOrder: Entry[];
 };
 
-const Tile2Item = memo(function Tile2Item({ item, showExtensions, isSelected }: Tile2ItemProps) {
+const Tile2Item = memo(function Tile2Item({ item, showExtensions, isSelected, allInOrder }: Tile2ItemProps) {
   const navigate = useLocationStore((s) => s.navigate);
   return (
     <div
@@ -38,7 +39,7 @@ const Tile2Item = memo(function Tile2Item({ item, showExtensions, isSelected }: 
       }}
       onDragOver={(e) => { if (item.isDir) { e.preventDefault(); e.dataTransfer.dropEffect = e.ctrlKey ? 'copy' : 'move'; } }}
       onDrop={(e) => { if (item.isDir) { e.preventDefault(); void dropInto(item.path, e.ctrlKey); } }}
-      onClick={(ev) => handleClick(ev, item, [] as Entry[], useSelectionStore.getState())}
+      onClick={(ev) => handleClick(ev, item, allInOrder, useSelectionStore.getState())}
       onDoubleClick={() => { if (item.isDir) navigate(item.path); else openItem(item.path); }}
       onAuxClick={(e) => { if (e.button === 1 && item.isDir) { e.preventDefault(); useLocationStore.getState().addTab(item.path); } }}
     >
@@ -56,7 +57,8 @@ const Tile2Item = memo(function Tile2Item({ item, showExtensions, isSelected }: 
     prev.item.modified === next.item.modified &&
     prev.item.isDir === next.item.isDir &&
     prev.isSelected === next.isSelected &&
-    prev.showExtensions === next.showExtensions
+    prev.showExtensions === next.showExtensions &&
+    prev.allInOrder === next.allInOrder
   );
 });
 
@@ -106,6 +108,7 @@ export function TilesView({ entries }: { entries: Entry[] }) {
                   item={item}
                   showExtensions={showExtensions}
                   isSelected={selectedSet.has(item.path)}
+                  allInOrder={entries}
                 />
               ))}
             </div>

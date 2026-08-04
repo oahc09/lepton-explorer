@@ -36,3 +36,11 @@ zip = "2"
 [dev-dependencies]
 tempfile = "3"
 
+[profile.release]
+# Smaller, faster release binary: whole-crate LTO, one codegen unit, stripped
+# symbols. Build time increases slightly; runtime perf and installer size win.
+lto = true
+codegen-units = 1
+strip = true
+panic = "unwind"
+

@@ -109,21 +109,26 @@ pub enum ConflictStrategy {
 }
 
 /// Result of a tracked copy operation: the created paths plus the original
-/// paths of items sent to the recycle bin during Replace.
+/// paths of items sent to the recycle bin during Replace. `errors` collects
+/// per-file failures (e.g. access denied) — the operation is best-effort and
+/// no longer aborts the whole batch on the first bad item.
 #[derive(serde::Serialize, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct TrackedCopyResult {
     pub paths: Vec<String>,
     pub trashed: Vec<String>,
+    pub errors: Vec<String>,
 }
 
 /// Result of a tracked move operation: (old, new) pairs plus the original
-/// paths of items sent to the recycle bin during Replace.
+/// paths of items sent to the recycle bin during Replace. See
+/// `TrackedCopyResult.errors` for the per-file failure semantics.
 #[derive(serde::Serialize, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct TrackedMoveResult {
     pub pairs: Vec<(String, String)>,
     pub trashed: Vec<String>,
+    pub errors: Vec<String>,
 }
 
 /// A source name that already exists in the destination (a collision).
@@ -205,7 +210,36 @@ fn never_cancel() -> bool {
 }
 
 fn copy_recursive(src: &Path, dst: &Path) -> std::io::Result<()> {
-    copy_recursive_tracked(src, dst, &mut std::collections::HashSet::new(), &mut |_| {}, &never_cancel)
+    let mut errors = Vec::new();
+    copy_recursive_tracked(
+        src,
+        dst,
+        &mut std::collections::HashSet::new(),
+        &mut |_| {},
+        &never_cancel,
+        &mut errors,
+    )?;
+    // Best-effort semantics: every file was attempted; surface failures after
+    // the fact instead of aborting the batch midway.
+    if errors.is_empty() {
+        Ok(())
+    } else {
+        Err(std::io::Error::new(
+            std::io::ErrorKind::Other,
+            format!("{} item(s) failed: {}", errors.len(), errors.join("; ")),
+        ))
+    }
+}
+
+/// Whether `src` is a link (symlink or Windows junction) whose target is a
+/// directory. Such links are SKIPPED during copy/zip: recursing into them
+/// risks cycles, and `fs::copy` on a directory junction fails outright
+/// (previously aborting the whole operation).
+fn is_dir_link(src: &Path) -> bool {
+    fs::symlink_metadata(src)
+        .map(|m| m.file_type().is_symlink())
+        .unwrap_or(false)
+        && fs::metadata(src).map(|m| m.is_dir()).unwrap_or(false)
 }
 
 fn copy_recursive_tracked(
@@ -214,20 +248,32 @@ fn copy_recursive_tracked(
     visited: &mut std::collections::HashSet<PathBuf>,
     on_file: &mut dyn FnMut(&Path),
     is_cancelled: &dyn Fn() -> bool,
+    errors: &mut Vec<String>,
 ) -> std::io::Result<()> {
-    // If `src` is itself a symlink (to a dir or file), do NOT dereference+recurse;
-    // copy it as a single unit (copies the target's content). This avoids following
-    // symlink-to-dir entries into a different tree / cycle.
-    if fs::symlink_metadata(src)
-        .map(|m| m.file_type().is_symlink())
-        .unwrap_or(false)
-    {
-        if is_cancelled() {
+    if is_cancelled() {
+        return Ok(());
+    }
+    let lmeta = match fs::symlink_metadata(src) {
+        Ok(m) => m,
+        Err(e) => {
+            errors.push(format!("{}: {}", src.display(), e));
+            return Ok(());
+        }
+    };
+    if lmeta.file_type().is_symlink() {
+        // Link handling: a link to a FILE is copied as a single unit (the
+        // target's content). A link to a DIRECTORY (incl. junctions) is
+        // skipped — it was counted as 0 by `count_files_in`.
+        if is_dir_link(src) || fs::metadata(src).is_err() {
             return Ok(());
         }
         on_file(src);
-        fs::copy(src, dst).map(|_| ())
-    } else if src.is_dir() {
+        if let Err(e) = fs::copy(src, dst) {
+            errors.push(format!("{}: {}", src.display(), e));
+        }
+        return Ok(());
+    }
+    if lmeta.is_dir() {
         // Guard against symlink/junction cycles: canonicalize this directory and
         // skip if we've already copied it.
         if let Ok(canon) = fs::canonicalize(src) {
@@ -235,36 +281,58 @@ fn copy_recursive_tracked(
                 return Ok(());
             }
         }
-        fs::create_dir_all(dst)?;
-        for entry in fs::read_dir(src)? {
+        if let Err(e) = fs::create_dir_all(dst) {
+            errors.push(format!("{}: {}", dst.display(), e));
+            return Ok(());
+        }
+        let rd = match fs::read_dir(src) {
+            Ok(r) => r,
+            Err(e) => {
+                errors.push(format!("{}: {}", src.display(), e));
+                return Ok(());
+            }
+        };
+        for entry in rd {
             if is_cancelled() {
                 return Ok(()); // Cancel pressed mid-folder: stop, keep what's copied.
             }
-            let entry = entry?;
+            let entry = match entry {
+                Ok(en) => en,
+                Err(e) => {
+                    errors.push(format!("{}: {}", src.display(), e));
+                    continue;
+                }
+            };
             let from = entry.path();
             let to = dst.join(entry.file_name());
-            copy_recursive_tracked(&from, &to, visited, on_file, is_cancelled)?;
+            copy_recursive_tracked(&from, &to, visited, on_file, is_cancelled, errors)?;
         }
         Ok(())
     } else {
-        if is_cancelled() {
-            return Ok(());
-        }
         on_file(src);
-        fs::copy(src, dst).map(|_| ())
+        if let Err(e) = fs::copy(src, dst) {
+            errors.push(format!("{}: {}", src.display(), e));
+        }
+        Ok(())
     }
 }
 
 /// Count the files that copying `sources` would write (files only, not dirs).
-/// Matches `copy_recursive_tracked` semantics: a symlink counts as one unit,
-/// a directory counts its descendants recursively.
+/// Matches `copy_recursive_tracked` semantics: a link to a file counts as one
+/// unit, a directory link (junction) is skipped (0), a directory counts its
+/// descendants recursively.
 fn count_files_in(p: &Path) -> usize {
-    if fs::symlink_metadata(p)
-        .map(|m| m.file_type().is_symlink())
-        .unwrap_or(false)
-    {
-        1
-    } else if p.is_dir() {
+    let lmeta = match fs::symlink_metadata(p) {
+        Ok(m) => m,
+        Err(_) => return 0,
+    };
+    if lmeta.file_type().is_symlink() {
+        if is_dir_link(p) || fs::metadata(p).is_err() {
+            0
+        } else {
+            1
+        }
+    } else if lmeta.is_dir() {
         match fs::read_dir(p) {
             Ok(rd) => rd
                 .filter_map(|e| e.ok())
@@ -302,6 +370,7 @@ where
     let mut current = 0usize;
     let mut out = Vec::new();
     let mut trashed = Vec::new();
+    let mut errors = Vec::new();
     for s in sources {
         if is_cancelled() {
             break; // Cancel pressed: stop, keep files copied so far.
@@ -325,10 +394,11 @@ where
                 on_file(current, total, p);
             },
             &is_cancelled,
+            &mut errors,
         )?;
         out.push(target.to_string_lossy().to_string());
     }
-    Ok(TrackedCopyResult { paths: out, trashed })
+    Ok(TrackedCopyResult { paths: out, trashed, errors })
 }
 
 /// Like `move_items_with_strategy`, but for cross-volume moves (copy+delete) it
@@ -351,6 +421,7 @@ where
     let mut current = 0usize;
     let mut out = Vec::new();
     let mut trashed = Vec::new();
+    let mut errors = Vec::new();
     for s in sources {
         if is_cancelled() {
             break;
@@ -371,6 +442,7 @@ where
                     || e.raw_os_error() == Some(18)
                     || e.kind() == std::io::ErrorKind::CrossesDevices => {
                 // Cross-device: tracked copy (emits progress) then delete the source.
+                let before = errors.len();
                 copy_recursive_tracked(
                     src,
                     &target,
@@ -380,14 +452,30 @@ where
                         on_file(current, total, p);
                     },
                     &is_cancelled,
+                    &mut errors,
                 )?;
-                remove_recursive(src)?;
+                // Safety: only delete the source when the copy was clean or the
+                // user cancelled; a partially-failed copy keeps the source intact.
+                if errors.len() == before && !is_cancelled() {
+                    if let Err(e) = remove_recursive(src) {
+                        errors.push(format!("{}: {}", src.display(), e));
+                    }
+                } else if errors.len() != before {
+                    errors.push(format!(
+                        "{}: source kept because the copy was incomplete",
+                        src.display()
+                    ));
+                }
             }
-            Err(e) => return Err(e),
+            Err(e) => {
+                // Per-item failure: record and continue with the remaining sources.
+                errors.push(format!("{}: {}", src.display(), e));
+                continue;
+            }
         }
         out.push((old, target.to_string_lossy().to_string()));
     }
-    Ok(TrackedMoveResult { pairs: out, trashed })
+    Ok(TrackedMoveResult { pairs: out, trashed, errors })
 }
 
 fn remove_recursive(p: &Path) -> std::io::Result<()> {
@@ -475,9 +563,15 @@ pub fn move_items_with_strategy(
     Ok(out)
 }
 
-pub fn delete_to_trash(paths: &[String]) -> Result<(), trash::Error> {
+/// Send paths to the OS recycle bin. Subject to the same system-directory
+/// guard as `delete_permanent` (defense-in-depth: trashing C:\Windows\… is
+/// nearly as harmful as deleting it outright).
+pub fn delete_to_trash(paths: &[String]) -> std::io::Result<()> {
+    for p in paths {
+        validate_destructive_path(p)?;
+    }
     let items: Vec<&Path> = paths.iter().map(|p| Path::new(p)).collect();
-    trash::delete_all(items)
+    trash::delete_all(items).map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e.to_string()))
 }
 
 /// Restore items from the recycle bin to their original paths. Each path in
@@ -511,11 +605,15 @@ pub fn restore_from_trash(original_paths: &[String]) -> Result<(), trash::Error>
 
 /// Delete to trash and return the original paths, so the frontend can push
 /// an undo entry that calls `restore_from_trash` with the same paths.
-pub fn delete_to_trash_undoable(paths: &[String]) -> Result<Vec<String>, trash::Error> {
+/// Guarded by `validate_destructive_path` like every other destructive op.
+pub fn delete_to_trash_undoable(paths: &[String]) -> std::io::Result<Vec<String>> {
+    for p in paths {
+        validate_destructive_path(p)?;
+    }
     // Record which paths actually exist (trash::delete_all fails on missing).
     let valid: Vec<&Path> = paths.iter().map(|p| Path::new(p)).filter(|p| p.exists()).collect();
     let original_paths: Vec<String> = valid.iter().map(|p| p.to_string_lossy().to_string()).collect();
-    trash::delete_all(valid)?;
+    trash::delete_all(valid).map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e.to_string()))?;
     Ok(original_paths)
 }
 

@@ -71,7 +71,8 @@ export function OpenWithDialog({ entry, onClose }: { entry: Entry; onClose: () =
           {list.map((a) => (
             <button key={a.exe} className="ow-item" onClick={() => launch(a.exe)}>
               {icons[a.exe] ? (
-                <img src={icons[a.exe]} className="ow-icon" alt="" />
+                // get_icon returns raw base64 PNG — needs a data: URL prefix.
+                <img src={`data:image/png;base64,${icons[a.exe]}`} className="ow-icon" alt="" />
               ) : (
                 <span className="ow-icon ow-icon-fallback" aria-hidden>
                   ▤
