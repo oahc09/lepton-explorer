@@ -334,6 +334,42 @@ pub fn open_with_path(path: &str, exe: &str) -> Result<()> {
     shell_execute(exe, &format!("\"{}\"", path))
 }
 
+/// Open `path` with the system's default program for its file type.
+///
+/// Resolution order (so images like PNG open with the corresponding system
+/// software, e.g. the Photos app):
+/// 1. The registered default application (from the Windows registry / ProgID),
+///    launched directly via its executable. This guarantees the *matching*
+///    system software is used rather than some unrelated handler.
+/// 2. Fallback: `ShellExecuteExW` with the `open` verb, which lets Windows
+///    pick the handler. This covers UWP / Store apps (e.g. Photos) that have
+///    no classic command string in the registry.
+pub fn open_file(path: &str) -> Result<()> {
+    if let Some(default) = get_open_with(path).default {
+        if open_with_path(path, &default.exe).is_ok() {
+            return Ok(());
+        }
+    }
+    shell_execute_open(path)
+}
+
+fn shell_execute_open(path: &str) -> Result<()> {
+    let file_w = wide(path);
+    let verb_w = wide("open");
+    let mut info = SHELLEXECUTEINFOW::default();
+    info.cbSize = std::mem::size_of::<SHELLEXECUTEINFOW>() as u32;
+    info.hwnd = unsafe { GetForegroundWindow() };
+    info.lpFile = PCWSTR(file_w.as_ptr());
+    info.lpVerb = PCWSTR(verb_w.as_ptr());
+    info.nShow = SW_SHOWNORMAL.0 as i32;
+    let ok = unsafe { ShellExecuteExW(&mut info) };
+    if ok.is_ok() {
+        Ok(())
+    } else {
+        Err(AppError::Unknown(format!("无法打开文件: {}", path)))
+    }
+}
+
 /// Open the system "Open With" dialog for `path` (the `openas` verb).
 pub fn open_with_dialog(path: &str) -> Result<()> {
     let file_w = wide(path);

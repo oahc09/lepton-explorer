@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { useSelectionStore } from '../state/selectionStore';
 import { useClipboardStore } from '../state/clipboardStore';
@@ -12,13 +12,33 @@ import type { Entry } from '../types';
 
 interface Pos { x: number; y: number; }
 
+interface OpenWithAppInfo {
+  name: string;
+  exe: string;
+  isDefault: boolean;
+}
+interface OpenWithInfo {
+  default: OpenWithAppInfo | null;
+  apps: OpenWithAppInfo[];
+}
+
 export function ContextMenu({ entries }: { entries: Entry[] }) {
   const [pos, setPos] = useState<Pos | null>(null);
+  // Final on-screen position after viewport clamping/flip (computed in a layout
+  // effect so the menu never overflows the edge and gets clipped).
+  const [box, setBox] = useState<Pos | null>(null);
+  const boxRef = useRef<Pos | null>(null);
+  const menuRef = useRef<HTMLUListElement | null>(null);
+  const [flipLeft, setFlipLeft] = useState(false);
   const sel = useSelectionStore((s) => s.selected);
   const ops = useFileOps();
   const path = useLocationStore((s) => s.path);
   const entriesRef = useRef(entries);
   entriesRef.current = entries;
+  // Name of the system default app for the currently selected file, so the
+  // "打开" label can read e.g. "打开（照片）" to make it obvious the file will
+  // be opened with the matching system software.
+  const [defaultAppName, setDefaultAppName] = useState<string | null>(null);
 
   useEffect(() => {
     // Select the right-clicked item synchronously so the menu reflects it on first render.
@@ -51,6 +71,50 @@ export function ContextMenu({ entries }: { entries: Entry[] }) {
     };
   }, []);
 
+  // Resolve the system default app for the selected file so the "打开" label
+  // can advertise which software the file will open with.
+  useEffect(() => {
+    let active = true;
+    setDefaultAppName(null);
+    const selEntries = entries.filter((e) => sel.includes(e.path));
+    if (sel.length === 1 && selEntries[0] && !selEntries[0].isDir) {
+      invoke<OpenWithInfo>('get_open_with', { path: selEntries[0].path })
+        .then((info) => {
+          if (active && info.default) setDefaultAppName(info.default.name);
+        })
+        .catch(() => {});
+    }
+    return () => {
+      active = false;
+    };
+  }, [sel, pos, entries]);
+
+  // Keep the menu fully inside the viewport. If it would overflow the bottom
+  // (or right) edge, flip it upward (or leftward) so it is never clipped.
+  useLayoutEffect(() => {
+    if (!pos || !menuRef.current) return;
+    const m = menuRef.current;
+    const w = m.offsetWidth;
+    const h = m.offsetHeight;
+    const vw = document.documentElement.clientWidth;
+    const vh = document.documentElement.clientHeight;
+    const margin = 4;
+    let x = pos.x;
+    let y = pos.y;
+    let flippedX = false;
+    if (x + w + margin > vw) {
+      x = Math.max(margin, vw - w - margin);
+      flippedX = true;
+    }
+    if (y + h + margin > vh) {
+      y = Math.max(margin, vh - h - margin);
+    }
+    const next = { x, y };
+    setBox(next);
+    boxRef.current = next;
+    setFlipLeft(flippedX);
+  }, [pos]);
+
   if (!pos) return null;
   const selEntries = entries.filter((e) => sel.includes(e.path));
   const hasSel = selEntries.length > 0;
@@ -68,7 +132,7 @@ export function ContextMenu({ entries }: { entries: Entry[] }) {
     const targets = hasSel ? sel : (path ? [path] : []);
     if (!targets.length) return;
     try {
-      await invoke('show_classic_menu', { paths: targets, x: Math.round(pos.x), y: Math.round(pos.y) });
+      await invoke('show_classic_menu', { paths: targets, x: Math.round((boxRef.current ?? pos).x), y: Math.round((boxRef.current ?? pos).y) });
       refresh();
     } catch {
       // Non-Windows or COM failure — silently ignore.
@@ -76,8 +140,8 @@ export function ContextMenu({ entries }: { entries: Entry[] }) {
   };
 
   return (
-    <ul className="context-menu" style={{ left: pos.x, top: pos.y }}>
-      {hasSel && item('打开', () => selEntries.forEach((e) => (e.isDir ? useLocationStore.getState().navigate(e.path) : openItem(e.path))))}
+    <ul ref={menuRef} className={`context-menu${flipLeft ? ' flip-left' : ''}`} style={{ left: (box ?? pos).x, top: (box ?? pos).y }}>
+      {hasSel && item(sel.length === 1 && defaultAppName ? `打开（${defaultAppName}）` : '打开', () => selEntries.forEach((e) => (e.isDir ? useLocationStore.getState().navigate(e.path) : openItem(e.path))))}
       {(() => {
         const en = selEntries[0];
         const show = sel.length === 1 && !en?.isDir;

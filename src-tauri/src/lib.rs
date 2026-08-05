@@ -342,6 +342,11 @@ fn open_with_dialog(path: String) -> Result<()> {
 }
 
 #[tauri::command]
+fn open_file(path: String) -> Result<()> {
+    open_with::open_file(&path)
+}
+
+#[tauri::command]
 async fn create_archive(
     app: tauri::AppHandle,
     sources: Vec<String>,
@@ -446,6 +451,7 @@ pub fn run() {
             get_open_with,
             open_with_path,
             open_with_dialog,
+            open_file,
             create_archive,
             extract_archive,
             cancel_zip

@@ -83,7 +83,14 @@ export const useViewStore = create<ViewState>()(
     }),
     {
       name: 'lepton-view',
-      partialize: (s) => ({ navPaneWidth: s.navPaneWidth }),
+      partialize: (s) => ({
+        navPaneWidth: s.navPaneWidth,
+        themeMode: s.themeMode,
+        showHidden: s.showHidden,
+        showExtensions: s.showExtensions,
+        previewPane: s.previewPane,
+        detailsPane: s.detailsPane,
+      }),
     }
   )
 );

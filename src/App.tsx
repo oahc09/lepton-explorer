@@ -13,6 +13,7 @@ import { PropertiesDialog } from './components/PropertiesDialog';
 import { OpenWithDialog } from './components/OpenWithDialog';
 import { ConflictModal } from './components/ConflictModal';
 import { ProgressModal } from './components/ProgressModal';
+import { SettingsDialog } from './components/SettingsDialog';
 import { CommandBar } from './components/CommandBar';
 import { SearchBox } from './components/SearchBox';
 import { PreviewPane } from './components/PreviewPane';
@@ -64,6 +65,7 @@ export default function App() {
   setPropsEntryRef.current = setPropsEntry;
   const [openWithEntry, setOpenWithEntry] = useState<Entry | null>(null);
   const [renamingPath, setRenamingPath] = useState<string | null>(null);
+  const [settingsOpen, setSettingsOpen] = useState(false);
   const [fs, setFs] = useState(false);
 
   // Per-folder view persistence: which folder's overrides are currently applied,
@@ -177,6 +179,13 @@ export default function App() {
     return () => window.removeEventListener('lepton:open-with', onOpenWith as EventListener);
   }, []);
 
+  // Settings entry point: lepton:settings opens the settings dialog.
+  useEffect(() => {
+    const onSettings = () => setSettingsOpen(true);
+    window.addEventListener('lepton:settings', onSettings as EventListener);
+    return () => window.removeEventListener('lepton:settings', onSettings as EventListener);
+  }, []);
+
   // Watch the current path for filesystem changes; re-list on fs-changed.
   useEffect(() => {
     if (!path || isVirtualPath(path)) return;
@@ -231,6 +240,7 @@ export default function App() {
       if (e.ctrlKey && (e.key === 'l' || e.key === 'L') && !e.shiftKey) { e.preventDefault(); window.dispatchEvent(new CustomEvent('lepton:focus-address')); return; }
       if (e.altKey && (e.key === 'd' || e.key === 'D')) { e.preventDefault(); window.dispatchEvent(new CustomEvent('lepton:focus-address')); return; }
       if (e.key === 'F4' && !e.ctrlKey && !e.shiftKey && !e.altKey) { e.preventDefault(); window.dispatchEvent(new CustomEvent('lepton:focus-address')); return; }
+      if (e.ctrlKey && !e.shiftKey && (e.key === ',' || e.key === '，')) { e.preventDefault(); window.dispatchEvent(new CustomEvent('lepton:settings')); return; }
       if (e.ctrlKey && (e.key === 'e' || e.key === 'E' || e.key === 'f' || e.key === 'F') && !e.shiftKey) { e.preventDefault(); window.dispatchEvent(new CustomEvent('lepton:focus-search')); return; }
       if (e.key === 'F6') {
         // Cycle focus between nav pane → address bar → file list (Shift = reverse).
@@ -425,6 +435,7 @@ export default function App() {
         <Toolbar onRefresh={() => setRefreshKey((k) => k + 1)} />
         <Breadcrumb />
         {path !== '' && <SearchBox />}
+        <button className="cmd settings-btn" onClick={() => window.dispatchEvent(new CustomEvent('lepton:settings'))} title="设置">⚙</button>
       </div>
       <div className="body">
         <NavPane />
@@ -449,6 +460,7 @@ export default function App() {
       <ContextMenu entries={shownEntries} />
       {propsEntry && <PropertiesDialog entry={propsEntry} onClose={() => setPropsEntry(null)} />}
       {openWithEntry && <OpenWithDialog entry={openWithEntry} onClose={() => setOpenWithEntry(null)} />}
+      {settingsOpen && <SettingsDialog onClose={() => setSettingsOpen(false)} />}
       <ConflictModal />
       <ProgressModal />
     </div>
