@@ -6,6 +6,7 @@ pub mod network;
 pub mod office;
 pub mod open_with;
 pub mod ops;
+pub mod autostart;
 pub mod shell_menu;
 pub mod special;
 pub mod thumbnails;
@@ -408,6 +409,16 @@ fn cancel_zip() {
     zip::request_zip_cancel();
 }
 
+#[tauri::command]
+fn get_autostart() -> bool {
+    autostart::is_autostart_enabled()
+}
+
+#[tauri::command]
+fn set_autostart(enabled: bool) -> Result<()> {
+    autostart::set_autostart(enabled)
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -454,7 +465,9 @@ pub fn run() {
             open_file,
             create_archive,
             extract_archive,
-            cancel_zip
+            cancel_zip,
+            get_autostart,
+            set_autostart
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

@@ -44,6 +44,7 @@ export default function App() {
   const searchResults = useSearchStore((s) => s.results);
   const showHidden = useViewStore((s) => s.showHidden);
   const themeMode = useViewStore((s) => s.themeMode);
+  const bgColor = useViewStore((s) => s.bgColor);
   const visibleEntries = useMemo(() => entries.filter((e) => showHidden || !e.isHidden), [entries, showHidden]);
   const shownEntries = searchResults ?? visibleEntries;
   const previewPane = useViewStore((s) => s.previewPane);
@@ -150,6 +151,13 @@ export default function App() {
     const unlisten = getCurrentWindow().onThemeChanged((e) => e.payload && apply(e.payload as 'light' | 'dark'));
     return () => { unlisten.then((u) => u()); };
   }, [themeMode]);
+
+  // Custom background color: feed it to a CSS variable consumed by the theme.
+  useEffect(() => {
+    const root = document.documentElement;
+    if (bgColor) root.style.setProperty('--app-bg', bgColor);
+    else root.style.removeProperty('--app-bg');
+  }, [bgColor]);
 
   // File ops dispatch lepton:refresh; re-list when it fires.
   useEffect(() => {
