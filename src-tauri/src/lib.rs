@@ -8,6 +8,7 @@ pub mod open_with;
 pub mod ops;
 pub mod autostart;
 pub mod shell_menu;
+pub mod crashlog;
 pub mod special;
 pub mod thumbnails;
 pub mod watch;
@@ -421,6 +422,7 @@ fn set_autostart(enabled: bool) -> Result<()> {
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+    crashlog::install_crash_logger();
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
         .manage(watch::WatcherState::new())
@@ -467,7 +469,8 @@ pub fn run() {
             extract_archive,
             cancel_zip,
             get_autostart,
-            set_autostart
+            set_autostart,
+            crashlog::log_frontend_error
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

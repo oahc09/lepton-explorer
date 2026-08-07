@@ -59,6 +59,19 @@ pnpm tauri build
 - 设置 → **关于**：显示应用名、运行时版本号与 GitHub 仓库链接（一键打开）。
 - 设置 → **启动**：「开机自动启动」开关（默认关闭），通过注册表 `HKCU\...\Run` 实现，零额外依赖。
 
+## 崩溃日志（排查异常）
+
+应用内置崩溃日志，任何原生 panic 或前端 JS 异常都会自动落盘，无需开控制台：
+
+- **日志目录**：`%LOCALAPPDATA%\com.lepton.explorer\logs\`
+  （即 `C:\Users\<你的用户名>\AppData\Local\com.lepton.explorer\logs\`）
+- **原生崩溃**：`crash-<时间戳>.log`，含 panic 位置（文件:行号）、panic 信息与完整 backtrace。
+- **前端异常**：`frontend-<时间戳>.log`，由 `window.onerror` / `unhandledrejection` 捕获的 JS 错误（含堆栈）。
+
+复现崩溃后，把对应时间点的日志文件发回即可定位问题。
+
+> 提示：release 构建开启了 `strip = true`，backtrace 可能为地址而非函数名；如需更可读的符号，可临时关闭 `src-tauri/Cargo.toml` 的 `[profile.release] strip` 后重新构建。
+
 ## 说明
 
 - 这些二进制为**发布（release / optimized）**构建，已内联前端资源与图标。
