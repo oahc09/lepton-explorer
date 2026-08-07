@@ -13,6 +13,8 @@ use std::fs::{self, OpenOptions};
 use std::io::Write;
 use std::path::PathBuf;
 
+use tauri_plugin_opener::OpenerExt;
+
 /// %LOCALAPPDATA%/com.lepton.explorer/logs  (falls back to /tmp if unavailable).
 fn logs_dir() -> PathBuf {
     let base = dirs::data_local_dir().unwrap_or_else(|| std::env::temp_dir());
@@ -72,4 +74,16 @@ pub fn log_frontend_error(msg: String) {
         let _ = writeln!(f, "[{stamp}] {msg}\n");
         let _ = f.flush();
     }
+}
+
+/// Open the crash-log directory in the system file manager. The directory is
+/// created first (if absent) so the button always works, even before any
+/// crash has occurred.
+#[tauri::command]
+pub fn open_logs_dir(app: tauri::AppHandle) -> Result<(), String> {
+    let dir = logs_dir();
+    fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
+    app.opener()
+        .open_path(dir.to_string_lossy().to_string(), None::<&str>)
+        .map_err(|e| e.to_string())
 }

@@ -70,6 +70,8 @@ pnpm tauri build
 
 复现崩溃后，把对应时间点的日志文件发回即可定位问题。
 
+- **一键打开**：设置 → **排查 / 日志** 分区有「打开日志目录」按钮，点击即跳转到上述 `logs` 文件夹（目录不存在时会自动创建）。
+
 > 提示：release 构建开启了 `strip = true`，backtrace 可能为地址而非函数名；如需更可读的符号，可临时关闭 `src-tauri/Cargo.toml` 的 `[profile.release] strip` 后重新构建。
 
 ## 说明

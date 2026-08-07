@@ -40,6 +40,7 @@ export function SettingsDialog({ onClose }: { onClose: () => void }) {
 
   const [version, setVersion] = useState('1.0.0');
   const [autostart, setAutostart] = useState(false);
+  const [logMsg, setLogMsg] = useState<string | null>(null);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
@@ -63,6 +64,17 @@ export function SettingsDialog({ onClose }: { onClose: () => void }) {
     } catch {
       setAutostart(prev); // revert on failure
     }
+  };
+
+  // Open the crash-log directory in the system file manager.
+  const openLogs = async () => {
+    try {
+      await invoke('open_logs_dir');
+      setLogMsg('已打开日志目录');
+    } catch (e) {
+      setLogMsg(`打开失败：${String(e)}`);
+    }
+    window.setTimeout(() => setLogMsg(null), 3000);
   };
 
   return (
@@ -157,6 +169,20 @@ export function SettingsDialog({ onClose }: { onClose: () => void }) {
             <span>开机自动启动</span>
             <input type="checkbox" className="switch" checked={autostart} onChange={(e) => toggleAutostart(e.target.checked)} />
           </label>
+        </section>
+
+        <section className="settings-section">
+          <h4>排查 / 日志</h4>
+          <div className="setting-row">
+            <span>崩溃与异常日志目录</span>
+            <button type="button" className="link-btn" onClick={openLogs}>
+              打开日志目录
+            </button>
+          </div>
+          <p className="setting-hint">
+            日志位于 <code>%LOCALAPPDATA%\com.lepton.explorer\logs\</code>，用于排查软件崩溃。
+          </p>
+          {logMsg && <p className="setting-hint">{logMsg}</p>}
         </section>
 
         <section className="settings-section">

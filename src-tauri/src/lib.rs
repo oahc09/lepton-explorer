@@ -470,7 +470,8 @@ pub fn run() {
             cancel_zip,
             get_autostart,
             set_autostart,
-            crashlog::log_frontend_error
+            crashlog::log_frontend_error,
+            crashlog::open_logs_dir
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

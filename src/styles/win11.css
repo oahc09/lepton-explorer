@@ -214,6 +214,8 @@ body { font-family: var(--font); font-size: 14px; background: var(--app-bg, var(
 .about-row > span:first-child { color: var(--text-sub); }
 .link-btn { border: none; background: transparent; color: var(--accent); cursor: pointer; font-size: 13px; padding: 0; text-decoration: underline; }
 .link-btn:hover { filter: brightness(1.1); }
+.setting-hint { margin: 2px 0 0; font-size: 12px; color: var(--text-sub); line-height: 1.5; }
+.setting-hint code { background: var(--hover-bg); padding: 1px 5px; border-radius: 4px; font-size: 11px; }
 .open-with { min-width: 360px; max-width: 440px; }
 .ow-sub { margin: -8px 0 12px; color: var(--text-sub); font-size: 13px; }
 .ow-list { max-height: 320px; overflow-y: auto; display: flex; flex-direction: column; gap: 2px; }
