@@ -68,6 +68,8 @@ export default function App() {
   const [renamingPath, setRenamingPath] = useState<string | null>(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [fs, setFs] = useState(false);
+  const [updateAvailable, setUpdateAvailable] = useState<{ version: string } | null>(null);
+  const [updateDismissed, setUpdateDismissed] = useState(false);
 
   // Per-folder view persistence: which folder's overrides are currently applied,
   // and a debounce timer for writes back to the backend.
@@ -192,6 +194,14 @@ export default function App() {
     const onSettings = () => setSettingsOpen(true);
     window.addEventListener('lepton:settings', onSettings as EventListener);
     return () => window.removeEventListener('lepton:settings', onSettings as EventListener);
+  }, []);
+
+  // Startup silent update check: if a newer release exists, show the banner.
+  // Fails silently (no UI) when offline or the manifest is unreachable.
+  useEffect(() => {
+    invoke<{ version: string } | null>('check_update')
+      .then((info) => { if (info) setUpdateAvailable({ version: info.version }); })
+      .catch(() => {});
   }, []);
 
   // Watch the current path for filesystem changes; re-list on fs-changed.
@@ -438,6 +448,17 @@ export default function App() {
   return (
     <div className="app">
       <TitleBar />
+      {updateAvailable && !updateDismissed && (
+        <div className="update-banner">
+          <span>
+            发现新版本 <strong>v{updateAvailable.version}</strong>，建议更新以获得最新功能与修复。
+          </span>
+          <div className="update-banner-actions">
+            <button className="cmd" onClick={() => setSettingsOpen(true)}>查看</button>
+            <button className="cmd ghost" onClick={() => setUpdateDismissed(true)} title="本次不再提示">稍后</button>
+          </div>
+        </div>
+      )}
       <CommandBar entries={shownEntries} />
       <div className="address-row">
         <Toolbar onRefresh={() => setRefreshKey((k) => k + 1)} />

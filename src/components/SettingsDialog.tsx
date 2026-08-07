@@ -2,7 +2,15 @@ import { useEffect, useState } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { getVersion } from '@tauri-apps/api/app';
 import { openUrl } from '@tauri-apps/plugin-opener';
+import { listen } from '@tauri-apps/api/event';
 import { useViewStore } from '../state/viewStore';
+
+interface RemoteUpdate {
+  version: string;
+  notes: string;
+  downloadUrl: string;
+  pubDate?: string;
+}
 
 const THEMES: { mode: 'auto' | 'light' | 'dark'; label: string }[] = [
   { mode: 'auto', label: '跟随系统' },
@@ -42,6 +50,14 @@ export function SettingsDialog({ onClose }: { onClose: () => void }) {
   const [autostart, setAutostart] = useState(false);
   const [logMsg, setLogMsg] = useState<string | null>(null);
 
+  // Update-check UI state.
+  const [updateState, setUpdateState] = useState<'idle' | 'checking' | 'up-to-date' | 'available' | 'error'>('idle');
+  const [remoteUpdate, setRemoteUpdate] = useState<RemoteUpdate | null>(null);
+  const [downloading, setDownloading] = useState(false);
+  const [installing, setInstalling] = useState(false);
+  const [progress, setProgress] = useState(0);
+  const [updateMsg, setUpdateMsg] = useState<string | null>(null);
+
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
     window.addEventListener('keydown', onKey);
@@ -76,6 +92,59 @@ export function SettingsDialog({ onClose }: { onClose: () => void }) {
     }
     window.setTimeout(() => setLogMsg(null), 3000);
   };
+
+  // Check the remote manifest for a newer release.
+  const checkForUpdates = async () => {
+    setUpdateState('checking');
+    setUpdateMsg(null);
+    try {
+      const info = await invoke<RemoteUpdate | null>('check_update');
+      if (info) {
+        setRemoteUpdate(info);
+        setUpdateState('available');
+      } else {
+        setRemoteUpdate(null);
+        setUpdateState('up-to-date');
+      }
+    } catch (e) {
+      setUpdateState('error');
+      setUpdateMsg(`检查失败：${String(e)}`);
+      window.setTimeout(() => setUpdateMsg(null), 3000);
+    }
+  };
+
+  // Download then install the update. Listens for progress events streamed
+  // from the Rust side during the download.
+  const startUpdate = async () => {
+    if (!remoteUpdate) return;
+    const unlisten = await listen<{ downloaded: number; total: number; percent: number }>(
+      'update-download-progress',
+      (e) => setProgress(e.payload.percent),
+    );
+    try {
+      setDownloading(true);
+      setProgress(0);
+      const path = await invoke<string>('download_update', { url: remoteUpdate.downloadUrl });
+      setProgress(100);
+      setDownloading(false);
+      setInstalling(true);
+      await invoke('install_update', { path });
+      // The app exits here; the installer takes over.
+    } catch (e) {
+      setDownloading(false);
+      setInstalling(false);
+      setUpdateMsg(`更新失败：${String(e)}`);
+      window.setTimeout(() => setUpdateMsg(null), 3000);
+    } finally {
+      unlisten();
+    }
+  };
+
+  // Auto-check once when the settings dialog opens.
+  useEffect(() => {
+    checkForUpdates();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   return (
     <div className="modal-overlay" onClick={onClose}>
@@ -169,6 +238,50 @@ export function SettingsDialog({ onClose }: { onClose: () => void }) {
             <span>开机自动启动</span>
             <input type="checkbox" className="switch" checked={autostart} onChange={(e) => toggleAutostart(e.target.checked)} />
           </label>
+        </section>
+
+        <section className="settings-section">
+          <h4>更新</h4>
+          <div className="setting-row">
+            <span>软件更新</span>
+            <button
+              type="button"
+              className="link-btn"
+              onClick={checkForUpdates}
+              disabled={updateState === 'checking' || downloading}
+            >
+              {updateState === 'checking' ? '检查中…' : '检查更新'}
+            </button>
+          </div>
+
+          {updateState === 'up-to-date' && <p className="setting-hint">已是最新版本。</p>}
+          {updateState === 'error' && updateMsg && <p className="setting-hint">{updateMsg}</p>}
+
+          {updateState === 'available' && remoteUpdate && (
+            <div className="update-box">
+              <p className="setting-hint">
+                发现新版本 <strong>v{remoteUpdate.version}</strong>
+                {remoteUpdate.pubDate ? `（${remoteUpdate.pubDate}）` : ''}
+              </p>
+              <pre className="update-notes">{remoteUpdate.notes}</pre>
+              {!downloading && !installing && (
+                <button type="button" className="cmd" onClick={startUpdate}>
+                  下载并安装
+                </button>
+              )}
+              {downloading && (
+                <>
+                  <div className="progress-bar">
+                    <div className="progress-fill" style={{ width: `${progress}%` }} />
+                  </div>
+                  <p className="setting-hint">下载中… {progress}%</p>
+                </>
+              )}
+              {installing && (
+                <p className="setting-hint">正在启动安装程序，应用即将重启以完成升级…</p>
+              )}
+            </div>
+          )}
         </section>
 
         <section className="settings-section">

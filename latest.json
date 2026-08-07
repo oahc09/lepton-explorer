@@ -1,0 +1,6 @@
+{
+  "version": "1.1.0",
+  "notes": "Lepton Explorer 1.1.0 更新内容：\n- 新增软件更新功能：启动自动检查、设置内手动检查、一键下载并安装\n- 设置中新增「打开日志目录」入口，可一键跳转崩溃日志\n- 修复命令栏「视图 / 排序」下拉弹层被裁切不显示的问题\n- 内置崩溃日志（Rust panic + 前端异常自动落盘）\n\n点击「下载并安装」后将自动运行安装程序完成升级。",
+  "download_url": "https://raw.githubusercontent.com/oahc09/lepton-explorer/main/binary-release/nsis/Lepton%20Explorer_1.1.0_x64-setup.exe",
+  "pub_date": "2026-08-08"
+}

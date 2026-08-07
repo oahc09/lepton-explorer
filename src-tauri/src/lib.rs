@@ -10,6 +10,7 @@ pub mod autostart;
 pub mod shell_menu;
 pub mod crashlog;
 pub mod special;
+pub mod updater;
 pub mod thumbnails;
 pub mod watch;
 pub mod zip;
@@ -471,7 +472,10 @@ pub fn run() {
             get_autostart,
             set_autostart,
             crashlog::log_frontend_error,
-            crashlog::open_logs_dir
+            crashlog::open_logs_dir,
+            updater::check_update,
+            updater::download_update,
+            updater::install_update
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

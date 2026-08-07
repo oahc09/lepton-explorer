@@ -4,7 +4,7 @@
 
 ## 版本
 
-- **应用版本：1.0.0**
+- **应用版本：1.1.0**
 - 标识符（identifier）：`com.lepton.explorer`
 - 产品名（productName）：`Lepton Explorer`
 - 平台 / 架构：Windows / x64
@@ -13,9 +13,9 @@
 
 | 文件 | 说明 | 约大小 |
 | --- | --- | --- |
-| `lepton-explorer.exe` | 独立可执行文件（已打包前端资源，双击即可运行，无需安装） | ~11 MB |
-| `msi/Lepton Explorer_1.0.0_x64_en-US.msi` | MSI 安装包（WiX 打包，支持标准 Windows 安装/卸载） | ~4 MB |
-| `nsis/Lepton Explorer_1.0.0_x64-setup.exe` | NSIS 安装包（makensis 打包，体积小、安装引导友好） | ~2.6 MB |
+| `lepton-explorer.exe` | 独立可执行文件（已打包前端资源，双击即可运行，无需安装） | ~12 MB |
+| `msi/Lepton Explorer_1.1.0_x64_en-US.msi` | MSI 安装包（WiX 打包，支持标准 Windows 安装/卸载） | ~4.5 MB |
+| `nsis/Lepton Explorer_1.1.0_x64-setup.exe` | NSIS 安装包（makensis 打包，体积小、安装引导友好） | ~3.2 MB |
 
 > 文件名中的版本号（如 `1.0.0`）与下方构建配置保持一致。
 
@@ -48,7 +48,7 @@ pnpm tauri build
 - `src-tauri/Cargo.toml` → `[package] version`
 - `src-tauri/tauri.conf.json` → `"version"`（决定安装包文件名与安装器显示版本）
 
-## 本版本功能亮点（v1.0.0）
+## 本版本功能亮点（v1.1.0）
 
 - 多视图浏览（详细信息 / 图标 / 列表 / 平铺 / 内容），含导航窗格、地址栏、搜索。
 - 文件操作：复制、移动（带进度）、重命名、删除至回收站、新建、压缩 / 解压（zip）、缩略图。
@@ -58,6 +58,9 @@ pnpm tauri build
 - 设置 → **外观**：可修改窗口背景颜色（8 个预设色板 + 自定义取色器 + 重置），实时生效并持久化。
 - 设置 → **关于**：显示应用名、运行时版本号与 GitHub 仓库链接（一键打开）。
 - 设置 → **启动**：「开机自动启动」开关（默认关闭），通过注册表 `HKCU\...\Run` 实现，零额外依赖。
+- 设置 → **更新**：可手动「检查更新」，发现新版本时展示更新说明与「下载并安装」按钮（带下载进度条）。
+- **启动静默更新检查**：应用启动时自动比对 `latest.json`，有更新则在顶部显示提示横幅。
+- 设置 → **排查 / 日志**：一键打开崩溃日志目录。
 
 ## 崩溃日志（排查异常）
 
@@ -73,6 +76,16 @@ pnpm tauri build
 - **一键打开**：设置 → **排查 / 日志** 分区有「打开日志目录」按钮，点击即跳转到上述 `logs` 文件夹（目录不存在时会自动创建）。
 
 > 提示：release 构建开启了 `strip = true`，backtrace 可能为地址而非函数名；如需更可读的符号，可临时关闭 `src-tauri/Cargo.toml` 的 `[profile.release] strip` 后重新构建。
+
+## 软件更新（自动检查 / 下载 / 安装）
+
+采用**自托管清单**方案：仓库根目录的 [`latest.json`](../../latest.json) 描述最新版本（版本号 / 更新说明 / 下载链接 / 发布日期），应用通过 `raw.githubusercontent.com` 拉取该文件并与当前版本（`CARGO_PKG_VERSION`）比对，无需签名服务器或额外基础设施。
+
+- **启动静默检查**：应用启动时自动检查；若有新版本，在窗口顶部显示提示横幅（「查看」打开设置，「稍后」本次不再提示）。离线或清单不可达时静默跳过，不影响正常使用。
+- **手动检查**：设置 → **更新** →「检查更新」按钮（打开设置时也会自动检查一次）。
+- **下载并安装**：发现新版本后点击「下载并安装」，安装包下载到缓存目录（`%LOCALAPPDATA%\..\..\..\Temp\lepton-explorer\updates\` 或系统缓存下 `lepton-explorer/updates/`，固定名 `lepton-explorer-setup.exe`），UI 实时显示下载进度；下载完成后自动启动 NSIS 安装程序并退出当前进程，由安装程序完成原地升级。
+
+> 发布新版本流程：① 提升 `src-tauri/Cargo.toml` 与 `src-tauri/tauri.conf.json` 的版本号；② 重新出包并把 `binary-release/nsis/`、`msi/`、`lepton-explorer.exe` 三件套更新；③ 更新仓库根目录 `latest.json` 的 `version` 与 `download_url`（指向新的 NSIS 安装包 raw 链接）。已发布的旧版本用户将在下次启动时被提示更新。
 
 ## 说明
 
