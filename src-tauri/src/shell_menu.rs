@@ -6,11 +6,13 @@
 use std::ffi::OsStr;
 use std::os::windows::ffi::OsStrExt;
 use std::path::Path;
+use std::sync::mpsc::channel;
+use std::thread;
+
 use windows::core::PCSTR;
 use windows::core::PCWSTR;
-use windows::Win32::System::Com::{
-    CoInitializeEx, CoTaskMemFree, CoUninitialize, COINIT_APARTMENTTHREADED,
-};
+use windows::Win32::System::Com::CoTaskMemFree;
+use windows::Win32::System::Ole::{OleInitialize, OleUninitialize};
 use windows::Win32::UI::Shell::{
     CMF_NORMAL, CMINVOKECOMMANDINFO, Common, IContextMenu, IShellFolder, SHBindToParent,
     SHParseDisplayName,
@@ -29,16 +31,31 @@ pub fn show_classic_context_menu(paths: &[String], x: i32, y: i32) -> Result<(),
         return Err("No paths provided".into());
     }
 
-    let hr = unsafe { CoInitializeEx(None, COINIT_APARTMENTTHREADED) };
-    let we_initialized = hr.is_ok();
+    let first = paths[0].clone();
 
-    let result = show_menu_inner(&paths[0], x, y);
+    // The Shell classic context menu and many of its extensions rely on OLE
+    // (not just COM). Running them without OleInitialize causes access
+    // violations in shell extensions — which previously crashed the host
+    // process when an item was invoked from the "显示更多选项" menu.
+    //
+    // We run the whole flow on a dedicated STA thread so the apartment model
+    // is correct and the modal message loop is isolated from Tauri's runtime
+    // threads.
+    let (tx, rx) = channel();
+    thread::spawn(move || {
+        unsafe {
+            let hr = OleInitialize(None);
+            let initialized = hr.is_ok();
+            let res = show_menu_inner(&first, x, y);
+            if initialized {
+                OleUninitialize();
+            }
+            let _ = tx.send(res);
+        }
+    });
 
-    if we_initialized {
-        unsafe { CoUninitialize() };
-    }
-
-    result
+    rx.recv()
+        .unwrap_or_else(|_| Err("上下文菜单线程异常".into()))
 }
 
 fn show_menu_inner(first_path: &str, x: i32, y: i32) -> Result<(), String> {
@@ -77,7 +94,7 @@ fn show_menu_inner(first_path: &str, x: i32, y: i32) -> Result<(), String> {
             .GetUIObjectOf(None, &child_pidls, None)
             .map_err(|e| {
                 // Free the child PIDL on error to avoid a resource leak.
-                unsafe { CoTaskMemFree(Some(child_pidl as *const _)) };
+                CoTaskMemFree(Some(child_pidl as *const _));
                 format!("GetUIObjectOf failed: {:?}", e)
             })?
     };
@@ -94,7 +111,7 @@ fn show_menu_inner(first_path: &str, x: i32, y: i32) -> Result<(), String> {
             .QueryContextMenu(hmenu, 0, 0, 0x7FFF, CMF_NORMAL)
             .map_err(|e| {
                 let _ = DestroyMenu(hmenu);
-                unsafe { CoTaskMemFree(Some(child_pidl as *const _)) };
+                CoTaskMemFree(Some(child_pidl as *const _));
                 format!("QueryContextMenu failed: {:?}", e)
             })?;
     }
