@@ -324,9 +324,16 @@ async fn get_icon(path: String, size: u32) -> Option<String> {
 }
 
 #[tauri::command]
-fn show_classic_menu(paths: Vec<String>, x: i32, y: i32) -> Result<()> {
-    shell_menu::show_classic_context_menu(&paths, x, y)
-        .map_err(|e| AppError::Unknown(e))
+async fn show_classic_menu(paths: Vec<String>, x: i32, y: i32) -> Result<()> {
+    // Run on a worker thread so the Tauri main thread is never blocked while
+    // the child process hosts the classic context menu. A blocked main thread
+    // previously prevented the popup from displaying (its owner window's
+    // thread was frozen).
+    tauri::async_runtime::spawn_blocking(move || {
+        shell_menu::show_classic_context_menu(&paths, x, y).map_err(AppError::Unknown)
+    })
+    .await
+    .map_err(|e| AppError::Unknown(e.to_string()))?
 }
 
 #[tauri::command]

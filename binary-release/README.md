@@ -4,7 +4,7 @@
 
 ## 版本
 
-- **应用版本：1.1.1**
+- **应用版本：1.1.2**
 - 标识符（identifier）：`com.lepton.explorer`
 - 产品名（productName）：`Lepton Explorer`
 - 平台 / 架构：Windows / x64
@@ -14,8 +14,8 @@
 | 文件 | 说明 | 约大小 |
 | --- | --- | --- |
 | `lepton-explorer.exe` | 独立可执行文件（已打包前端资源，双击即可运行，无需安装） | ~12 MB |
-| `msi/Lepton Explorer_1.1.1_x64_en-US.msi` | MSI 安装包（WiX 打包，支持标准 Windows 安装/卸载） | ~4.7 MB |
-| `nsis/Lepton Explorer_1.1.1_x64-setup.exe` | NSIS 安装包（makensis 打包，体积小、安装引导友好） | ~3.2 MB |
+| `msi/Lepton Explorer_1.1.2_x64_en-US.msi` | MSI 安装包（WiX 打包，支持标准 Windows 安装/卸载） | ~4.96 MB |
+| `nsis/Lepton Explorer_1.1.2_x64-setup.exe` | NSIS 安装包（makensis 打包，体积小、安装引导友好） | ~3.23 MB |
 
 > 文件名中的版本号（如 `1.0.0`）与下方构建配置保持一致。
 
@@ -86,9 +86,18 @@ pnpm tauri build
 为避免某个扩展崩溃时拖垮整个文件管理器，该菜单改在**独立子进程**中运行：
 
 - 主程序 spawn 一个自身副本（带 `--lepton-shell-host` 参数）来托管菜单，子进程退出后主程序继续运行。
+- 子进程会创建**自己的隐藏宿主窗口**作为菜单的 owner（`TrackPopupMenuEx` 必须由其同一线程的窗口担任 owner，否则弹窗会因跨进程 + 前台权限问题而完全不显示），并通过 `AttachThreadInput` 附加到前台线程、调用 `SetForegroundWindow` 取得输入焦点，确保菜单稳定弹出。
+- 菜单命令改为 **异步** 执行（在 worker 线程上等待子进程），主程序主线程不再被阻塞，避免因父窗口线程冻结导致菜单无法显示。
+- 坐标由前端以**屏幕像素**传入（在 webview 相对坐标上叠加窗口屏幕位置），子进程再按系统 DPI 缩放到物理像素，保证在高分屏上也出现在光标处。
 - 若某个 Shell 扩展在子进程里触发访问违规，只会让子进程退出，主程序不崩溃；子进程的故障仍会被 VEH 写入上述 `logs` 目录。
 
-因此「显示更多选项」不再能导致整个软件异常退出。
+因此「显示更多选项」不再能导致整个软件异常退出，且能稳定弹出。
+
+> 菜单流程诊断日志：`%LOCALAPPDATA%\com.lepton.explorer\logs\shell-menu-trace.log`——子进程每一步（解析路径 / 绑定父文件夹 / 查询菜单 / 创建宿主窗口 / 弹出 / 命令 / 完成）都会追加记录。若菜单仍异常，把该文件与同目录的 `crash-*.log` 一起发回即可定位。
+
+## v1.1.2 修正：「显示更多选项」点击后菜单无显示
+
+v1.1.0/1.1.1 将经典菜单放进独立子进程以隔离崩溃，但子进程把**父进程窗口**当作 `TrackPopupMenuEx` 的 owner，而父进程主线程又在 `.status()` 上被阻塞——Windows 无法为「跨进程 + 被冻结的 owner 线程」建立弹窗，导致菜单**完全不显示**（既非崩溃也非报错）。v1.1.2 改为：子进程创建**自身隐藏宿主窗口**作为 owner、`AttachThreadInput` 附加前台线程并 `SetForegroundWindow` 取得焦点、命令改为异步避免阻塞父线程、坐标按屏幕像素 + DPI 缩放传入。并新增 `shell-menu-trace.log` 便于后续排查。
 
 ## v1.1.1 修正：崩溃日志误报良性控制异常
 

@@ -131,8 +131,15 @@ export function ContextMenu({ entries }: { entries: Entry[] }) {
     setPos(null);
     const targets = hasSel ? sel : (path ? [path] : []);
     if (!targets.length) return;
+    // `boxRef`/`pos` are webview-relative CSS pixels; the native
+    // TrackPopupMenuEx expects *screen* pixels, so offset by the window's
+    // on-screen position. The Rust side then scales to physical pixels for
+    // HiDPI displays.
+    const p = boxRef.current ?? pos;
+    const sx = Math.round((p?.x ?? 0) + window.screenX);
+    const sy = Math.round((p?.y ?? 0) + window.screenY);
     try {
-      await invoke('show_classic_menu', { paths: targets, x: Math.round((boxRef.current ?? pos).x), y: Math.round((boxRef.current ?? pos).y) });
+      await invoke('show_classic_menu', { paths: targets, x: sx, y: sy });
       refresh();
     } catch {
       // Non-Windows or COM failure — silently ignore.
