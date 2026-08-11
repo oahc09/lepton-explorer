@@ -424,6 +424,11 @@ fn set_autostart(enabled: bool) -> Result<()> {
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     crashlog::install_crash_logger();
+    // If this process was launched as a transient shell-menu host (the
+    // sentinel is passed by `show_classic_context_menu`), run the menu and
+    // exit here — before Tauri boots — so a crash inside a shell extension
+    // only takes down the child, never the file manager.
+    shell_menu::run_shell_host_if_invoked();
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
         .manage(watch::WatcherState::new())

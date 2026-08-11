@@ -64,11 +64,12 @@ pnpm tauri build
 
 ## 崩溃日志（排查异常）
 
-应用内置崩溃日志，任何原生 panic 或前端 JS 异常都会自动落盘，无需开控制台：
+应用内置崩溃日志，任何原生 panic、原生访问违规（access violation）或前端 JS 异常都会自动落盘，无需开控制台：
 
 - **日志目录**：`%LOCALAPPDATA%\com.lepton.explorer\logs\`
   （即 `C:\Users\<你的用户名>\AppData\Local\com.lepton.explorer\logs\`）
-- **原生崩溃**：`crash-<时间戳>.log`，含 panic 位置（文件:行号）、panic 信息与完整 backtrace。
+- **原生崩溃（panic）**：`crash-<时间戳>.log`，含 panic 位置（文件:行号）、panic 信息与完整 backtrace。
+- **原生故障（访问违规 / segfault）**：同样是 `crash-<时间戳>.log`，由**向量化异常处理器（VEH）**捕获——这类故障 Rust 的 panic hook 看不到，典型来源是右键「显示更多选项」里某个第三方 Shell 扩展崩溃。日志含异常码、异常地址与故障地址。
 - **前端异常**：`frontend-<时间戳>.log`，由 `window.onerror` / `unhandledrejection` 捕获的 JS 错误（含堆栈）。
 
 复现崩溃后，把对应时间点的日志文件发回即可定位问题。
@@ -76,6 +77,16 @@ pnpm tauri build
 - **一键打开**：设置 → **排查 / 日志** 分区有「打开日志目录」按钮，点击即跳转到上述 `logs` 文件夹（目录不存在时会自动创建）。
 
 > 提示：release 构建开启了 `strip = true`，backtrace 可能为地址而非函数名；如需更可读的符号，可临时关闭 `src-tauri/Cargo.toml` 的 `[profile.release] strip` 后重新构建。
+
+## 右键「显示更多选项」的健壮性
+
+右键 →「显示更多选项」会调用 Windows Shell 经典上下文菜单（含第三方 Shell 扩展）。
+为避免某个扩展崩溃时拖垮整个文件管理器，该菜单改在**独立子进程**中运行：
+
+- 主程序 spawn 一个自身副本（带 `--lepton-shell-host` 参数）来托管菜单，子进程退出后主程序继续运行。
+- 若某个 Shell 扩展在子进程里触发访问违规，只会让子进程退出，主程序不崩溃；子进程的故障仍会被 VEH 写入上述 `logs` 目录。
+
+因此「显示更多选项」不再能导致整个软件异常退出。
 
 ## 软件更新（自动检查 / 下载 / 安装）
 
