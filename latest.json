@@ -1,6 +1,6 @@
 {
-  "version": "1.1.0",
-  "notes": "Lepton Explorer 1.1.0 更新内容：\n- 新增软件更新功能：启动自动检查、设置内手动检查、一键下载并安装\n- 设置中新增「打开日志目录」入口，可一键跳转崩溃日志\n- 修复命令栏「视图 / 排序」下拉弹层被裁切不显示的问题\n- 内置崩溃日志（Rust panic + 前端异常自动落盘）\n\n点击「下载并安装」后将自动运行安装程序完成升级。",
-  "download_url": "https://raw.githubusercontent.com/oahc09/lepton-explorer/main/binary-release/nsis/Lepton%20Explorer_1.1.0_x64-setup.exe",
-  "pub_date": "2026-08-08"
+  "version": "1.1.2",
+  "notes": "Lepton Explorer 1.1.2 更新内容：\n- 修复「右键 → 显示更多选项」菜单点击后不显示的问题：子进程改为自建宿主窗口、AttachThreadInput 取得输入焦点、命令改为异步、坐标按屏幕像素 + 系统 DPI 缩放，并新增 shell-menu-trace.log 便于排查\n- 修复 Windows Shell 经典上下文菜单在第三方扩展下崩溃的问题（独立子进程隔离 + VEH 捕获原生访问违规并落盘）\n- 修正崩溃日志误报良性控制异常（0x40010006 DBG_CONTROL_BREAK 不再记为崩溃）\n\n点击「下载并安装」后将自动运行安装程序完成升级。",
+  "download_url": "https://raw.githubusercontent.com/oahc09/lepton-explorer/main/binary-release/nsis/Lepton%20Explorer_1.1.2_x64-setup.exe",
+  "pub_date": "2026-08-12"
 }
