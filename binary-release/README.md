@@ -4,7 +4,7 @@
 
 ## 版本
 
-- **应用版本：1.1.0**
+- **应用版本：1.1.1**
 - 标识符（identifier）：`com.lepton.explorer`
 - 产品名（productName）：`Lepton Explorer`
 - 平台 / 架构：Windows / x64
@@ -14,8 +14,8 @@
 | 文件 | 说明 | 约大小 |
 | --- | --- | --- |
 | `lepton-explorer.exe` | 独立可执行文件（已打包前端资源，双击即可运行，无需安装） | ~12 MB |
-| `msi/Lepton Explorer_1.1.0_x64_en-US.msi` | MSI 安装包（WiX 打包，支持标准 Windows 安装/卸载） | ~4.5 MB |
-| `nsis/Lepton Explorer_1.1.0_x64-setup.exe` | NSIS 安装包（makensis 打包，体积小、安装引导友好） | ~3.2 MB |
+| `msi/Lepton Explorer_1.1.1_x64_en-US.msi` | MSI 安装包（WiX 打包，支持标准 Windows 安装/卸载） | ~4.7 MB |
+| `nsis/Lepton Explorer_1.1.1_x64-setup.exe` | NSIS 安装包（makensis 打包，体积小、安装引导友好） | ~3.2 MB |
 
 > 文件名中的版本号（如 `1.0.0`）与下方构建配置保持一致。
 
@@ -74,6 +74,8 @@ pnpm tauri build
 
 复现崩溃后，把对应时间点的日志文件发回即可定位问题。
 
+- **良性控制异常不再误报（v1.1.1）**：某些第三方组件会抛出 `DBG_CONTROL_BREAK`（`0x40010006`，控制台 Ctrl+Break 信号，属 INFORMATIONAL 级别）这类**良性**的控制/调试异常，并非内存访问违规。v1.1.1 起，VEH 仅记录 **error 级别（0xC0000000 段）** 的真正故障（如访问违规 0xC0000005、非法指令、栈溢出、堆损坏等），对 0x40010006 等良性异常直接放行、不再生成虚假的崩溃日志。
+
 - **一键打开**：设置 → **排查 / 日志** 分区有「打开日志目录」按钮，点击即跳转到上述 `logs` 文件夹（目录不存在时会自动创建）。
 
 > 提示：release 构建开启了 `strip = true`，backtrace 可能为地址而非函数名；如需更可读的符号，可临时关闭 `src-tauri/Cargo.toml` 的 `[profile.release] strip` 后重新构建。
@@ -87,6 +89,10 @@ pnpm tauri build
 - 若某个 Shell 扩展在子进程里触发访问违规，只会让子进程退出，主程序不崩溃；子进程的故障仍会被 VEH 写入上述 `logs` 目录。
 
 因此「显示更多选项」不再能导致整个软件异常退出。
+
+## v1.1.1 修正：崩溃日志误报良性控制异常
+
+v1.1.0 的 VEH 会记录**每一次**原生异常，包括某些 Shell 扩展抛出的良性 `DBG_CONTROL_BREAK`（`0x40010006`）。该异常并非内存故障，却被写成「NATIVE fault」日志，造成误报。v1.1.1 修正为：仅当异常属于 **error 级别（高两位为 0b11，即 0xC0000000 段）** 时才记录，并显式放行 `0x40010005`（Ctrl+C）、`0x40010006`（Ctrl+Break）、`0x406D1388`（VC++ 线程命名）等已知良性码。真正的访问违规（0xC0000005）等仍会正常落盘。
 
 ## 软件更新（自动检查 / 下载 / 安装）
 

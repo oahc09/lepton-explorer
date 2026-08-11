@@ -34,15 +34,34 @@ fn stamp() -> String {
     chrono::Local::now().format("%Y%m%d-%H%M%S%.3f").to_string()
 }
 
+/// Exception codes that are *not* real faults. Logging them as crashes
+/// produces false positives. The notable one is `DBG_CONTROL_BREAK`
+/// (`0x40010006`): a benign control/debug exception that some third-party
+/// components (shell extensions, protection / anti-debug code) raise. It has
+/// INFORMATIONAL severity and the OS handles it normally — it is not a
+/// memory-corruption fault, so it must never be reported as a native crash.
+fn is_benign_exception_code(code: u32) -> bool {
+    matches!(
+        code,
+        // 0x40010005 DBG_CONTROL_C       — console Ctrl+C signal.
+        0x40010005 |
+        // 0x40010006 DBG_CONTROL_BREAK   — console Ctrl+Break signal.
+        0x40010006 |
+        // 0x406D1388 MS_VC_EXCEPTION     — VC++ thread-naming exception.
+        0x406D1388
+    )
+}
+
 /// Vectored exception handler that captures *native* faults (access violations,
 /// etc.) which Rust's panic hook can never see. A Shell classic-context-menu
 /// crash inside a third-party extension is exactly such a fault: the OS
 /// terminates the process directly. We write what we can to a log file before
 /// letting the process terminate, so the failure is at least observable.
 ///
-/// Returns `EXCEPTION_CONTINUE_SEARCH` (0) so the OS proceeds to terminate the
-/// process as usual — we only want to record, not to "recover" from a corrupted
-/// state.
+/// Returns `EXCEPTION_CONTINUE_SEARCH` (0) so the OS proceeds normally — we
+/// only want to record, not to "recover" from a corrupted state. Benign
+/// control/debug exceptions (e.g. `DBG_CONTROL_BREAK` `0x40010006`) are ignored
+/// entirely so they never produce a false-positive crash log.
 extern "system" fn veh_handler(exception_info: *mut EXCEPTION_POINTERS) -> i32 {
     if exception_info.is_null() {
         return 0;
@@ -52,9 +71,19 @@ extern "system" fn veh_handler(exception_info: *mut EXCEPTION_POINTERS) -> i32 {
         if record.is_null() {
             return 0;
         }
-        let code = (*record).ExceptionCode.0;
+        let code = (*record).ExceptionCode.0 as u32;
         let address = (*record).ExceptionAddress;
-        let faulting = if code == EXCEPTION_ACCESS_VIOLATION.0 {
+
+        // Only treat error-severity (0xC0000000) faults — access violations,
+        // illegal instructions, stack overflows, heap corruption, etc. — as
+        // native crashes. Everything else (SUCCESS / INFORMATIONAL / WARNING
+        // severity, which includes 0x40010006 DBG_CONTROL_BREAK) is benign: let
+        // the OS handle it and stay silent.
+        if code & 0xF000_0000 != 0xC000_0000 || is_benign_exception_code(code) {
+            return 0;
+        }
+
+        let faulting = if code == EXCEPTION_ACCESS_VIOLATION.0 as u32 {
             (*record).ExceptionInformation[1]
         } else {
             0
@@ -66,7 +95,7 @@ extern "system" fn veh_handler(exception_info: *mut EXCEPTION_POINTERS) -> i32 {
             let _ = writeln!(f, "=== Lepton Explorer NATIVE fault @ {stamp} ===");
             let _ = writeln!(f, "exception code: 0x{code:08X}");
             let _ = writeln!(f, "exception address: {address:p}");
-            if code == EXCEPTION_ACCESS_VIOLATION.0 {
+            if code == EXCEPTION_ACCESS_VIOLATION.0 as u32 {
                 let _ = writeln!(f, "faulting address: 0x{faulting:016X}");
             }
             let _ = writeln!(
