@@ -4,9 +4,10 @@ import { useConflictStore } from '../state/conflictStore';
 import { useConfirmStore } from '../state/confirmStore';
 import { useHistoryStore } from '../state/historyStore';
 import { parentOf } from '../state/locationStore';
+import { useSelectionStore } from '../state/selectionStore';
 import { useProgressStore } from '../state/progressStore';
 import { joinPath } from '../utils/paths';
-import type { ConflictInfo, ConflictStrategy } from '../types';
+import type { ConflictInfo, ConflictStrategy, Entry } from '../types';
 
 function refresh() {
   // App listens for this and bumps its refreshKey to re-list.
@@ -30,6 +31,9 @@ export function useFileOps() {
       redo: async () => { await invoke('create_dir', { path }); refresh(); },
     });
     refresh();
+    // Explorer behavior: select the new folder and drop straight into inline
+    // rename so the user can type a name immediately (no extra click + F2).
+    startInlineRename(path);
     return path;
   }
 
@@ -42,11 +46,26 @@ export function useFileOps() {
       redo: async () => { await invoke('create_file', { path }); refresh(); },
     });
     refresh();
+    // Same as newFolder: select + inline rename the freshly created file.
+    startInlineRename(path);
+  }
+
+  // Select `path` and begin inline renaming, mimicking Windows Explorer after
+  // "New folder" / "New file". The directory re-lists asynchronously, but the
+  // rename input only renders once the matching entry exists — so it appears as
+  // soon as the list refreshes.
+  function startInlineRename(path: string) {
+    useSelectionStore.getState().select([{ path } as Entry]);
+    window.dispatchEvent(new CustomEvent('lepton:rename', { detail: path }));
   }
 
   async function renameEntry(from: string, toName: string) {
+    const name = toName.trim();
+    if (!name) return;
     const parent = parentOf(from);
-    const to = joinPath(parent, toName);
+    const to = joinPath(parent, name);
+    // No-op: name unchanged (e.g. pressed Enter without editing, or Escape).
+    if (to.toLowerCase() === from.toLowerCase()) return;
     await invoke('rename', { from, to });
     push({
       label: '重命名',

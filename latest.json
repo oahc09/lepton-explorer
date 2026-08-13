@@ -1,6 +1,6 @@
 {
-  "version": "1.1.3",
-  "notes": "Lepton Explorer 1.1.3 更新内容：\n- 新增「删除」确认弹窗：无论是普通删除（移入回收站）还是 Shift+Delete 永久删除，执行前都会弹出确认对话框，列出待删除的项目，避免误删\n- 修复「显示更多选项」在多选时无法显示合并菜单的问题：Windows Shell 经典上下文菜单现在会接收全部选中的文件，生成与资源管理器一致的合并右键菜单（例如选中多个压缩包时 7-Zip 等扩展的命令会正确出现）\n- 虚拟位置（此电脑 / 图库）下不再可触发「显示更多选项」，避免对无法解析的路径弹出空菜单\n\n点击「下载并安装」后将自动运行安装程序完成升级。",
-  "download_url": "https://raw.githubusercontent.com/oahc09/lepton-explorer/main/binary-release/nsis/Lepton%20Explorer_1.1.3_x64-setup.exe",
+  "version": "1.1.4",
+  "notes": "Lepton Explorer 1.1.4 更新内容：\n- 修复「新建文件夹 / 新建文件后无法重命名」：新建项后会像 Windows 资源管理器一样自动选中并直接进入行内重命名状态，可立即输入名称；此前新建后未选中目标，F2 与右键「重命名」都无响应\n- 重命名提交时若名称未变化（直接回车或按 Esc 取消）不再产生无效的撤销记录\n\n点击「下载并安装」后将自动运行安装程序完成升级。",
+  "download_url": "https://raw.githubusercontent.com/oahc09/lepton-explorer/main/binary-release/nsis/Lepton%20Explorer_1.1.4_x64-setup.exe",
   "pub_date": "2026-08-13"
 }
