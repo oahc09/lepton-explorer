@@ -1,6 +1,7 @@
 import { invoke } from '@tauri-apps/api/core';
 import { useClipboardStore } from '../state/clipboardStore';
 import { useConflictStore } from '../state/conflictStore';
+import { useConfirmStore } from '../state/confirmStore';
 import { useHistoryStore } from '../state/historyStore';
 import { parentOf } from '../state/locationStore';
 import { useProgressStore } from '../state/progressStore';
@@ -138,6 +139,21 @@ export function useFileOps() {
   }
 
   async function remove(paths: string[], permanent: boolean) {
+    if (!paths.length) return;
+    // Ask for explicit confirmation before any destructive delete. Both the
+    // recycle-bin (soft) and permanent (Shift+Delete) paths require it.
+    const names = paths.map((p) => p.replace(/[\\/]+$/, '').split(/[\\/]/).pop() || p);
+    const count = paths.length;
+    const ok = await useConfirmStore.getState().ask({
+      title: permanent ? '永久删除' : '删除文件',
+      message: permanent
+        ? `确定要永久删除这${count > 1 ? ` ${count} 个项目` : '个项目'}吗？此操作无法撤销。`
+        : `确定要将这${count > 1 ? ` ${count} 个项目` : '个项目'}移动到回收站吗？`,
+      names: count <= 8 ? names : undefined,
+      confirmLabel: permanent ? '永久删除' : '删除',
+      danger: true,
+    });
+    if (!ok) return;
     if (permanent) {
       await invoke('delete_permanent', { paths });
       // Permanent delete is not undoable.

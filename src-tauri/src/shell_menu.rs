@@ -107,7 +107,7 @@ pub fn run_shell_host_if_invoked() -> bool {
         let res = if paths.is_empty() {
             Err("No paths provided".to_string())
         } else {
-            run_menu_isolated(&paths[0], x, y)
+            run_menu_isolated(&paths, x, y)
         };
 
         // Exit with a stable code so the parent can report failure.
@@ -153,8 +153,8 @@ pub fn show_classic_context_menu(paths: &[String], x: i32, y: i32) -> Result<(),
 }
 
 /// Run the menu on a dedicated STA thread inside the (child) process.
-fn run_menu_isolated(first_path: &str, x: i32, y: i32) -> Result<(), String> {
-    trace("isolated", &format!("path={first_path} x={x} y={y}"));
+fn run_menu_isolated(paths: &[String], x: i32, y: i32) -> Result<(), String> {
+    trace("isolated", &format!("paths={} x={x} y={y}", paths.len()));
     unsafe {
         // The Shell classic context menu and many of its extensions rely on
         // OLE (not just COM). Running them without OleInitialize causes access
@@ -164,7 +164,7 @@ fn run_menu_isolated(first_path: &str, x: i32, y: i32) -> Result<(), String> {
         if !initialized {
             trace("isolated", &format!("OleInitialize failed: {:?}", hr));
         }
-        let res = show_menu_inner(first_path, x, y);
+        let res = show_menu_inner(paths, x, y);
         if initialized {
             OleUninitialize();
         }
@@ -245,48 +245,93 @@ fn scale_to_physical(x: i32, y: i32) -> (i32, i32) {
     }
 }
 
-fn show_menu_inner(first_path: &str, x: i32, y: i32) -> Result<(), String> {
-    let path = Path::new(first_path);
-    let wide_path = wide(&path.to_string_lossy());
+fn show_menu_inner(paths: &[String], x: i32, y: i32) -> Result<(), String> {
+    // All selected items must live in the same folder for a merged context
+    // menu to make sense (this is always true for Lepton's single-folder
+    // selection). If they do, we hand *every* child PIDL to GetUIObjectOf so
+    // the Shell produces the same merged menu Explorer shows for a multi-select
+    // (e.g. 7-Zip "添加到压缩包" operating on all chosen files). Otherwise we
+    // fall back to the first item only.
+    let first = &paths[0];
+    let common_parent = Path::new(first).parent();
+    let same_parent = common_parent.map_or(false, |cp| {
+        paths.iter().all(|p| Path::new(p).parent() == Some(cp))
+    });
 
-    // 1. Parse path → absolute PIDL.
-    let mut pidl: *mut Common::ITEMIDLIST = std::ptr::null_mut();
-    unsafe {
-        SHParseDisplayName(PCWSTR(wide_path.as_ptr()), None, &mut pidl, 0, None)
-            .map_err(|e| format!("SHParseDisplayName failed: {e:?}"))?;
+    // 1. Parse the first path → absolute PIDL.
+    let mut pidl0: *mut Common::ITEMIDLIST = std::ptr::null_mut();
+    {
+        let wp = wide(first);
+        unsafe {
+            SHParseDisplayName(PCWSTR(wp.as_ptr()), None, &mut pidl0, 0, None)
+                .map_err(|e| format!("SHParseDisplayName failed: {e:?}"))?;
+        }
     }
-    if pidl.is_null() {
+    if pidl0.is_null() {
         return Err("SHParseDisplayName returned null PIDL".into());
     }
 
-    // 2. Bind to parent IShellFolder + get child PIDL.
-    let mut child_pidl: *mut Common::ITEMIDLIST = std::ptr::null_mut();
+    // 2. Bind to parent IShellFolder + get child PIDL for the first item.
+    let mut child0: *mut Common::ITEMIDLIST = std::ptr::null_mut();
     let parent_folder = unsafe {
-        SHBindToParent::<IShellFolder>(pidl, Some(&mut child_pidl)).map_err(|e| {
-            CoTaskMemFree(Some(pidl as *const _));
+        SHBindToParent::<IShellFolder>(pidl0, Some(&mut child0)).map_err(|e| {
+            CoTaskMemFree(Some(pidl0 as *const _));
             format!("SHBindToParent failed: {e:?}")
         })?
     };
-
-    // Free the full PIDL — we only need the child PIDL from here on.
+    // Free the full PIDL — we only need the child PIDLs from here on.
     unsafe {
-        CoTaskMemFree(Some(pidl as *const _));
-    };
+        CoTaskMemFree(Some(pidl0 as *const _));
+    }
 
-    // 3. Get IContextMenu from parent folder for the child item.
-    let child_pidls: [*const Common::ITEMIDLIST; 1] = [child_pidl];
+    // 3. Collect child PIDLs for the remaining items (same folder only).
+    let mut extra_children: Vec<*mut Common::ITEMIDLIST> = Vec::new();
+    if same_parent {
+        for p in &paths[1..] {
+            let wp = wide(p);
+            let mut full: *mut Common::ITEMIDLIST = std::ptr::null_mut();
+            unsafe {
+                if SHParseDisplayName(PCWSTR(wp.as_ptr()), None, &mut full, 0, None).is_err() || full.is_null() {
+                    if !full.is_null() {
+                        CoTaskMemFree(Some(full as *const _));
+                    }
+                    continue;
+                }
+            }
+            let mut child: *mut Common::ITEMIDLIST = std::ptr::null_mut();
+            let bound = unsafe { SHBindToParent::<IShellFolder>(full, Some(&mut child)).is_ok() };
+            unsafe {
+                CoTaskMemFree(Some(full as *const _));
+            }
+            if bound && !child.is_null() {
+                extra_children.push(child);
+            } else if !child.is_null() {
+                unsafe {
+                    CoTaskMemFree(Some(child as *const _));
+                }
+            }
+        }
+    }
+    trace("collect", &format!("items={} (same_parent={same_parent})", 1 + extra_children.len()));
+
+    // Build the slice of child PIDLs the Shell merges into one menu.
+    let mut child_ptrs: Vec<*const Common::ITEMIDLIST> = Vec::with_capacity(1 + extra_children.len());
+    child_ptrs.push(child0);
+    for c in &extra_children {
+        child_ptrs.push(*c);
+    }
+
+    // 4. Get the merged IContextMenu from the parent folder for all children.
     let context_menu: IContextMenu = unsafe {
-        parent_folder.GetUIObjectOf(None, &child_pidls, None).map_err(|e| {
-            CoTaskMemFree(Some(child_pidl as *const _));
+        parent_folder.GetUIObjectOf(None, &child_ptrs, None).map_err(|e| {
+            free_children(&mut [child0], &mut extra_children);
             format!("GetUIObjectOf failed: {e:?}")
         })?
     };
 
-    // 4. Build popup menu via QueryContextMenu.
+    // 5. Build popup menu via QueryContextMenu.
     let hmenu: HMENU = unsafe { CreatePopupMenu() }.map_err(|e| {
-        unsafe {
-            CoTaskMemFree(Some(child_pidl as *const _));
-        }
+        free_children(&mut [child0], &mut extra_children);
         format!("CreatePopupMenu failed: {e:?}")
     })?;
 
@@ -295,13 +340,13 @@ fn show_menu_inner(first_path: &str, x: i32, y: i32) -> Result<(), String> {
             .QueryContextMenu(hmenu, 0, 0, 0x7FFF, CMF_NORMAL)
             .map_err(|e| {
                 let _ = DestroyMenu(hmenu);
-                CoTaskMemFree(Some(child_pidl as *const _));
+                free_children(&mut [child0], &mut extra_children);
                 format!("QueryContextMenu failed: {e:?}")
             })?;
     }
     trace("query", "QueryContextMenu ok");
 
-    // 5. Create our OWN owner window (same thread) so TrackPopupMenuEx has a
+    // 6. Create our OWN owner window (same thread) so TrackPopupMenuEx has a
     //    valid same-thread owner. Using a foreign (parent-process) window — the
     //    previous behavior — made the menu fail to appear.
     let owner = match create_owner_window() {
@@ -309,8 +354,8 @@ fn show_menu_inner(first_path: &str, x: i32, y: i32) -> Result<(), String> {
         None => {
             unsafe {
                 let _ = DestroyMenu(hmenu);
-                CoTaskMemFree(Some(child_pidl as *const _));
             }
+            free_children(&mut [child0], &mut extra_children);
             return Err("无法创建菜单宿主窗口".into());
         }
     };
@@ -320,7 +365,7 @@ fn show_menu_inner(first_path: &str, x: i32, y: i32) -> Result<(), String> {
     // the system DPI, so the menu appears at the cursor on HiDPI displays.
     let (x, y) = scale_to_physical(x, y);
 
-    // 6. Become foreground so the popup can receive keyboard input and display
+    // 7. Become foreground so the popup can receive keyboard input and display
     //    correctly. Attach our input thread to the current foreground thread
     //    (the file-manager window) — the documented workaround for showing a
     //    menu from a non-foreground helper process.
@@ -338,12 +383,12 @@ fn show_menu_inner(first_path: &str, x: i32, y: i32) -> Result<(), String> {
     let _ = unsafe { SetForegroundWindow(owner) };
     trace("show", &format!("TrackPopupMenuEx at ({x},{y})"));
 
-    // 7. Show menu (blocks until selection or cancel).
+    // 8. Show menu (blocks until selection or cancel).
     let flags = TPM_LEFTALIGN.0 | TPM_TOPALIGN.0 | TPM_RETURNCMD.0;
     let cmd = unsafe { TrackPopupMenuEx(hmenu, flags, x, y, owner, None) };
     trace("show", &format!("TrackPopupMenuEx returned cmd={}", cmd.0));
 
-    // 8. Restore foreground + detach input.
+    // 9. Restore foreground + detach input.
     if !fg.0.is_null() {
         let _ = unsafe { SetForegroundWindow(fg) };
     }
@@ -351,8 +396,8 @@ fn show_menu_inner(first_path: &str, x: i32, y: i32) -> Result<(), String> {
         let _ = unsafe { AttachThreadInput(GetCurrentThreadId(), fg_thread, false) };
     }
 
-    // 9. Invoke selected command. Use the real foreground window as hwnd so any
-    //    spawned dialogs inherit the correct owner.
+    // 10. Invoke selected command. Use the real foreground window as hwnd so any
+    //     spawned dialogs inherit the correct owner.
     if cmd.0 > 0 {
         let info = CMINVOKECOMMANDINFO {
             cbSize: std::mem::size_of::<CMINVOKECOMMANDINFO>() as u32,
@@ -369,12 +414,24 @@ fn show_menu_inner(first_path: &str, x: i32, y: i32) -> Result<(), String> {
         let _ = unsafe { context_menu.InvokeCommand(&info) };
     }
 
-    // 10. Cleanup.
+    // 11. Cleanup.
     unsafe {
-        CoTaskMemFree(Some(child_pidl as *const _));
         let _ = DestroyMenu(hmenu);
         let _ = DestroyWindow(owner);
     }
+    free_children(&mut [child0], &mut extra_children);
     trace("done", "menu complete");
     Ok(())
+}
+
+/// Free the child PIDLs allocated for the merged context menu.
+fn free_children(first: &mut [*mut Common::ITEMIDLIST], rest: &mut [*mut Common::ITEMIDLIST]) {
+    for c in first.iter_mut().chain(rest.iter_mut()) {
+        if !c.is_null() {
+            unsafe {
+                CoTaskMemFree(Some(*c as *const _));
+            }
+            *c = std::ptr::null_mut();
+        }
+    }
 }

@@ -12,6 +12,7 @@ import { ContextMenu } from './components/ContextMenu';
 import { PropertiesDialog } from './components/PropertiesDialog';
 import { OpenWithDialog } from './components/OpenWithDialog';
 import { ConflictModal } from './components/ConflictModal';
+import { ConfirmDialog } from './components/ConfirmDialog';
 import { ProgressModal } from './components/ProgressModal';
 import { SettingsDialog } from './components/SettingsDialog';
 import { CommandBar } from './components/CommandBar';
@@ -491,6 +492,7 @@ export default function App() {
       {openWithEntry && <OpenWithDialog entry={openWithEntry} onClose={() => setOpenWithEntry(null)} />}
       {settingsOpen && <SettingsDialog onClose={() => setSettingsOpen(false)} />}
       <ConflictModal />
+      <ConfirmDialog />
       <ProgressModal />
     </div>
   );

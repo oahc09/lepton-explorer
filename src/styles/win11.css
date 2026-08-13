@@ -178,6 +178,16 @@ body { font-family: var(--font); font-size: 14px; background: var(--app-bg, var(
 .conflict-replace { color: var(--accent-text); background: var(--accent); border-color: var(--accent); }
 .conflict-replace:hover:not(:disabled) { filter: brightness(1.08); background: var(--accent); }
 
+.confirm { min-width: 340px; max-width: 440px; }
+.confirm-msg { font-size: 13px; margin-bottom: 8px; line-height: 1.5; }
+.confirm-names { list-style: none; max-height: 150px; overflow: auto; border: 1px solid var(--border); border-radius: 6px; padding: 6px; margin-bottom: 8px; }
+.confirm-names li { font-size: 13px; padding: 3px 6px; border-radius: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.confirm-names li:hover { background: var(--hover-bg); }
+.confirm-more { color: var(--text-sub); font-style: italic; }
+.confirm-actions { display: flex; gap: 8px; justify-content: flex-end; }
+.confirm-danger { color: #fff; background: #c42b1c; border-color: #c42b1c; }
+.confirm-danger:hover:not(:disabled) { filter: brightness(1.06); background: #c42b1c; }
+
 .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.35); display: flex; align-items: center; justify-content: center; z-index: 2000; }
 .modal { background: var(--main-bg); border-radius: 8px; padding: 20px; min-width: 320px; box-shadow: 0 12px 32px rgba(0,0,0,0.25); }
 .modal h3 { margin-bottom: 16px; font-size: 15px; }

@@ -211,7 +211,7 @@ export function ContextMenu({ entries }: { entries: Entry[] }) {
       })}
       {item('刷新', () => window.dispatchEvent(new CustomEvent('lepton:refresh')))}
       <li className="cm-sep" />
-      <li className="cm-item" onClick={(e) => { e.stopPropagation(); void showMoreOptions(); }}>显示更多选项 ▾</li>
+      <li className={`cm-item${realPath ? '' : ' disabled'}`} onClick={(e) => { if (realPath) { e.stopPropagation(); void showMoreOptions(); } }}>显示更多选项 ▾</li>
     </ul>
   );
 }
