@@ -45,6 +45,7 @@ use windows::Win32::UI::Shell::{
     CMF_NORMAL, CMINVOKECOMMANDINFO, Common, IContextMenu, IShellFolder, SHBindToParent,
     SHParseDisplayName,
 };
+use windows::Win32::UI::WindowsAndMessaging::AllowSetForegroundWindow;
 use windows::Win32::Graphics::Gdi::{GetDC, GetDeviceCaps, LOGPIXELSX, ReleaseDC};
 use windows::Win32::UI::WindowsAndMessaging::{
     CreatePopupMenu, CreateWindowExW, DefWindowProcW, DestroyMenu, DestroyWindow,
@@ -138,9 +139,20 @@ pub fn show_classic_context_menu(paths: &[String], x: i32, y: i32) -> Result<(),
         cmd.arg(p);
     }
 
-    let status = cmd
-        .status()
+    // Spawn (do not block yet) so we can grant the child the right to take the
+    // foreground before it shows the popup. On Windows the foreground-lock policy
+    // blocks `SetForegroundWindow` from a non-foreground process; the foreground
+    // process (this app, which is in front when the user right-clicks) must call
+    // `AllowSetForegroundWindow` for the child. Without this, Windows 10 (and,
+    // depending on focus state, Windows 11) silently refuses to show the menu.
+    let mut child = cmd
+        .spawn()
         .map_err(|e| format!("启动上下文菜单子进程失败：{e}"))?;
+    let _ = unsafe { AllowSetForegroundWindow(child.id()) };
+
+    let status = child
+        .wait()
+        .map_err(|e| format!("等待上下文菜单子进程失败：{e}"))?;
 
     if status.success() {
         Ok(())
@@ -380,7 +392,16 @@ fn show_menu_inner(paths: &[String], x: i32, y: i32) -> Result<(), String> {
             fg_thread = 0;
         }
     }
-    let _ = unsafe { SetForegroundWindow(owner) };
+    let _ = unsafe { SetForegroundWindow(fg) };
+    // Retry taking the foreground for a short window: on Windows 10 the
+    // AllowSetForegroundWindow grant from the parent may not be honored on the
+    // very first call. A few quick retries make the menu reliably interactive.
+    for _ in 0..10 {
+        if unsafe { SetForegroundWindow(owner) }.as_bool() {
+            break;
+        }
+        std::thread::sleep(std::time::Duration::from_millis(5));
+    }
     trace("show", &format!("TrackPopupMenuEx at ({x},{y})"));
 
     // 8. Show menu (blocks until selection or cancel).

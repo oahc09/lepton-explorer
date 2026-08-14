@@ -1,6 +1,6 @@
 [package]
 name = "lepton-explorer"
-version = "1.1.4"
+version = "1.1.5"
 description = "Lepton Explorer - Windows 11 style file manager"
 authors = ["you"]
 edition = "2021"
@@ -24,7 +24,7 @@ serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 thiserror = "2"
 dirs = "5"
-windows = { version = "0.58", features = ["Win32_Storage_FileSystem", "Win32_Foundation", "Win32_UI_Shell", "Win32_UI_Shell_Common", "Win32_UI_WindowsAndMessaging", "Win32_Graphics_Gdi", "Win32_System_Com", "Win32_System_Ole", "Win32_System_Registry", "Win32_System_Kernel", "Win32_System_Diagnostics_Debug", "Win32_System_LibraryLoader", "Win32_System_Threading", "Win32_NetworkManagement_WNet"] }
+windows = { version = "0.58", features = ["Win32_Storage_FileSystem", "Win32_Foundation", "Win32_UI_Shell", "Win32_UI_Shell_Common", "Win32_UI_WindowsAndMessaging", "Win32_Graphics_Gdi", "Win32_System_Com", "Win32_System_Ole", "Win32_System_Registry", "Win32_System_Kernel", "Win32_System_Diagnostics_Debug", "Win32_System_LibraryLoader", "Win32_System_Threading", "Win32_NetworkManagement_WNet", "Win32_System_Memory", "Win32_System_Com_StructuredStorage", "Win32_System_SystemServices"] }
 trash = "5"
 notify = "6"
 image = { version = "0.25", default-features = false, features = ["png", "jpeg", "gif", "bmp", "webp"] }

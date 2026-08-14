@@ -7,8 +7,8 @@ import { useLocationStore } from '../../state/locationStore';
 import { handleClick } from './detailsHelpers';
 import { openItem } from '../../utils/open';
 import { displayName } from '../../utils/display';
-import { setDragged } from '../../utils/drag';
 import { dropInto } from '../../utils/drop';
+import { useItemDrag } from '../../utils/fileDrag';
 import { useTagStore, TAG_HEX } from '../../state/tagStore';
 import { Thumbnail } from '../Thumbnail';
 
@@ -37,20 +37,18 @@ type IconTileProps = {
 const IconTile = memo(function IconTile({ item, tileW, tileH, font, nameMax, showExtensions, renamingPath, onRenameCommit, isSelected, isDragOver, onDragOverChange, allInOrder }: IconTileProps) {
   const navigate = useLocationStore((s) => s.navigate);
   const tagColor = useTagStore((s) => s.tags[item.path] ?? null);
+  const selPaths = useSelectionStore.getState().selected;
+  const paths = selPaths.includes(item.path) ? selPaths : [item.path];
+  const drag = useItemDrag(paths);
 
   return (
     <div
       data-path={item.path}
       className={`tile${isSelected ? ' selected' : ''}${isDragOver ? ' drag-over' : ''}`}
       style={{ width: tileW, height: tileH - 8 }}
-      draggable
-      onDragStart={(e) => {
-        const selPaths = useSelectionStore.getState().selected;
-        const paths = selPaths.includes(item.path) ? selPaths : [item.path];
-        setDragged(paths);
-        e.dataTransfer.effectAllowed = 'copyMove';
-        e.dataTransfer.setData('text/plain', paths.join('\n'));
-      }}
+      onPointerDown={drag.onPointerDown}
+      onPointerMove={drag.onPointerMove}
+      onPointerUp={drag.onPointerUp}
       onDragOver={(e) => {
         if (item.isDir) {
           e.preventDefault();
@@ -66,7 +64,7 @@ const IconTile = memo(function IconTile({ item, tileW, tileH, font, nameMax, sho
           void dropInto(item.path, e.ctrlKey);
         }
       }}
-      onClick={(ev) => handleClick(ev, item, allInOrder, useSelectionStore.getState())}
+      onClick={(ev) => { if (drag.guardClick()) return; handleClick(ev, item, allInOrder, useSelectionStore.getState()); }}
       onDoubleClick={() => {
         if (item.isDir) navigate(item.path); else openItem(item.path);
       }}

@@ -9,6 +9,7 @@ pub mod ops;
 pub mod autostart;
 pub mod shell_menu;
 pub mod crashlog;
+pub mod file_drag;
 pub mod special;
 pub mod updater;
 pub mod thumbnails;
@@ -474,6 +475,7 @@ pub fn run() {
             get_thumbnail,
             get_icon,
             show_classic_menu,
+            file_drag::start_os_drag,
             get_open_with,
             open_with_path,
             open_with_dialog,

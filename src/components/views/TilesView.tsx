@@ -8,8 +8,8 @@ import { formatSize } from '../../utils/format';
 import { handleClick } from './detailsHelpers';
 import { openItem } from '../../utils/open';
 import { displayName } from '../../utils/display';
-import { setDragged } from '../../utils/drag';
 import { dropInto } from '../../utils/drop';
+import { useItemDrag } from '../../utils/fileDrag';
 import { Thumbnail } from '../Thumbnail';
 
 const TILE_H = 76;
@@ -24,22 +24,20 @@ type Tile2ItemProps = {
 
 const Tile2Item = memo(function Tile2Item({ item, showExtensions, isSelected, allInOrder }: Tile2ItemProps) {
   const navigate = useLocationStore((s) => s.navigate);
+  const selPaths = useSelectionStore.getState().selected;
+  const paths = selPaths.includes(item.path) ? selPaths : [item.path];
+  const drag = useItemDrag(paths);
   return (
     <div
       data-path={item.path}
       className={`tile2${isSelected ? ' selected' : ''}`}
       style={{ width: 220, height: TILE_H - 8, display: 'flex', alignItems: 'center', gap: 10, padding: '6px 10px', borderRadius: 4 }}
-      draggable
-      onDragStart={(e) => {
-        const selPaths = useSelectionStore.getState().selected;
-        const paths = selPaths.includes(item.path) ? selPaths : [item.path];
-        setDragged(paths);
-        e.dataTransfer.effectAllowed = 'copyMove';
-        e.dataTransfer.setData('text/plain', paths.join('\n'));
-      }}
+      onPointerDown={drag.onPointerDown}
+      onPointerMove={drag.onPointerMove}
+      onPointerUp={drag.onPointerUp}
       onDragOver={(e) => { if (item.isDir) { e.preventDefault(); e.dataTransfer.dropEffect = e.ctrlKey ? 'copy' : 'move'; } }}
       onDrop={(e) => { if (item.isDir) { e.preventDefault(); void dropInto(item.path, e.ctrlKey); } }}
-      onClick={(ev) => handleClick(ev, item, allInOrder, useSelectionStore.getState())}
+      onClick={(ev) => { if (drag.guardClick()) return; handleClick(ev, item, allInOrder, useSelectionStore.getState()); }}
       onDoubleClick={() => { if (item.isDir) navigate(item.path); else openItem(item.path); }}
       onAuxClick={(e) => { if (e.button === 1 && item.isDir) { e.preventDefault(); useLocationStore.getState().addTab(item.path); } }}
     >

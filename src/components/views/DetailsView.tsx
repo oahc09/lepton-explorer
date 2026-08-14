@@ -8,8 +8,8 @@ import { formatDate, formatSize } from '../../utils/format';
 import { displayName } from '../../utils/display';
 import { handleClick, useOpen } from './detailsHelpers';
 import { openItem } from '../../utils/open';
-import { setDragged } from '../../utils/drag';
 import { dropInto } from '../../utils/drop';
+import { useItemDrag } from '../../utils/fileDrag';
 import { groupEntries } from '../../utils/groupBy';
 import { useTagStore, TAG_HEX } from '../../state/tagStore';
 import { Thumbnail } from '../Thumbnail';
@@ -41,6 +41,9 @@ type DetailsRowProps = {
 const DetailsRow = memo(function DetailsRow({ item, cols, visibleColKeys, showExtensions, renamingPath, onRenameCommit, isSelected, isDragOver, onDragOverChange, allInOrder }: DetailsRowProps) {
   const onOpen = useOpen();
   const tagColor = useTagStore((s) => s.tags[item.path] ?? null);
+  const selPaths = useSelectionStore.getState().selected;
+  const paths = selPaths.includes(item.path) ? selPaths : [item.path];
+  const drag = useItemDrag(paths);
 
   const renderCells = (it: Entry) =>
     COLS.filter((c) => visibleColKeys.includes(c.key)).map((c) => {
@@ -95,14 +98,9 @@ const DetailsRow = memo(function DetailsRow({ item, cols, visibleColKeys, showEx
       data-path={item.path}
       className={`details-row${isSelected ? ' selected' : ''}${isDragOver ? ' drag-over' : ''}`}
       style={{ width: '100%', display: 'grid', gridTemplateColumns: cols }}
-      draggable
-      onDragStart={(e) => {
-        const selPaths = useSelectionStore.getState().selected;
-        const paths = selPaths.includes(item.path) ? selPaths : [item.path];
-        setDragged(paths);
-        e.dataTransfer.effectAllowed = 'copyMove';
-        e.dataTransfer.setData('text/plain', paths.join('\n'));
-      }}
+      onPointerDown={drag.onPointerDown}
+      onPointerMove={drag.onPointerMove}
+      onPointerUp={drag.onPointerUp}
       onDragOver={(e) => {
         if (item.isDir) {
           e.preventDefault();
@@ -118,7 +116,7 @@ const DetailsRow = memo(function DetailsRow({ item, cols, visibleColKeys, showEx
           void dropInto(item.path, e.ctrlKey);
         }
       }}
-      onClick={(ev) => handleClick(ev, item, allInOrder, useSelectionStore.getState())}
+      onClick={(ev) => { if (drag.guardClick()) return; handleClick(ev, item, allInOrder, useSelectionStore.getState()); }}
       onDoubleClick={() => {
         if (item.isDir) onOpen(item); else openItem(item.path);
       }}
