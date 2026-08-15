@@ -1,6 +1,6 @@
 {
-  "version": "1.1.5",
-  "notes": "Lepton Explorer 1.1.5 更新内容：\n- 修复「拖拽文件 / 文件夹到其他应用无反应」：此前 WebView 的 HTML5 拖拽只能携带 text/plain，资源管理器、桌面等外部程序无法识别。现改为由前端指针手势检测拖拽意图后调用原生 Win32 DoDragDrop，携带真正的 CF_HDROP 数据对象，可正常拖到任意程序；应用内拖放（文件夹间移动 / 复制）仍保持可用\n- 修复「Win10 右键『显示更多选项』无效果」：经典 Shell 菜单在子进程中运行，受 Windows 前台锁策略限制，非前台进程调用 SetForegroundWindow 会被静默拒绝。现由前台主进程先 AllowSetForegroundWindow 授权子进程，并在子进程内对 SetForegroundWindow 增加重试，确保 Win10 下菜单正常弹出\n\n点击「下载并安装」后将自动运行安装程序完成升级。",
-  "download_url": "https://raw.githubusercontent.com/oahc09/lepton-explorer/main/binary-release/nsis/Lepton%20Explorer_1.1.5_x64-setup.exe",
+  "version": "1.1.6",
+  "notes": "Lepton Explorer 1.1.6 更新内容：\n- 修复「拖拽到第三方应用（如 Beyond Compare）无反应」：上一版的原生 DoDragDrop 在 Tauri 工作线程（MTA）上运行导致系统拖拽根本未真正启动，且自定义 IDataObject 缺少跨进程封送能力，目标程序取不到文件。本版改为在专用的 STA 线程中运行 DoDragDrop，并聚合系统 Free-Threaded Marshaler（FTM），使 CF_HDROP 数据对象能正确封送到目标进程，可稳定拖到 Beyond Compare、资源管理器、桌面等任意程序\n- 应用内拖放（文件夹间移动 / 复制）仍保持可用\n\n点击「下载并安装」后将自动运行安装程序完成升级。",
+  "download_url": "https://raw.githubusercontent.com/oahc09/lepton-explorer/main/binary-release/nsis/Lepton%20Explorer_1.1.6_x64-setup.exe",
   "pub_date": "2026-08-15"
 }

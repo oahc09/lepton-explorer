@@ -5,10 +5,18 @@
 //! drag an item from Lepton onto any other program we must start a real Win32
 //! `DoDragDrop` with a shell data object that exposes `CF_HDROP`.
 //!
-//! The frontend detects the drag gesture with pointer events and calls
-//! `start_os_drag`, which builds an `IDataObject` (carrying `CF_HDROP`) plus a
-//! minimal `IDropSource`, then blocks the main thread inside `DoDragDrop` (the
-//! main thread owns the message pump, so the modal drag loop is correct here).
+//! Two things make this work against *external* processes (e.g. Beyond Compare):
+//!
+//! 1. `DoDragDrop` must run on a thread that is initialized as a Single-Threaded
+//!    Apartment (STA). Tauri sync commands execute on a thread-pool (MTA) thread,
+//!    so we spawn a dedicated thread and `CoInitializeEx(STA)` it before calling
+//!    `DoDragDrop`.
+//!
+//! 2. The custom `IDataObject` must be marshallable into the drop target's
+//!    process. We aggregate the system's Free-Threaded Marshaler (FTM) so OLE can
+//!    hand a working `IDataObject` proxy to the target process; without this, the
+//!    target's `GetData(CF_HDROP)` fails and nothing is dropped.
+//!
 //! Dropping onto our own window still works: WebView2 fires native drop events
 //! and the frontend reads the source paths from its own in-memory `dragged`
 //! store, so in-app move/copy is preserved.
@@ -17,9 +25,10 @@ use std::ffi::OsStr;
 use std::os::windows::ffi::OsStrExt;
 
 use windows::core::Interface;
-use windows::core::{HRESULT, IUnknown_Vtbl};
+use windows::core::{HRESULT, IUnknown, IUnknown_Vtbl};
 use windows::Win32::Foundation::{BOOL, GlobalFree, HGLOBAL, POINT};
 use windows::Win32::System::Com::{
+    CoCreateFreeThreadedMarshaler, CoInitializeEx, CoUninitialize, COINIT_APARTMENTTHREADED,
     FORMATETC, IDataObject, IDataObject_Vtbl, STGMEDIUM,
 };
 use windows::Win32::System::Memory::{
@@ -40,6 +49,8 @@ const IID_IUNKNOWN: windows::core::GUID =
     windows::core::GUID::from_u128(0x0000_0000_0000_0000_c000_0000_0000_0046);
 const IID_IDATAOBJECT: windows::core::GUID =
     windows::core::GUID::from_u128(0x0000_010e_0000_0000_c000_0000_0000_0046);
+const IID_IMARSHAL: windows::core::GUID =
+    windows::core::GUID::from_u128(0x0000_0003_0000_0000_c000_0000_0000_0046);
 
 const S_OK: HRESULT = HRESULT(0);
 const E_NOTIMPL: HRESULT = HRESULT(0x8000_4001u32 as i32);
@@ -51,14 +62,18 @@ const DRAGDROP_S_USEDEFAULTCURSORS: HRESULT = HRESULT(0x0004_0102);
 #[repr(C)]
 struct DataState {
     vtbl: *const IDataObject_Vtbl,
-    refs: u32,
+    refs: i32,
     hdrop: HGLOBAL,
+    /// Aggregated Free-Threaded Marshaler (raw `IUnknown*`). Enables the data
+    /// object to be marshalled across process/apartment boundaries so external
+    /// drop targets (Explorer, Beyond Compare, ...) can read `CF_HDROP`.
+    marshaler: *mut std::ffi::c_void,
 }
 
 #[repr(C)]
 struct DropState {
     vtbl: *const IDropSource_Vtbl,
-    refs: u32,
+    refs: i32,
 }
 
 // ---- refcount helpers ----
@@ -66,24 +81,34 @@ struct DropState {
 unsafe extern "system" fn data_add_ref(this: *mut std::ffi::c_void) -> u32 {
     let s = &mut *(this as *mut DataState);
     s.refs += 1;
-    s.refs
+    s.refs as u32
 }
 
 unsafe extern "system" fn data_release(this: *mut std::ffi::c_void) -> u32 {
     let s = &mut *(this as *mut DataState);
     s.refs -= 1;
     if s.refs == 0 {
+        // Release the aggregated FTM first. The FTM's own Release delegates to our
+        // IUnknown::Release, which re-enters this function with refs already 0;
+        // because refs is an i32 it simply goes negative and we do not free twice.
+        if !s.marshaler.is_null() {
+            let m = s.marshaler;
+            s.marshaler = std::ptr::null_mut();
+            // Call Release through the vtable (avoids trait-method resolution quirks).
+            let vtbl = *(m as *mut *mut IUnknown_Vtbl);
+            let _ = ((*vtbl).Release)(m);
+        }
         let _ = GlobalFree(s.hdrop);
         drop(Box::from_raw(this as *mut DataState));
         return 0;
     }
-    s.refs
+    s.refs as u32
 }
 
 unsafe extern "system" fn drop_add_ref(this: *mut std::ffi::c_void) -> u32 {
     let s = &mut *(this as *mut DropState);
     s.refs += 1;
-    s.refs
+    s.refs as u32
 }
 
 unsafe extern "system" fn drop_release(this: *mut std::ffi::c_void) -> u32 {
@@ -93,7 +118,7 @@ unsafe extern "system" fn drop_release(this: *mut std::ffi::c_void) -> u32 {
         drop(Box::from_raw(this as *mut DropState));
         return 0;
     }
-    s.refs
+    s.refs as u32
 }
 
 // ---- IUnknown / IDataObject ----
@@ -107,6 +132,10 @@ unsafe extern "system" fn data_query_interface(
     let riid = &*iid;
     let ptr = if *riid == IID_IUNKNOWN || *riid == IID_IDATAOBJECT {
         &s.vtbl as *const *const IDataObject_Vtbl as *mut std::ffi::c_void
+    } else if *riid == IID_IMARSHAL && !s.marshaler.is_null() {
+        // Delegate IMarshal to the aggregated Free-Threaded Marshaler.
+        let vtbl = *(s.marshaler as *mut *mut IUnknown_Vtbl);
+        return ((*vtbl).QueryInterface)(s.marshaler, iid, ppv);
     } else {
         *ppv = std::ptr::null_mut();
         return E_NOINTERFACE;
@@ -192,7 +221,10 @@ unsafe extern "system" fn data_d_advise(
     E_NOTIMPL
 }
 
-unsafe extern "system" fn data_d_unadvise(_this: *mut std::ffi::c_void, _dw_connection: u32) -> HRESULT {
+unsafe extern "system" fn data_d_unadvise(
+    _this: *mut std::ffi::c_void,
+    _dw_connection: u32,
+) -> HRESULT {
     E_NOTIMPL
 }
 
@@ -282,7 +314,10 @@ fn build_hdrop(paths: &[String]) -> HGLOBAL {
     let mut wides: Vec<Vec<u16>> = Vec::with_capacity(paths.len());
     let mut total: usize = 0;
     for p in paths {
-        let w: Vec<u16> = OsStr::new(p).encode_wide().chain(std::iter::once(0u16)).collect();
+        let w: Vec<u16> = OsStr::new(p)
+            .encode_wide()
+            .chain(std::iter::once(0u16))
+            .collect();
         total += w.len() * 2;
         wides.push(w);
     }
@@ -311,7 +346,8 @@ fn build_hdrop(paths: &[String]) -> HGLOBAL {
 /// Duplicate an `HGLOBAL` (caller owns the copy).
 fn dup_hglobal(h: HGLOBAL) -> HGLOBAL {
     let size = unsafe { GlobalSize(h) };
-    let copy = unsafe { GlobalAlloc(GMEM_MOVEABLE, size) }.expect("GlobalAlloc duplicate failed");
+    let copy =
+        unsafe { GlobalAlloc(GMEM_MOVEABLE, size) }.expect("GlobalAlloc duplicate failed");
     unsafe {
         let src = GlobalLock(h);
         let dst = GlobalLock(copy);
@@ -322,31 +358,58 @@ fn dup_hglobal(h: HGLOBAL) -> HGLOBAL {
     copy
 }
 
-/// Start a native OS drag carrying the given paths as `CF_HDROP`. Must be invoked
-/// on the main (UI) thread so `DoDragDrop`'s modal message loop can run.
+/// Start a native OS drag carrying the given paths as `CF_HDROP`. This must run
+/// on an STA thread inside `DoDragDrop`, so we spawn a dedicated thread for it.
 #[tauri::command]
 pub fn start_os_drag(paths: Vec<String>) -> Result<(), String> {
     if paths.is_empty() {
         return Err("没有可拖拽的项目".into());
     }
-    unsafe {
-        let hdrop = build_hdrop(&paths);
-        let drop = Box::into_raw(Box::new(DropState {
-            vtbl: &DROP_VTBL,
-            refs: 1,
-        }));
-        let data = Box::into_raw(Box::new(DataState {
-            vtbl: &DATA_VTBL,
-            refs: 1,
-            hdrop,
-        }));
 
-        let data_obj = IDataObject::from_raw(data as *mut std::ffi::c_void);
-        let drop_src = IDropSource::from_raw(drop as *mut std::ffi::c_void);
+    let handle = std::thread::Builder::new()
+        .name("lepton-os-drag".into())
+        .spawn(move || {
+            unsafe {
+                // DoDragDrop requires an STA thread.
+                let _ = CoInitializeEx(None, COINIT_APARTMENTTHREADED);
 
-        let mut effect = DROPEFFECT(0);
-        let _ = DoDragDrop(&data_obj, &drop_src, DROPEFFECT(1 | 2), &mut effect);
-        // `data_obj` / `drop_src` drop here, calling Release -> frees both states.
-    }
+                let hdrop = build_hdrop(&paths);
+                let drop = Box::into_raw(Box::new(DropState {
+                    vtbl: &DROP_VTBL,
+                    refs: 1,
+                }));
+                let data = Box::into_raw(Box::new(DataState {
+                    vtbl: &DATA_VTBL,
+                    refs: 1,
+                    hdrop,
+                    marshaler: std::ptr::null_mut(),
+                }));
+
+                // Aggregate the Free-Threaded Marshaler so the data object can be
+                // marshalled into another process (e.g. Beyond Compare).
+                let outer = IUnknown::from_raw(data as *mut std::ffi::c_void);
+                if let Ok(m) = CoCreateFreeThreadedMarshaler(&outer) {
+                    // Move the raw pointer out of `m` without running its destructor
+                    // (which would otherwise Release our data object).
+                    let raw = std::mem::transmute::<IUnknown, *mut std::ffi::c_void>(m);
+                    (*data).marshaler = raw;
+                }
+                // `outer` was created with from_raw; forget it so its destructor does
+                // not Release our data object (the FTM does not hold a ref either).
+                std::mem::forget(outer);
+
+                let data_obj = IDataObject::from_raw(data as *mut std::ffi::c_void);
+                let drop_src = IDropSource::from_raw(drop as *mut std::ffi::c_void);
+
+                let mut effect = DROPEFFECT(0);
+                let _ = DoDragDrop(&data_obj, &drop_src, DROPEFFECT(1 | 2), &mut effect);
+
+                let _ = CoUninitialize();
+            }
+        })
+        .map_err(|e| format!("无法启动拖拽线程：{e}"))?;
+
+    // Block until the drag completes so the JS `invoke` resolves afterwards.
+    let _ = handle.join();
     Ok(())
 }
