@@ -1,6 +1,6 @@
 {
-  "version": "1.1.6",
-  "notes": "Lepton Explorer 1.1.6 更新内容：\n- 修复「拖拽到第三方应用（如 Beyond Compare）无反应」：上一版的原生 DoDragDrop 在 Tauri 工作线程（MTA）上运行导致系统拖拽根本未真正启动，且自定义 IDataObject 缺少跨进程封送能力，目标程序取不到文件。本版改为在专用的 STA 线程中运行 DoDragDrop，并聚合系统 Free-Threaded Marshaler（FTM），使 CF_HDROP 数据对象能正确封送到目标进程，可稳定拖到 Beyond Compare、资源管理器、桌面等任意程序\n- 应用内拖放（文件夹间移动 / 复制）仍保持可用\n\n点击「下载并安装」后将自动运行安装程序完成升级。",
-  "download_url": "https://raw.githubusercontent.com/oahc09/lepton-explorer/main/binary-release/nsis/Lepton%20Explorer_1.1.6_x64-setup.exe",
+  "version": "1.1.7",
+  "notes": "Lepton Explorer 1.1.7 更新内容：\n- 修复「拖拽文件夹/文件无反应」：上一版用指针手势检测拖拽，但缺少指针捕获（setPointerCapture），在部分 WebView2 环境下 pointerdown 的 preventDefault 会抑制后续 pointermove，导致 start_os_drag 根本未被调用、系统级拖拽从未启动。本版在 pointerdown 时捕获指针、跨过阈值后再释放，保证移动事件稳定送达，文件夹与文件均可正常拖到任意程序\n- 应用内拖放（文件夹间移动 / 复制）保持可用\n\n点击「下载并安装」后将自动运行安装程序完成升级。",
+  "download_url": "https://raw.githubusercontent.com/oahc09/lepton-explorer/main/binary-release/nsis/Lepton%20Explorer_1.1.7_x64-setup.exe",
   "pub_date": "2026-08-15"
 }
