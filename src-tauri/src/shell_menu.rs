@@ -45,12 +45,12 @@ use windows::Win32::UI::Shell::{
     CMF_NORMAL, CMINVOKECOMMANDINFO, Common, IContextMenu, IShellFolder, SHBindToParent,
     SHParseDisplayName,
 };
-use windows::Win32::UI::WindowsAndMessaging::AllowSetForegroundWindow;
 use windows::Win32::Graphics::Gdi::{GetDC, GetDeviceCaps, LOGPIXELSX, ReleaseDC};
 use windows::Win32::UI::WindowsAndMessaging::{
-    CreatePopupMenu, CreateWindowExW, DefWindowProcW, DestroyMenu, DestroyWindow,
-    GetForegroundWindow, GetWindowThreadProcessId, RegisterClassW, SetForegroundWindow,
-    TrackPopupMenuEx, CS_HREDRAW, CS_VREDRAW, HMENU, TPM_LEFTALIGN, TPM_RETURNCMD, TPM_TOPALIGN,
+    AllowSetForegroundWindow, BringWindowToTop, CreatePopupMenu, CreateWindowExW, DefWindowProcW,
+    DestroyMenu, DestroyWindow, GetForegroundWindow, GetWindowThreadProcessId,
+    RegisterClassW, SetForegroundWindow, SetWindowLongPtrW, TrackPopupMenuEx, ASFW_ANY,
+    CS_HREDRAW, CS_VREDRAW, GWLP_HWNDPARENT, HMENU, TPM_LEFTALIGN, TPM_RETURNCMD, TPM_TOPALIGN,
     WNDCLASSW, WS_OVERLAPPED,
 };
 
@@ -148,7 +148,12 @@ pub fn show_classic_context_menu(paths: &[String], x: i32, y: i32) -> Result<(),
     let mut child = cmd
         .spawn()
         .map_err(|e| format!("启动上下文菜单子进程失败：{e}"))?;
-    let _ = unsafe { AllowSetForegroundWindow(child.id()) };
+    // Grant foreground rights. We deliberately use ASFW_ANY (not the specific
+    // child PID): the grant from `AllowSetForegroundWindow(pid)` is short-lived
+    // and was being silently revoked before the child actually showed the menu —
+    // which is exactly why the popup appeared but was never interactive on
+    // Windows 10 (its first click was eaten to "activate" the window).
+    let _ = unsafe { AllowSetForegroundWindow(ASFW_ANY) };
 
     let status = child
         .wait()
@@ -377,10 +382,19 @@ fn show_menu_inner(paths: &[String], x: i32, y: i32) -> Result<(), String> {
     // the system DPI, so the menu appears at the cursor on HiDPI displays.
     let (x, y) = scale_to_physical(x, y);
 
-    // 7. Become foreground so the popup can receive keyboard input and display
-    //    correctly. Attach our input thread to the current foreground thread
-    //    (the file-manager window) — the documented workaround for showing a
-    //    menu from a non-foreground helper process.
+    // 7. Make the popup interactive despite the Windows foreground-lock policy.
+    //    The classic context menu must be shown from a process that is (or is
+    //    allowed to become) the foreground. Our menu host is a *separate child
+    //    process*, so by default the foreground-lock silently blocks it. The
+    //    robust fix has three parts:
+    //      (a) attach our input thread to the real foreground thread (the
+    //          file-manager window) so messages route correctly;
+    //      (b) re-assert foreground on the parent and make our owner window an
+    //          *owned* window of that foreground window — an owned window rides
+    //          on the foreground window's activation state, so TrackPopupMenuEx
+    //          shows it as interactive WITHOUT us having to steal foreground;
+    //      (c) still attempt SetForegroundWindow(owner) with a longer retry, and
+    //          fall back to BringWindowToTop, so keyboard navigation works too.
     let fg = unsafe { GetForegroundWindow() };
     let cur_thread = unsafe { GetCurrentThreadId() };
     let mut fg_thread = 0u32;
@@ -391,18 +405,26 @@ fn show_menu_inner(paths: &[String], x: i32, y: i32) -> Result<(), String> {
         } else {
             fg_thread = 0;
         }
+        // (b) owned-window relationship with the foreground window.
+        unsafe {
+            let _ = SetWindowLongPtrW(owner, GWLP_HWNDPARENT, fg.0 as isize);
+        }
     }
+    // (a/c) keep the parent foreground, then try to bring our owner forward.
     let _ = unsafe { SetForegroundWindow(fg) };
-    // Retry taking the foreground for a short window: on Windows 10 the
-    // AllowSetForegroundWindow grant from the parent may not be honored on the
-    // very first call. A few quick retries make the menu reliably interactive.
-    for _ in 0..10 {
+    let mut foreground_ok = false;
+    for _ in 0..30 {
         if unsafe { SetForegroundWindow(owner) }.as_bool() {
+            foreground_ok = true;
             break;
         }
         std::thread::sleep(std::time::Duration::from_millis(5));
     }
-    trace("show", &format!("TrackPopupMenuEx at ({x},{y})"));
+    if !foreground_ok {
+        // Last-ditch: at least raise the owner so the menu is visible/clickable.
+        let _ = unsafe { BringWindowToTop(owner) };
+    }
+    trace("show", &format!("TrackPopupMenuEx at ({x},{y}) fg_ok={foreground_ok}"));
 
     // 8. Show menu (blocks until selection or cancel).
     let flags = TPM_LEFTALIGN.0 | TPM_TOPALIGN.0 | TPM_RETURNCMD.0;
