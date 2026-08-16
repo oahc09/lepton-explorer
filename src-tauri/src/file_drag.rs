@@ -22,6 +22,8 @@
 //! store, so in-app move/copy is preserved.
 
 use std::ffi::OsStr;
+use std::fs::OpenOptions;
+use std::io::Write;
 use std::os::windows::ffi::OsStrExt;
 
 use windows::core::Interface;
@@ -38,6 +40,31 @@ use windows::Win32::System::Ole::{
 };
 use windows::Win32::System::SystemServices::MODIFIERKEYS_FLAGS;
 use windows::Win32::UI::Shell::DROPFILES;
+
+/// Diagnostic trace -> %LOCALAPPDATA%/com.lepton.explorer/logs/os-drag-trace.log
+///
+/// Lets us see (from a user repro) whether `start_os_drag` was reached, what
+/// `OleInitialize` returned, and exactly what HRESULT `DoDragDrop` returned —
+/// including "successful" ones like `DRAGDROP_S_CANCEL` that mean the OS drag
+/// never actually started (which looks like "nothing happened" from the UI).
+fn trace(step: &str, detail: &str) {
+    let base = dirs::data_local_dir().unwrap_or_else(|| std::env::temp_dir());
+    let dir = base.join("com.lepton.explorer").join("logs");
+    let _ = std::fs::create_dir_all(&dir);
+    if let Ok(mut f) = OpenOptions::new()
+        .create(true)
+        .append(true)
+        .open(dir.join("os-drag-trace.log"))
+    {
+        let _ = writeln!(
+            f,
+            "[{}] {} | {}",
+            chrono::Local::now().format("%H:%M:%S%.3f"),
+            step,
+            detail
+        );
+    }
+}
 
 /// `CF_HDROP` clipboard format id (== 15).
 const CF_HDROP: u16 = 15;
@@ -58,6 +85,7 @@ const E_NOTIMPL: HRESULT = HRESULT(0x8000_4001u32 as i32);
 const E_NOINTERFACE: HRESULT = HRESULT(0x8000_4002u32 as i32);
 const E_INVALIDARG: HRESULT = HRESULT(0x8007_0057u32 as i32);
 const DRAGDROP_S_CANCEL: HRESULT = HRESULT(0x0004_0101);
+const DRAGDROP_S_DROP: HRESULT = HRESULT(0x0004_0100);
 const DRAGDROP_S_USEDEFAULTCURSORS: HRESULT = HRESULT(0x0004_0102);
 
 #[repr(C)]
@@ -266,8 +294,8 @@ unsafe extern "system" fn drop_query_continue(
         return DRAGDROP_S_CANCEL;
     }
     if (grf_key_state.0 & MK_LBUTTON) == 0 {
-        // Button released -> drop.
-        return S_OK;
+        // Button released -> perform the drop now.
+        return DRAGDROP_S_DROP;
     }
     S_OK
 }
@@ -359,22 +387,38 @@ fn dup_hglobal(h: HGLOBAL) -> HGLOBAL {
     copy
 }
 
-/// Start a native OS drag carrying the given paths as `CF_HDROP`. This must run
-/// on an STA thread inside `DoDragDrop`, so we spawn a dedicated thread for it.
+/// Start a native OS drag carrying the given paths as `CF_HDROP`.
+///
+/// This is an `async` command on purpose: the drag loop blocks for the whole
+/// drag. If it ran as a *synchronous* command, Tauri would execute it on the
+/// main UI thread and freeze the window (and WebView2's input handling) for the
+/// entire drag — which can itself break the drag. `spawn_blocking` keeps the
+/// blocking `DoDragDrop` off both the main thread and the async runtime's
+/// worker threads.
 #[tauri::command]
-pub fn start_os_drag(paths: Vec<String>) -> Result<(), String> {
+pub async fn start_os_drag(paths: Vec<String>) -> Result<(), String> {
     if paths.is_empty() {
         return Err("没有可拖拽的项目".into());
     }
+    trace("enter", &format!("paths={} first={}", paths.len(), paths[0]));
 
+    let paths_for_thread = paths.clone();
+    tauri::async_runtime::spawn_blocking(move || run_drag_thread(&paths_for_thread))
+        .await
+        .map_err(|e| format!("拖拽任务执行失败：{e}"))?
+}
+
+/// Run `DoDragDrop` on a dedicated STA thread and block until the drag ends.
+fn run_drag_thread(paths: &[String]) -> Result<(), String> {
+    let paths = paths.to_vec();
     let handle = std::thread::Builder::new()
         .name("lepton-os-drag".into())
         .spawn(move || -> Result<(), String> {
             unsafe {
                 // DoDragDrop is an OLE drag-drop API: the calling thread MUST be
                 // initialized with OleInitialize (NOT just CoInitializeEx(STA)).
-                // Without it DoDragDrop fails immediately and the OS drag never starts.
-                let _ = OleInitialize(None);
+                let ole = OleInitialize(None);
+                trace("ole", &format!("OleInitialize={ole:?}"));
 
                 let hdrop = build_hdrop(&paths);
                 let drop = Box::into_raw(Box::new(DropState {
@@ -405,11 +449,16 @@ pub fn start_os_drag(paths: Vec<String>) -> Result<(), String> {
                 let drop_src = IDropSource::from_raw(drop as *mut std::ffi::c_void);
 
                 let mut effect = DROPEFFECT(0);
+                trace("dodragdrop", "calling DoDragDrop");
                 let hr = DoDragDrop(&data_obj, &drop_src, DROPEFFECT(1 | 2), &mut effect);
+                trace(
+                    "dodragdrop",
+                    &format!("returned hr=0x{:08x} effect={}", hr.0 as u32, effect.0),
+                );
                 OleUninitialize();
 
                 if hr.is_err() {
-                    return Err(format!("DoDragDrop 失败：{hr:?}（OLE 未初始化或拖拽无法启动）"));
+                    return Err(format!("DoDragDrop 失败：0x{:08x}", hr.0 as u32));
                 }
                 Ok(())
             }
