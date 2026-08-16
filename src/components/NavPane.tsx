@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import type { SpecialFolder, Drive } from '../types';
-import { GALLERY_ROOT, NETWORK_ROOT } from '../types';
+import { GALLERY_ROOT, NETWORK_ROOT, THISPC_ROOT } from '../types';
 import { useLocationStore } from '../state/locationStore';
 import { usePinnedStore } from '../state/pinnedStore';
 import { useViewStore } from '../state/viewStore';
@@ -77,8 +77,11 @@ export function NavPane() {
           </button>
         ))}
       </div>
-      <div className="nav-item nav-group-label" onClick={() => setExpanded((e) => !e)}>
-        <span aria-hidden>{expanded ? '▾' : '▸'}💻</span><span>此电脑</span>
+      <div className="nav-item nav-group-label">
+        <span aria-hidden className="nav-caret" onClick={(e) => { e.stopPropagation(); setExpanded((v) => !v); }}>
+          {expanded ? '▾' : '▸'}
+        </span>
+        <span className="nav-group-title" onClick={() => navigate(THISPC_ROOT)}>💻 此电脑</span>
       </div>
       {expanded && (
         <div className="nav-group">

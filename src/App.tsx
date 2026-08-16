@@ -30,8 +30,9 @@ import { useSelectionStore } from './state/selectionStore';
 import { usePinnedStore } from './state/pinnedStore';
 import { useRecentStore } from './state/recentStore';
 import type { Entry, FolderView } from './types';
-import { isVirtualPath } from './types';
+import { isVirtualPath, THISPC_ROOT } from './types';
 import { HomeView } from './components/views/HomeView';
+import { ThisPCView } from './components/views/ThisPCView';
 import { VIEW_SHORTCUTS } from './shortcuts';
 import { openItem } from './utils/open';
 import { newWindow } from './utils/window';
@@ -473,6 +474,8 @@ export default function App() {
         <main className="main-view" key={path} ref={mainRef} tabIndex={0}>
           {path === '' ? (
             <HomeView onOpen={(p) => navigate(p)} />
+          ) : path === THISPC_ROOT ? (
+            <ThisPCView onOpen={(p) => navigate(p)} />
           ) : loading ? (
             <div className="empty">加载中…</div>
           ) : error ? (

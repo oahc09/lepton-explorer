@@ -38,6 +38,7 @@ export const NEW_FILE_KINDS: { label: string; ext: string }[] = [
 
 export interface SpecialFolder { key: string; name: string; path: string; }
 export interface Drive { letter: string; path: string; }
+export interface DriveInfo { letter: string; path: string; label: string; total: number; free: number; used: number; kind: string; }
 
 /// How a copy/move collision is resolved (mirrors the Rust ConflictStrategy).
 /// - 'rename'  → keep both (auto-rename incoming "name (1)")
@@ -60,4 +61,5 @@ export interface FolderView {
 /** Virtual (non-filesystem) navigation roots surfaced by the NavPane. */
 export const NETWORK_ROOT = 'network:';
 export const GALLERY_ROOT = 'gallery:';
-export const isVirtualPath = (p: string) => p === NETWORK_ROOT || p === GALLERY_ROOT;
+export const THISPC_ROOT = 'thispc:';
+export const isVirtualPath = (p: string) => p === NETWORK_ROOT || p === GALLERY_ROOT || p === THISPC_ROOT;

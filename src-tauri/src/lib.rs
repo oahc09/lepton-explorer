@@ -11,6 +11,7 @@ pub mod shell_menu;
 pub mod crashlog;
 pub mod file_drag;
 pub mod special;
+pub mod thispc;
 pub mod updater;
 pub mod thumbnails;
 pub mod watch;
@@ -280,6 +281,11 @@ fn list_gallery() -> Vec<fs_ops::Entry> {
 }
 
 #[tauri::command]
+fn list_thispc() -> Vec<thispc::DriveInfo> {
+    thispc::list_thispc()
+}
+
+#[tauri::command]
 fn get_folder_view(path: String) -> Option<folder_views::FolderView> {
     folder_views::get_folder_view(&path)
 }
@@ -451,6 +457,7 @@ pub fn run() {
             get_special_folder,
             list_network,
             list_gallery,
+            list_thispc,
             get_folder_view,
             set_folder_view,
             create_dir,

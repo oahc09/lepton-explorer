@@ -2,8 +2,8 @@ import { create } from 'zustand';
 
 export function parentOf(p: string): string {
   if (!p) return '';
-  // Virtual roots (network:/gallery:) have no parent.
-  if (p === 'network:' || p === 'gallery:') return '';
+  // Virtual roots (network:/gallery:/thispc:) have no parent.
+  if (p === 'network:' || p === 'gallery:' || p === 'thispc:') return '';
   const norm = p.replace(/\//g, '\\').replace(/\\+$/, '');
   if (/^[A-Za-z]:$/.test(norm)) return norm + '\\';
   const idx = norm.lastIndexOf('\\');
@@ -14,6 +14,7 @@ export function parentOf(p: string): string {
 const titleOf = (p: string) => {
   if (p === 'network:') return '网络';
   if (p === 'gallery:') return 'Gallery';
+  if (p === 'thispc:') return '此电脑';
   return p ? p.replace(/^.*[\\/]/, '') || p : '主页';
 };
 

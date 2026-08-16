@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import type { Entry } from '../types';
-import { isVirtualPath } from '../types';
+import { isVirtualPath, THISPC_ROOT } from '../types';
 
 export function useDirectory(path: string, refreshKey?: unknown) {
   const [entries, setEntries] = useState<Entry[]>([]);
@@ -11,6 +11,13 @@ export function useDirectory(path: string, refreshKey?: unknown) {
   useEffect(() => {
     if (!path) return;
     let cancelled = false;
+    // The "此电脑" root is rendered by ThisPCView (drives + usage), not a file list.
+    if (path === THISPC_ROOT) {
+      setEntries([]);
+      setLoading(false);
+      setError(null);
+      return;
+    }
     setLoading(true);
     setError(null);
     const call = isVirtualPath(path)
