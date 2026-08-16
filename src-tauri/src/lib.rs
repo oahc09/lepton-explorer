@@ -1,4 +1,5 @@
 pub mod error;
+pub mod archive;
 pub mod folder_views;
 pub mod fs_ops;
 pub mod gallery;
@@ -375,7 +376,7 @@ async fn create_archive(
     // promptly; `cancel_zip` sets a flag checked between top-level sources.
     blocking(move || {
         zip::reset_zip_cancel();
-        zip::zip_items_tracked(
+        archive::compress_items_tracked(
             &sources,
             &dest_zip,
             zip::is_zip_cancelled,
@@ -387,7 +388,6 @@ async fn create_archive(
                 let _ = app.emit("fs-zip-progress", CopyProgress { current, total, file });
             },
         )
-        .map_err(AppError::from)
     })
     .await
 }
@@ -403,7 +403,7 @@ async fn extract_archive(
     // decompressed-size quota (handled in zip.rs).
     blocking(move || {
         zip::reset_zip_cancel();
-        zip::unzip_items_tracked(
+        archive::extract_items_tracked(
             &zip_path,
             &dest_dir,
             zip::is_zip_cancelled,
@@ -415,7 +415,6 @@ async fn extract_archive(
                 let _ = app.emit("fs-zip-progress", CopyProgress { current, total, file });
             },
         )
-        .map_err(AppError::from)
     })
     .await
 }

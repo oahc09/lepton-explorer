@@ -178,9 +178,10 @@ export function ContextMenu({ entries }: { entries: Entry[] }) {
       </li>
       <li className="cm-sep" />
       {item('压缩为 ZIP', () => ops.zip(selEntries.map((e) => e.path), path), !hasSel || !realPath)}
+      {item('压缩为 7z', () => ops.zip7z(selEntries.map((e) => e.path), path), !hasSel || !realPath)}
       {(() => {
         const en = selEntries[0];
-        const show = realPath && sel.length === 1 && en && !en.isDir && /\.zip$/i.test(en.name);
+        const show = realPath && sel.length === 1 && en && !en.isDir && /\.(zip|7z|rar)$/i.test(en.name);
         if (!show) return null;
         return item('解压到文件夹', () => ops.unzip(en.path, path));
       })()}

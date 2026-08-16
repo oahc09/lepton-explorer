@@ -221,39 +221,48 @@ export function useFileOps() {
     try { await invoke('open_in_terminal', { path }); } catch { /* ignore */ }
   }
 
-  /** Compress `sources` into a single .zip placed in `destDir`. Undoable-free
-   * (the archive is a new file); shows a progress dialog while compressing. */
-  async function zip(sources: string[], destDir: string) {
+  /** Compress `sources` into a single archive (`.zip` or `.7z`) placed in
+   * `destDir`. Undoable-free (the archive is a new file); shows a progress
+   * dialog while compressing. */
+  async function compress(sources: string[], destDir: string, format: 'zip' | '7z' = 'zip') {
     if (!sources.length) return;
     // Archive name derives from the first selected item (Explorer behavior).
     const first = sources[0].replace(/[\\/]+$/, '');
     const base = first.split(/[\\/]/).pop() || 'Archive';
     const stem = base.includes('.') ? base.slice(0, base.lastIndexOf('.')) : base;
-    const destZip = await invoke<string>('unique_target', { dir: destDir, name: `${stem}.zip` });
+    const ext = format === '7z' ? '.7z' : '.zip';
+    const destZip = await invoke<string>('unique_target', { dir: destDir, name: `${stem}${ext}` });
     useProgressStore.getState().open('compress');
     try {
-      await invoke('create_archive', { sources, dest_zip: destZip });
+      // NOTE: Tauri v2 expects camelCase keys — `destZip`, not `dest_zip`.
+      await invoke('create_archive', { sources, destZip });
+    } catch (e) {
+      console.error('[zip] create_archive failed:', e);
     } finally {
       useProgressStore.getState().close();
     }
     refresh();
   }
 
-  /** Extract the .zip at `zipPath` into a sibling folder (auto-suffixed on
+  const zip = (sources: string[], destDir: string) => compress(sources, destDir, 'zip');
+  const zip7z = (sources: string[], destDir: string) => compress(sources, destDir, '7z');
+
+  /** Extract the archive at `zipPath` into a sibling folder (auto-suffixed on
    * collision) under `destDir`. Shows a progress dialog while extracting. */
   async function unzip(zipPath: string, destDir: string) {
     const name = zipPath.split(/[\\/]/).pop() || 'Archive';
-    const stem = name.toLowerCase().endsWith('.zip') ? name.slice(0, -4) : name;
+    const stem = name.replace(/\.(zip|7z|rar)$/i, '') || name;
     const dest = await invoke<string>('unique_target', { dir: destDir, name: stem });
     await invoke('create_dir', { path: dest });
     useProgressStore.getState().open('extract');
     try {
-      await invoke('extract_archive', { zip_path: zipPath, dest_dir: dest });
+      // NOTE: camelCase keys — `zipPath`/`destDir`, not `zip_path`/`dest_dir`.
+      await invoke('extract_archive', { zipPath, destDir: dest });
     } finally {
       useProgressStore.getState().close();
     }
     refresh();
   }
 
-  return { newFolder, newFile, newTypedFile, renameEntry, paste, remove, copyPath, openTerminal, zip, unzip };
+  return { newFolder, newFile, newTypedFile, renameEntry, paste, remove, copyPath, openTerminal, zip, zip7z, unzip };
 }
