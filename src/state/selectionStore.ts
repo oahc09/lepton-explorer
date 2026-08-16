@@ -8,6 +8,8 @@ interface SelectionState {
   select: (items: Entry[]) => void;
   toggle: (item: Entry) => void;
   selectRange: (allInOrder: Entry[], targetPath: string) => void;
+  /** Replace the selection with an explicit list of paths (marquee additive mode). */
+  setSelectedPaths: (paths: string[]) => void;
   setFocus: (i: number) => void;
   clear: () => void;
 }
@@ -35,6 +37,7 @@ export const useSelectionStore = create<SelectionState>((set, get) => ({
     const [lo, hi] = a < b ? [a, b] : [b, a];
     set({ selected: paths.slice(lo, hi + 1), anchor });
   },
+  setSelectedPaths: (paths) => set({ selected: paths }),
   setFocus: (i) => set({ focusIndex: i }),
   clear: () => set({ selected: [], anchor: null, focusIndex: -1 }),
 }));

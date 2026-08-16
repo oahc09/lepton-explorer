@@ -10,6 +10,8 @@ import { openItem } from '../../utils/open';
 import { displayName } from '../../utils/display';
 import { dropInto } from '../../utils/drop';
 import { useItemDrag } from '../../utils/fileDrag';
+import { useMarquee } from '../../hooks/useMarquee';
+import { MarqueeBox } from '../MarqueeBox';
 import { Thumbnail } from '../Thumbnail';
 
 const TILE_H = 76;
@@ -67,6 +69,7 @@ export function TilesView({ entries }: { entries: Entry[] }) {
   const selectedSet = useMemo(() => new Set(selected), [selected]);
   const rowCount = Math.ceil(entries.length / perRow);
   const v = useVirtualizer({ count: rowCount, getScrollElement: () => parentRef.current, estimateSize: () => TILE_H, overscan: 8 });
+  const { onMouseDown: onMarqueeMouseDown, marquee } = useMarquee({ containerRef: parentRef, itemSelector: '.tile2', entries });
 
   useEffect(() => {
     const onScroll = (ev: Event) => {
@@ -90,7 +93,7 @@ export function TilesView({ entries }: { entries: Entry[] }) {
   }, [v]);
 
   return (
-    <div className="tiles" ref={parentRef} style={{ overflow: 'auto', height: '100%', padding: 8 }}>
+    <div className="tiles" ref={parentRef} style={{ overflow: 'auto', height: '100%', padding: 8 }} onMouseDown={onMarqueeMouseDown}>
       <div style={{ height: `${v.getTotalSize()}px`, position: 'relative' }}>
         {v.getVirtualItems().map((vi) => {
           const start = vi.index * perRow;
@@ -113,6 +116,7 @@ export function TilesView({ entries }: { entries: Entry[] }) {
           );
         })}
       </div>
+      <MarqueeBox rect={marquee} />
     </div>
   );
 }

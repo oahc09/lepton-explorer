@@ -10,6 +10,8 @@ import { openItem } from '../../utils/open';
 import { displayName } from '../../utils/display';
 import { dropInto } from '../../utils/drop';
 import { useItemDrag } from '../../utils/fileDrag';
+import { useMarquee } from '../../hooks/useMarquee';
+import { MarqueeBox } from '../MarqueeBox';
 import { Thumbnail } from '../Thumbnail';
 
 const ROW_H = 56;
@@ -65,6 +67,7 @@ export function ContentView({ entries }: { entries: Entry[] }) {
   const selected = useSelectionStore((s) => s.selected);
   const selectedSet = useMemo(() => new Set(selected), [selected]);
   const v = useVirtualizer({ count: entries.length, getScrollElement: () => parentRef.current, estimateSize: () => ROW_H, overscan: 15 });
+  const { onMouseDown: onMarqueeMouseDown, marquee } = useMarquee({ containerRef: parentRef, itemSelector: '.content-row', entries });
 
   useEffect(() => {
     const onScroll = (ev: Event) => {
@@ -88,7 +91,7 @@ export function ContentView({ entries }: { entries: Entry[] }) {
   }, [v]);
 
   return (
-    <div className="content" ref={parentRef} style={{ overflow: 'auto', height: '100%' }}>
+    <div className="content" ref={parentRef} style={{ overflow: 'auto', height: '100%' }} onMouseDown={onMarqueeMouseDown}>
       <div style={{ height: `${v.getTotalSize()}px`, position: 'relative' }}>
         {v.getVirtualItems().map((vi) => {
           const item = entries[vi.index];
@@ -107,6 +110,7 @@ export function ContentView({ entries }: { entries: Entry[] }) {
           );
         })}
       </div>
+      <MarqueeBox rect={marquee} />
     </div>
   );
 }

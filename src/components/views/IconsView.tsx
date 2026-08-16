@@ -10,6 +10,8 @@ import { displayName } from '../../utils/display';
 import { dropInto } from '../../utils/drop';
 import { useItemDrag } from '../../utils/fileDrag';
 import { useMetadataStore, TAG_HEX, STATUS_ICON } from '../../state/metadataStore';
+import { useMarquee } from '../../hooks/useMarquee';
+import { MarqueeBox } from '../MarqueeBox';
 import { Thumbnail } from '../Thumbnail';
 
 const SIZES: Record<IconSize, { tileW: number; tileH: number; font: number; perRow: number; nameMax: number }> = {
@@ -140,50 +142,11 @@ export function IconsView({ entries, size = 'large', renamingPath, onRenameCommi
   const selected = useSelectionStore((s2) => s2.selected);
   const selectedSet = useMemo(() => new Set(selected), [selected]);
   const showExtensions = useViewStore((s2) => s2.showExtensions);
-  const entryMap = useMemo(() => {
-    const m = new Map<string, Entry>();
-    for (const e of entries) m.set(e.path, e);
-    return m;
-  }, [entries]);
   const [dragOver, setDragOver] = useState<string | null>(null);
   const rowCount = Math.ceil(entries.length / s.perRow);
   const rowV = useVirtualizer({ count: rowCount, getScrollElement: () => parentRef.current, estimateSize: () => s.tileH, overscan: 8 });
 
-  const [marquee, setMarquee] = useState<{ x: number; y: number; w: number; h: number } | null>(null);
-
-  const startMarquee = (e: React.MouseEvent) => {
-    if ((e.target as HTMLElement).closest('.tile')) return;
-    if (e.button !== 0) return;
-    const x0 = e.clientX;
-    const y0 = e.clientY;
-    setMarquee({ x: x0, y: y0, w: 0, h: 0 });
-    useSelectionStore.getState().clear();
-    const onMove = (ev: MouseEvent) => {
-      const x = Math.min(ev.clientX, x0);
-      const y = Math.min(ev.clientY, y0);
-      const w = Math.abs(ev.clientX - x0);
-      const h = Math.abs(ev.clientY - y0);
-      setMarquee({ x, y, w, h });
-      const tiles = parentRef.current?.querySelectorAll<HTMLElement>('.tile[data-path]');
-      if (!tiles) return;
-      const hit: Entry[] = [];
-      tiles.forEach((el) => {
-        const r = el.getBoundingClientRect();
-        if (r.right >= x && r.left <= x + w && r.bottom >= y && r.top <= y + h) {
-          const en = entryMap.get(el.dataset.path!);
-          if (en) hit.push(en);
-        }
-      });
-      useSelectionStore.getState().select(hit);
-    };
-    const onUp = () => {
-      setMarquee(null);
-      window.removeEventListener('mousemove', onMove);
-      window.removeEventListener('mouseup', onUp);
-    };
-    window.addEventListener('mousemove', onMove);
-    window.addEventListener('mouseup', onUp);
-  };
+  const { onMouseDown: onMarqueeMouseDown, marquee } = useMarquee({ containerRef: parentRef, itemSelector: '.tile', entries });
 
   useEffect(() => {
     const onScroll = (ev: Event) => {
@@ -207,7 +170,7 @@ export function IconsView({ entries, size = 'large', renamingPath, onRenameCommi
   }, [rowV, s.perRow]);
 
   return (
-    <div className="icons" ref={parentRef} style={{ overflow: 'auto', height: '100%' }} onMouseDown={startMarquee}>
+    <div className="icons" ref={parentRef} style={{ overflow: 'auto', height: '100%' }} onMouseDown={onMarqueeMouseDown}>
       <div style={{ height: `${rowV.getTotalSize()}px`, position: 'relative' }}>
         {rowV.getVirtualItems().map((vi) => {
           const start = vi.index * s.perRow;
@@ -240,19 +203,7 @@ export function IconsView({ entries, size = 'large', renamingPath, onRenameCommi
         })}
       </div>
       {marquee && (
-        <div
-          style={{
-            position: 'fixed',
-            left: marquee.x,
-            top: marquee.y,
-            width: marquee.w,
-            height: marquee.h,
-            background: 'var(--accent-fill)',
-            border: '1px solid var(--accent)',
-            pointerEvents: 'none',
-            zIndex: 500,
-          }}
-        />
+        <MarqueeBox rect={marquee} />
       )}
     </div>
   );

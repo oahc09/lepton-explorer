@@ -12,6 +12,8 @@ import { dropInto } from '../../utils/drop';
 import { useItemDrag } from '../../utils/fileDrag';
 import { groupEntries } from '../../utils/groupBy';
 import { useMetadataStore, TAG_HEX, STATUS_ICON } from '../../state/metadataStore';
+import { useMarquee } from '../../hooks/useMarquee';
+import { MarqueeBox } from '../MarqueeBox';
 import { Thumbnail } from '../Thumbnail';
 
 const ROW_H = 32;
@@ -208,8 +210,10 @@ export function DetailsView({ entries, renamingPath, onRenameCommit }: { entries
 
   const arrow = (field: SortField) => (sort.field === field ? (sort.asc ? ' ▲' : ' ▼') : '');
 
+  const { onMouseDown: onMarqueeMouseDown, marquee } = useMarquee({ containerRef: parentRef, itemSelector: '.details-row', entries, excludeSelector: '.details-header' });
+
   return (
-    <div className="details" ref={parentRef} style={{ overflow: 'auto', height: '100%' }}>
+    <div className="details" ref={parentRef} style={{ overflow: 'auto', height: '100%' }} onMouseDown={onMarqueeMouseDown}>
       <div className="details-header" style={{ display: 'grid', gridTemplateColumns: cols }}>
         {visibleCols.map((c) => (
           <div className="col-head" key={c.key}>
@@ -276,6 +280,7 @@ export function DetailsView({ entries, renamingPath, onRenameCommit }: { entries
           );
         })}
       </div>
+      <MarqueeBox rect={marquee} />
     </div>
   );
 }
