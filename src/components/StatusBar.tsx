@@ -1,4 +1,5 @@
-import { useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import { invoke } from '@tauri-apps/api/core';
 import { useViewStore } from '../state/viewStore';
 import { useSelectionStore } from '../state/selectionStore';
 import { formatSize } from '../utils/format';
@@ -12,6 +13,18 @@ export function StatusBar({ count, entries }: { count: number; entries: Entry[] 
   const setViewMode = useViewStore((s) => s.setViewMode);
   const themeMode = useViewStore((s) => s.themeMode);
   const setThemeMode = useViewStore((s) => s.setThemeMode);
+  const dailyQuote = useViewStore((s) => s.dailyQuote);
+  const [quote, setQuote] = useState<string | null>(null);
+
+  // Fetch the daily quote when enabled (offline → silent).
+  useEffect(() => {
+    if (!dailyQuote) { setQuote(null); return; }
+    let cancelled = false;
+    invoke<string>('daily_quote')
+      .then((q) => { if (!cancelled && q) setQuote(q); })
+      .catch(() => {});
+    return () => { cancelled = true; };
+  }, [dailyQuote]);
   const idx = MODES.indexOf(viewMode) + 1;
   const themeIcon = themeMode === 'auto' ? '🖥️' : themeMode === 'light' ? '☀️' : '🌙';
   const themeLabel = themeMode === 'auto' ? '跟随系统' : themeMode === 'light' ? '浅色' : '深色';
@@ -35,6 +48,7 @@ export function StatusBar({ count, entries }: { count: number; entries: Entry[] 
   return (
     <footer className="status-bar">
       <span>{left}</span>
+      {quote && <span className="status-quote" title="每日名言">{quote}</span>}
       <div className="status-right">
         <input
           className="view-slider"

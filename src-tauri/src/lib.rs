@@ -7,6 +7,7 @@ pub mod network;
 pub mod office;
 pub mod open_with;
 pub mod ops;
+pub mod personalize;
 pub mod autostart;
 pub mod shell_menu;
 pub mod crashlog;
@@ -444,6 +445,7 @@ pub fn run() {
     shell_menu::run_shell_host_if_invoked();
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
+        .plugin(tauri_plugin_dialog::init())
         .manage(watch::WatcherState::new())
         .invoke_handler(tauri::generate_handler![
             list_directory,
@@ -495,7 +497,11 @@ pub fn run() {
             crashlog::open_logs_dir,
             updater::check_update,
             updater::download_update,
-            updater::install_update
+            updater::install_update,
+            personalize::apply_window_effect,
+            personalize::daily_image,
+            personalize::daily_quote,
+            personalize::read_image_background
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

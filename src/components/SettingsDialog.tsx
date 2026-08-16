@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { getVersion } from '@tauri-apps/api/app';
 import { openUrl } from '@tauri-apps/plugin-opener';
+import { open } from '@tauri-apps/plugin-dialog';
 import { listen } from '@tauri-apps/api/event';
 import { useViewStore } from '../state/viewStore';
 
@@ -45,10 +46,31 @@ export function SettingsDialog({ onClose }: { onClose: () => void }) {
   const detailsPane = useViewStore((s) => s.detailsPane);
   const navPaneWidth = useViewStore((s) => s.navPaneWidth);
   const bgColor = useViewStore((s) => s.bgColor);
+  const windowEffect = useViewStore((s) => s.windowEffect);
+  const dailyImage = useViewStore((s) => s.dailyImage);
+  const dailyQuote = useViewStore((s) => s.dailyQuote);
+  const bgImage = useViewStore((s) => s.bgImage);
 
   const [version, setVersion] = useState('1.0.0');
   const [autostart, setAutostart] = useState(false);
   const [logMsg, setLogMsg] = useState<string | null>(null);
+
+  // Pick a local image and apply it as the app background.
+  async function pickImageBackground() {
+    try {
+      const path = await open({
+        multiple: false,
+        directory: false,
+        filters: [{ name: '图片', extensions: ['png', 'jpg', 'jpeg', 'webp', 'bmp', 'gif'] }],
+      });
+      if (typeof path === 'string') {
+        const url = await invoke<string>('read_image_background', { path });
+        useViewStore.getState().setBgImage(url);
+      }
+    } catch (e) {
+      console.error('[settings] pick image failed:', e);
+    }
+  }
 
   // Update-check UI state.
   const [updateState, setUpdateState] = useState<'idle' | 'checking' | 'up-to-date' | 'available' | 'error'>('idle');
@@ -192,6 +214,37 @@ export function SettingsDialog({ onClose }: { onClose: () => void }) {
                 <button type="button" className="swatch-reset" onClick={() => useViewStore.getState().setBgColor(null)}>
                   重置
                 </button>
+              )}
+            </div>
+          </div>
+          <div className="setting-row">
+            <span>窗口效果</span>
+            <div className="seg">
+              {(['mica', 'acrylic', 'none'] as const).map((e) => (
+                <button
+                  key={e}
+                  className={`seg-btn${windowEffect === e ? ' active' : ''}`}
+                  onClick={() => useViewStore.getState().setWindowEffect(e)}
+                >
+                  {e === 'mica' ? 'Mica' : e === 'acrylic' ? 'Acrylic' : '无'}
+                </button>
+              ))}
+            </div>
+          </div>
+          <label className="setting-row">
+            <span>每日图片（Bing 壁纸）</span>
+            <input type="checkbox" className="switch" checked={dailyImage} onChange={(e) => useViewStore.getState().setDailyImage(e.target.checked)} />
+          </label>
+          <label className="setting-row">
+            <span>每日名言</span>
+            <input type="checkbox" className="switch" checked={dailyQuote} onChange={(e) => useViewStore.getState().setDailyQuote(e.target.checked)} />
+          </label>
+          <div className="setting-row">
+            <span>图片背景</span>
+            <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+              <button className="cmd" onClick={pickImageBackground}>选择图片…</button>
+              {bgImage && (
+                <button className="cmd ghost" onClick={() => useViewStore.getState().setBgImage(null)}>清除</button>
               )}
             </div>
           </div>

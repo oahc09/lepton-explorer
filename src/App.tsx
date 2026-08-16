@@ -47,6 +47,9 @@ export default function App() {
   const showHidden = useViewStore((s) => s.showHidden);
   const themeMode = useViewStore((s) => s.themeMode);
   const bgColor = useViewStore((s) => s.bgColor);
+  const windowEffect = useViewStore((s) => s.windowEffect);
+  const dailyImage = useViewStore((s) => s.dailyImage);
+  const bgImage = useViewStore((s) => s.bgImage);
   const visibleEntries = useMemo(() => entries.filter((e) => showHidden || !e.isHidden), [entries, showHidden]);
   const shownEntries = searchResults ?? visibleEntries;
   const previewPane = useViewStore((s) => s.previewPane);
@@ -70,6 +73,7 @@ export default function App() {
   const [renamingPath, setRenamingPath] = useState<string | null>(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [fs, setFs] = useState(false);
+  const [dailyImageUrl, setDailyImageUrl] = useState<string | null>(null);
   const [updateAvailable, setUpdateAvailable] = useState<{ version: string } | null>(null);
   const [updateDismissed, setUpdateDismissed] = useState(false);
 
@@ -162,6 +166,32 @@ export default function App() {
     if (bgColor) root.style.setProperty('--app-bg', bgColor);
     else root.style.removeProperty('--app-bg');
   }, [bgColor]);
+
+  // Window material effect (Mica/Acrylic/none). Unsupported systems no-op.
+  useEffect(() => {
+    invoke('apply_window_effect', { effect: windowEffect }).catch(() => {});
+  }, [windowEffect]);
+
+  // Fetch the daily wallpaper when enabled (offline → silent failure).
+  useEffect(() => {
+    if (!dailyImage) { setDailyImageUrl(null); return; }
+    let cancelled = false;
+    invoke<string>('daily_image')
+      .then((url) => { if (!cancelled) setDailyImageUrl(url || null); })
+      .catch(() => {});
+    return () => { cancelled = true; };
+  }, [dailyImage]);
+
+  // Apply the background: custom image > daily wallpaper > none.
+  useEffect(() => {
+    const root = document.documentElement;
+    const img = bgImage ?? (dailyImage ? dailyImageUrl : null);
+    if (img) root.style.setProperty('--app-bg-image', `url(${img})`);
+    else root.style.removeProperty('--app-bg-image');
+    // Translucent surfaces whenever a material effect or image background is on.
+    const translucent = windowEffect !== 'none' || !!img;
+    root.classList.toggle('panel-translucent', translucent);
+  }, [bgImage, dailyImage, dailyImageUrl, windowEffect]);
 
   // File ops dispatch lepton:refresh; re-list when it fires.
   useEffect(() => {
