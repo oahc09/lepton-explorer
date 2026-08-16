@@ -37,7 +37,7 @@ use std::process;
 use windows::core::PCSTR;
 use windows::core::PCWSTR;
 use windows::Win32::Foundation::{HINSTANCE, HWND, LPARAM, LRESULT, WPARAM};
-use windows::Win32::System::Com::CoTaskMemFree;
+use windows::Win32::System::Com::{CoTaskMemAlloc, CoTaskMemFree};
 use windows::Win32::System::LibraryLoader::GetModuleHandleW;
 use windows::Win32::System::Ole::{OleInitialize, OleUninitialize};
 use windows::Win32::System::Threading::{AttachThreadInput, GetCurrentThreadId};
@@ -63,6 +63,30 @@ const OWNER_CLASS: &str = "LeptonShellMenuOwner";
 
 fn wide(s: &str) -> Vec<u16> {
     OsStr::new(s).encode_wide().chain(std::iter::once(0)).collect()
+}
+
+/// Deep-copy a single `ITEMIDLIST` into independently allocated memory (owned by
+/// the caller, to be freed with `CoTaskMemFree`).
+///
+/// `SHBindToParent`'s `ppidlLast` returns a pointer *into* the full PIDL we pass
+/// in — NOT an independent allocation. If we free the full PIDL first, that child
+/// pointer becomes dangling and any later use (e.g. `GetUIObjectOf`) crashes with
+/// an access violation. So we must clone the child before freeing the full PIDL.
+unsafe fn clone_pidl(pidl: *const Common::ITEMIDLIST) -> *mut Common::ITEMIDLIST {
+    if pidl.is_null() {
+        return std::ptr::null_mut();
+    }
+    // `cb` is the size in bytes of this whole ITEMIDLIST (including the cb field).
+    let cb = (*pidl).mkid.cb as usize;
+    if cb < std::mem::size_of::<u16>() {
+        return std::ptr::null_mut();
+    }
+    let copy = CoTaskMemAlloc(cb) as *mut Common::ITEMIDLIST;
+    if copy.is_null() {
+        return std::ptr::null_mut();
+    }
+    std::ptr::copy_nonoverlapping(pidl as *const u8, copy as *mut u8, cb);
+    copy
 }
 
 /// Diagnostic trace -> %LOCALAPPDATA%/com.lepton.explorer/logs/shell-menu-trace.log
@@ -296,7 +320,16 @@ fn show_menu_inner(paths: &[String], x: i32, y: i32) -> Result<(), String> {
             format!("SHBindToParent failed: {e:?}")
         })?
     };
-    // Free the full PIDL — we only need the child PIDLs from here on.
+    // `child0` points INTO the full PIDL; clone it to independent memory BEFORE
+    // freeing the full PIDL, or GetUIObjectOf later dereferences freed memory.
+    child0 = unsafe { clone_pidl(child0) };
+    if child0.is_null() {
+        unsafe {
+            CoTaskMemFree(Some(pidl0 as *const _));
+        }
+        return Err("无法复制子项 PIDL".into());
+    }
+    // Free the full PIDL — we now have an independent copy of the child PIDL.
     unsafe {
         CoTaskMemFree(Some(pidl0 as *const _));
     }
@@ -317,15 +350,17 @@ fn show_menu_inner(paths: &[String], x: i32, y: i32) -> Result<(), String> {
             }
             let mut child: *mut Common::ITEMIDLIST = std::ptr::null_mut();
             let bound = unsafe { SHBindToParent::<IShellFolder>(full, Some(&mut child)).is_ok() };
+            // `child` points INTO `full`; clone before freeing `full`.
+            let cloned = if bound && !child.is_null() {
+                unsafe { clone_pidl(child) }
+            } else {
+                std::ptr::null_mut()
+            };
             unsafe {
                 CoTaskMemFree(Some(full as *const _));
             }
-            if bound && !child.is_null() {
-                extra_children.push(child);
-            } else if !child.is_null() {
-                unsafe {
-                    CoTaskMemFree(Some(child as *const _));
-                }
+            if !cloned.is_null() {
+                extra_children.push(cloned);
             }
         }
     }
