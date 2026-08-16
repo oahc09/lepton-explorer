@@ -9,7 +9,7 @@ import { openItem } from '../../utils/open';
 import { displayName } from '../../utils/display';
 import { dropInto } from '../../utils/drop';
 import { useItemDrag } from '../../utils/fileDrag';
-import { useTagStore, TAG_HEX } from '../../state/tagStore';
+import { useMetadataStore, TAG_HEX, STATUS_ICON } from '../../state/metadataStore';
 import { Thumbnail } from '../Thumbnail';
 
 const SIZES: Record<IconSize, { tileW: number; tileH: number; font: number; perRow: number; nameMax: number }> = {
@@ -36,7 +36,7 @@ type IconTileProps = {
 
 const IconTile = memo(function IconTile({ item, tileW, tileH, font, nameMax, showExtensions, renamingPath, onRenameCommit, isSelected, isDragOver, onDragOverChange, allInOrder }: IconTileProps) {
   const navigate = useLocationStore((s) => s.navigate);
-  const tagColor = useTagStore((s) => s.tags[item.path] ?? null);
+  const meta = useMetadataStore((s) => s.cache[item.path]);
   const selPaths = useSelectionStore.getState().selected;
   const paths = selPaths.includes(item.path) ? selPaths : [item.path];
   const drag = useItemDrag(paths);
@@ -76,10 +76,16 @@ const IconTile = memo(function IconTile({ item, tileW, tileH, font, nameMax, sho
       }}
     >
       <div className="tile-icon">
-        {tagColor && (
-          <span className="tag-dot" style={{ background: TAG_HEX[tagColor] || '#888', position: 'absolute' }} />
+        {meta?.color && (
+          <span className="tag-dot" style={{ background: TAG_HEX[meta.color as keyof typeof TAG_HEX] || '#888', position: 'absolute' }} />
+        )}
+        {meta?.status && (
+          <span className="status-badge" style={{ position: 'absolute' }}>{STATUS_ICON[meta.status] ?? ''}</span>
         )}
         <Thumbnail entry={item} size={font} />
+        {meta && meta.rating > 0 && (
+          <span className="rating-badge" style={{ position: 'absolute' }}>{'★'.repeat(meta.rating)}</span>
+        )}
       </div>
       {renamingPath === item.path ? (
         <input

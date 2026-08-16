@@ -12,6 +12,7 @@ pub mod autostart;
 pub mod shell_menu;
 pub mod crashlog;
 pub mod file_drag;
+pub mod file_meta;
 pub mod special;
 pub mod thispc;
 pub mod updater;
@@ -304,6 +305,26 @@ fn set_folder_view(
 }
 
 #[tauri::command]
+fn get_file_meta(path: String) -> Option<file_meta::FileMeta> {
+    file_meta::get_file_meta(&path)
+}
+
+#[tauri::command]
+fn list_file_meta(paths: Vec<String>) -> std::collections::HashMap<String, file_meta::FileMeta> {
+    file_meta::list_file_meta(&paths)
+}
+
+#[tauri::command]
+fn set_file_meta(path: String, meta: file_meta::FileMeta) {
+    file_meta::set_file_meta(&path, meta);
+}
+
+#[tauri::command]
+fn migrate_file_meta(from: String, to: String) {
+    file_meta::migrate_file_meta(&from, &to);
+}
+
+#[tauri::command]
 fn watch_directory(
     app: tauri::AppHandle,
     window: tauri::Window,
@@ -461,6 +482,10 @@ pub fn run() {
             list_thispc,
             get_folder_view,
             set_folder_view,
+            get_file_meta,
+            list_file_meta,
+            set_file_meta,
+            migrate_file_meta,
             create_dir,
             create_file,
             create_typed_file,

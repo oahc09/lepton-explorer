@@ -29,6 +29,7 @@ import { useClipboardStore } from './state/clipboardStore';
 import { useSelectionStore } from './state/selectionStore';
 import { usePinnedStore } from './state/pinnedStore';
 import { useRecentStore } from './state/recentStore';
+import { migrateLegacyTags, useMetadataStore } from './state/metadataStore';
 import type { Entry, FolderView } from './types';
 import { isVirtualPath, THISPC_ROOT } from './types';
 import { HomeView } from './components/views/HomeView';
@@ -88,6 +89,15 @@ export default function App() {
     if (p) navigate(p);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // One-time migration of legacy localStorage color tags → backend metadata store.
+  useEffect(() => { void migrateLegacyTags(); }, []);
+
+  // Warm the metadata cache for the current folder's entries (color/status/rating/tags).
+  useEffect(() => {
+    const paths = entries.map((e) => e.path);
+    if (paths.length) void useMetadataStore.getState().ensure(paths);
+  }, [entries]);
 
   useEffect(() => { getCurrentWindow().setFullscreen(fs).catch(() => {}); }, [fs]);
 

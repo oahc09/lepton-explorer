@@ -11,7 +11,7 @@ import { openItem } from '../../utils/open';
 import { dropInto } from '../../utils/drop';
 import { useItemDrag } from '../../utils/fileDrag';
 import { groupEntries } from '../../utils/groupBy';
-import { useTagStore, TAG_HEX } from '../../state/tagStore';
+import { useMetadataStore, TAG_HEX, STATUS_ICON } from '../../state/metadataStore';
 import { Thumbnail } from '../Thumbnail';
 
 const ROW_H = 32;
@@ -40,7 +40,7 @@ type DetailsRowProps = {
 
 const DetailsRow = memo(function DetailsRow({ item, cols, visibleColKeys, showExtensions, renamingPath, onRenameCommit, isSelected, isDragOver, onDragOverChange, allInOrder }: DetailsRowProps) {
   const onOpen = useOpen();
-  const tagColor = useTagStore((s) => s.tags[item.path] ?? null);
+  const meta = useMetadataStore((s) => s.cache[item.path]);
   const selPaths = useSelectionStore.getState().selected;
   const paths = selPaths.includes(item.path) ? selPaths : [item.path];
   const drag = useItemDrag(paths);
@@ -50,12 +50,14 @@ const DetailsRow = memo(function DetailsRow({ item, cols, visibleColKeys, showEx
       if (c.key === 'name') {
         return (
           <span className="col-name" key="name">
-            {tagColor && (
+            {meta?.color && (
               <span
                 className="tag-dot"
-                style={{ background: TAG_HEX[tagColor] || '#888' }}
+                style={{ background: TAG_HEX[meta.color as keyof typeof TAG_HEX] || '#888' }}
               />
             )}
+            {meta?.status && <span className="status-badge">{STATUS_ICON[meta.status] ?? ''}</span>}
+            {meta && meta.rating > 0 && <span className="rating-badge">{'★'.repeat(meta.rating)}</span>}
             <span className="row-icon" aria-hidden>
               <Thumbnail entry={it} size={16} />
             </span>

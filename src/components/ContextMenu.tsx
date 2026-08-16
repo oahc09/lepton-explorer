@@ -7,7 +7,7 @@ import { usePinnedStore } from '../state/pinnedStore';
 import { useFileOps } from '../hooks/useFileOps';
 import { openItem } from '../utils/open';
 import { NEW_FILE_KINDS } from '../types';
-import { useTagStore, TAG_COLORS } from '../state/tagStore';
+import { useMetadataStore, TAG_COLORS, STATUS_OPTIONS } from '../state/metadataStore';
 import type { Entry } from '../types';
 
 interface Pos { x: number; y: number; }
@@ -192,12 +192,32 @@ export function ContextMenu({ entries }: { entries: Entry[] }) {
       {item('在终端打开', () => { const en = selEntries[0]; ops.openTerminal(en && en.isDir ? en.path : path); })}
       {item('重命名', () => window.dispatchEvent(new CustomEvent('lepton:rename', { detail: sel[0] })), sel.length !== 1)}
       {item('删除', () => ops.remove(sel, false), !hasSel)}
-      <li className={`cm-item cm-has-submenu${sel.length === 1 ? '' : ' disabled'}`}>标签 ▸
+      <li className={`cm-item cm-has-submenu${sel.length === 1 ? '' : ' disabled'}`}>颜色标记 ▸
         <ul className="cm-submenu">
-          <li className="cm-item" onClick={() => { if (sel[0]) useTagStore.getState().clearTag(sel[0]); setPos(null); }}>无</li>
+          <li className="cm-item" onClick={() => { if (sel[0]) useMetadataStore.getState().setColor(sel[0], null); setPos(null); }}>无</li>
           {TAG_COLORS.map((c) => (
-            <li key={c.key} className="cm-item" onClick={() => { if (sel[0]) useTagStore.getState().setTag(sel[0], c.key); setPos(null); }}>
+            <li key={c.key} className="cm-item" onClick={() => { if (sel[0]) useMetadataStore.getState().setColor(sel[0], c.key); setPos(null); }}>
               <span style={{ color: c.hex }}>●</span>&nbsp; {c.label}
+            </li>
+          ))}
+        </ul>
+      </li>
+      <li className={`cm-item cm-has-submenu${sel.length === 1 ? '' : ' disabled'}`}>状态 ▸
+        <ul className="cm-submenu">
+          <li className="cm-item" onClick={() => { if (sel[0]) useMetadataStore.getState().setStatus(sel[0], null); setPos(null); }}>无</li>
+          {STATUS_OPTIONS.map((s) => (
+            <li key={s.key} className="cm-item" onClick={() => { if (sel[0]) useMetadataStore.getState().setStatus(sel[0], s.key); setPos(null); }}>
+              <span>{s.icon}</span>&nbsp; {s.label}
+            </li>
+          ))}
+        </ul>
+      </li>
+      <li className={`cm-item cm-has-submenu${sel.length === 1 ? '' : ' disabled'}`}>星级 ▸
+        <ul className="cm-submenu">
+          <li className="cm-item" onClick={() => { if (sel[0]) useMetadataStore.getState().setRating(sel[0], 0); setPos(null); }}>无</li>
+          {[1, 2, 3, 4, 5].map((n) => (
+            <li key={n} className="cm-item" onClick={() => { if (sel[0]) useMetadataStore.getState().setRating(sel[0], n); setPos(null); }}>
+              {'★'.repeat(n)}
             </li>
           ))}
         </ul>

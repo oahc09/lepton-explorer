@@ -67,10 +67,11 @@ export function useFileOps() {
     // No-op: name unchanged (e.g. pressed Enter without editing, or Escape).
     if (to.toLowerCase() === from.toLowerCase()) return;
     await invoke('rename', { from, to });
+    await invoke('migrate_file_meta', { from, to }).catch(() => {});
     push({
       label: '重命名',
-      undo: async () => { await invoke('rename', { from: to, to: from }); refresh(); },
-      redo: async () => { await invoke('rename', { from, to }); refresh(); },
+      undo: async () => { await invoke('rename', { from: to, to: from }); await invoke('migrate_file_meta', { from: to, to: from }).catch(() => {}); refresh(); },
+      redo: async () => { await invoke('rename', { from, to }); await invoke('migrate_file_meta', { from, to }).catch(() => {}); refresh(); },
     });
     refresh();
   }
@@ -126,6 +127,10 @@ export function useFileOps() {
       try {
         const result = await invoke<TrackedMoveResult>('move_with_progress', { sources, dest: destDir, strategy });
         const pairs = result.pairs;
+        // Move any per-file metadata (color/status/rating/tags) along with the files.
+        for (const [oldP, newP] of pairs) {
+          await invoke('migrate_file_meta', { from: oldP, to: newP }).catch(() => {});
+        }
         const trashedRef = { current: result.trashed };
         push({
           label: '移动',

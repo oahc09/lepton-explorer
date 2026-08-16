@@ -77,7 +77,7 @@ describe('useFileOps', () => {
 
   it('paste in cut mode with no conflict invokes move_with_progress(rename) and clears clipboard', async () => {
     useClipboardStore.getState().cut([e('a.txt')]);
-    route({ check_conflicts: [], move_with_progress: [['C:\\src\\a.txt', 'C:\\dest\\a.txt']] });
+    route({ check_conflicts: [], move_with_progress: { pairs: [['C:\\src\\a.txt', 'C:\\dest\\a.txt']], trashed: [] } });
     const { result } = renderHook(() => useFileOps());
     await act(async () => { await result.current.paste('C:\\dest'); });
     expect(m).toHaveBeenCalledWith('move_with_progress', expect.objectContaining({ dest: 'C:\\dest', strategy: 'rename' }));
