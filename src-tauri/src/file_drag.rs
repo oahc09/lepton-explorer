@@ -85,6 +85,7 @@ const S_OK: HRESULT = HRESULT(0);
 const E_NOTIMPL: HRESULT = HRESULT(0x8000_4001u32 as i32);
 const E_NOINTERFACE: HRESULT = HRESULT(0x8000_4002u32 as i32);
 const E_INVALIDARG: HRESULT = HRESULT(0x8007_0057u32 as i32);
+const E_OUTOFMEMORY: HRESULT = HRESULT(0x8007_000eu32 as i32);
 const DRAGDROP_S_CANCEL: HRESULT = HRESULT(0x0004_0101);
 const DRAGDROP_S_DROP: HRESULT = HRESULT(0x0004_0100);
 const DRAGDROP_S_USEDEFAULTCURSORS: HRESULT = HRESULT(0x0004_0102);
@@ -185,7 +186,10 @@ unsafe extern "system" fn data_get_data(
     if fmt.cfFormat != CF_HDROP || fmt.tymed != TYMED_HGLOBAL {
         return E_INVALIDARG;
     }
-    let copy = dup_hglobal(s.hdrop);
+    let copy = match dup_hglobal(s.hdrop) {
+        Ok(c) => c,
+        Err(_) => return E_OUTOFMEMORY,
+    };
     let mut medium: STGMEDIUM = std::mem::zeroed();
     medium.tymed = TYMED_HGLOBAL;
     medium.u.hGlobal = copy;
@@ -340,7 +344,7 @@ static DROP_VTBL: IDropSource_Vtbl = IDropSource_Vtbl {
 
 /// Build an `HDROP` global memory block containing the given paths (Unicode),
 /// suitable for a `CF_HDROP` `STGMEDIUM`.
-fn build_hdrop(paths: &[String]) -> HGLOBAL {
+fn build_hdrop(paths: &[String]) -> Result<HGLOBAL, String> {
     let mut wides: Vec<Vec<u16>> = Vec::with_capacity(paths.len());
     let mut total: usize = 0;
     for p in paths {
@@ -354,7 +358,8 @@ fn build_hdrop(paths: &[String]) -> HGLOBAL {
     total += 2; // terminating double-NUL
 
     let size = std::mem::size_of::<DROPFILES>() + total;
-    let h = unsafe { GlobalAlloc(GMEM_MOVEABLE, size) }.expect("GlobalAlloc for HDROP failed");
+    let h = unsafe { GlobalAlloc(GMEM_MOVEABLE, size) }
+        .map_err(|_| "分配 HDROP 内存失败".to_string())?;
     unsafe {
         let ptr = GlobalLock(h) as *mut u8;
         let df = ptr as *mut DROPFILES;
@@ -370,14 +375,14 @@ fn build_hdrop(paths: &[String]) -> HGLOBAL {
         std::ptr::write_bytes(ptr.add(off), 0u8, 2);
         let _ = GlobalUnlock(h);
     }
-    h
+    Ok(h)
 }
 
 /// Duplicate an `HGLOBAL` (caller owns the copy).
-fn dup_hglobal(h: HGLOBAL) -> HGLOBAL {
+fn dup_hglobal(h: HGLOBAL) -> Result<HGLOBAL, String> {
     let size = unsafe { GlobalSize(h) };
-    let copy =
-        unsafe { GlobalAlloc(GMEM_MOVEABLE, size) }.expect("GlobalAlloc duplicate failed");
+    let copy = unsafe { GlobalAlloc(GMEM_MOVEABLE, size) }
+        .map_err(|_| "复制 HDROP 内存失败".to_string())?;
     unsafe {
         let src = GlobalLock(h);
         let dst = GlobalLock(copy);
@@ -385,7 +390,7 @@ fn dup_hglobal(h: HGLOBAL) -> HGLOBAL {
         let _ = GlobalUnlock(h);
         let _ = GlobalUnlock(copy);
     }
-    copy
+    Ok(copy)
 }
 
 /// Start a native OS drag carrying the given paths as `CF_HDROP`.
@@ -426,7 +431,13 @@ fn run_drag_on_main_thread(paths: &[String]) -> Result<(), String> {
         let ole = OleInitialize(None);
         trace("ole", &format!("OleInitialize={ole:?}"));
 
-        let hdrop = build_hdrop(paths);
+        let hdrop = match build_hdrop(paths) {
+            Ok(h) => h,
+            Err(e) => {
+                OleUninitialize();
+                return Err(e);
+            }
+        };
         let drop = Box::into_raw(Box::new(DropState {
             vtbl: &DROP_VTBL,
             refs: 1,

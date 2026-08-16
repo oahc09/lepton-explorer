@@ -67,16 +67,21 @@ export function NavPane() {
       }}>
         <span aria-hidden>🖼️</span><span>Gallery</span>
       </button>
+      <div className="nav-item nav-group-label">
+        <span aria-hidden>📁</span><span>快速访问</span>
+      </div>
+      <div className="nav-group">
+        {folders.filter((f) => f.key !== 'home').map((f) => (
+          <button key={f.key} className={dropClass(f.path, 'nav-item nav-child')} onClick={() => navigate(f.path)} {...dropProps(f.path)}>
+            <span aria-hidden>{iconFor(f.key)}</span><span>{f.name}</span>
+          </button>
+        ))}
+      </div>
       <div className="nav-item nav-group-label" onClick={() => setExpanded((e) => !e)}>
         <span aria-hidden>{expanded ? '▾' : '▸'}💻</span><span>此电脑</span>
       </div>
       {expanded && (
         <div className="nav-group">
-          {folders.filter((f) => f.key !== 'home').map((f) => (
-            <button key={f.key} className={dropClass(f.path, 'nav-item nav-child')} onClick={() => navigate(f.path)} {...dropProps(f.path)}>
-              <span aria-hidden>📂</span><span>{f.name}</span>
-            </button>
-          ))}
           {drives.map((d) => (
             <button key={d.letter} className={dropClass(d.path, 'nav-item nav-child')} onClick={() => navigate(d.path)} {...dropProps(d.path)}>
               <span aria-hidden>💽</span><span>{d.letter}</span>
@@ -89,4 +94,16 @@ export function NavPane() {
       )}
     </nav>
   );
+}
+
+function iconFor(key: string): string {
+  switch (key) {
+    case 'desktop': return '🖥️';
+    case 'documents': return '📄';
+    case 'downloads': return '⬇️';
+    case 'pictures': return '🖼️';
+    case 'music': return '🎵';
+    case 'videos': return '🎬';
+    default: return '📁';
+  }
 }
