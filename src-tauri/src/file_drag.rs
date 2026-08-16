@@ -28,13 +28,14 @@ use windows::core::Interface;
 use windows::core::{HRESULT, IUnknown, IUnknown_Vtbl};
 use windows::Win32::Foundation::{BOOL, GlobalFree, HGLOBAL, POINT};
 use windows::Win32::System::Com::{
-    CoCreateFreeThreadedMarshaler, CoInitializeEx, CoUninitialize, COINIT_APARTMENTTHREADED,
-    FORMATETC, IDataObject, IDataObject_Vtbl, STGMEDIUM,
+    CoCreateFreeThreadedMarshaler, FORMATETC, IDataObject, IDataObject_Vtbl, STGMEDIUM,
 };
 use windows::Win32::System::Memory::{
     GlobalAlloc, GlobalLock, GlobalSize, GlobalUnlock, GMEM_MOVEABLE,
 };
-use windows::Win32::System::Ole::{DROPEFFECT, DoDragDrop, IDropSource, IDropSource_Vtbl};
+use windows::Win32::System::Ole::{
+    DROPEFFECT, DoDragDrop, IDropSource, IDropSource_Vtbl, OleInitialize, OleUninitialize,
+};
 use windows::Win32::System::SystemServices::MODIFIERKEYS_FLAGS;
 use windows::Win32::UI::Shell::DROPFILES;
 
@@ -368,10 +369,12 @@ pub fn start_os_drag(paths: Vec<String>) -> Result<(), String> {
 
     let handle = std::thread::Builder::new()
         .name("lepton-os-drag".into())
-        .spawn(move || {
+        .spawn(move || -> Result<(), String> {
             unsafe {
-                // DoDragDrop requires an STA thread.
-                let _ = CoInitializeEx(None, COINIT_APARTMENTTHREADED);
+                // DoDragDrop is an OLE drag-drop API: the calling thread MUST be
+                // initialized with OleInitialize (NOT just CoInitializeEx(STA)).
+                // Without it DoDragDrop fails immediately and the OS drag never starts.
+                let _ = OleInitialize(None);
 
                 let hdrop = build_hdrop(&paths);
                 let drop = Box::into_raw(Box::new(DropState {
@@ -402,14 +405,21 @@ pub fn start_os_drag(paths: Vec<String>) -> Result<(), String> {
                 let drop_src = IDropSource::from_raw(drop as *mut std::ffi::c_void);
 
                 let mut effect = DROPEFFECT(0);
-                let _ = DoDragDrop(&data_obj, &drop_src, DROPEFFECT(1 | 2), &mut effect);
+                let hr = DoDragDrop(&data_obj, &drop_src, DROPEFFECT(1 | 2), &mut effect);
+                OleUninitialize();
 
-                let _ = CoUninitialize();
+                if hr.is_err() {
+                    return Err(format!("DoDragDrop 失败：{hr:?}（OLE 未初始化或拖拽无法启动）"));
+                }
+                Ok(())
             }
         })
         .map_err(|e| format!("无法启动拖拽线程：{e}"))?;
 
     // Block until the drag completes so the JS `invoke` resolves afterwards.
-    let _ = handle.join();
-    Ok(())
+    match handle.join() {
+        Ok(Ok(())) => Ok(()),
+        Ok(Err(e)) => Err(e),
+        Err(_) => Err("拖拽线程异常退出".into()),
+    }
 }

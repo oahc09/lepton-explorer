@@ -48,7 +48,9 @@ export function useItemDrag(paths: string[]) {
       s.moved = true;
       setDragged(paths);
       // Hand off to the OS drag loop (blocks its own STA thread until drop).
-      void invoke('start_os_drag', { paths }).catch(() => {});
+      void invoke('start_os_drag', { paths }).catch((err) => {
+        console.error('[lepton-drag] start_os_drag failed:', err);
+      });
       // The OS now owns the drag; release our capture.
       try {
         (e.currentTarget as HTMLElement).releasePointerCapture(s.pointerId);
