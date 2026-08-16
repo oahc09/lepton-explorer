@@ -7,10 +7,11 @@
 //!
 //! Two things make this work against *external* processes (e.g. Beyond Compare):
 //!
-//! 1. `DoDragDrop` must run on a thread that is initialized as a Single-Threaded
-//!    Apartment (STA). Tauri sync commands execute on a thread-pool (MTA) thread,
-//!    so we spawn a dedicated thread and `CoInitializeEx(STA)` it before calling
-//!    `DoDragDrop`.
+//! 1. `DoDragDrop` MUST run on the **main thread** (the foreground thread with
+//!    a message pump). It is a modal loop that relies on mouse-move/button-up
+//!    messages; on a background thread it blocks forever waiting for input it
+//!    never receives. Tauri commands run on the async runtime's worker threads,
+//!    so `start_os_drag` hops onto the main thread via `run_on_main_thread`.
 //!
 //! 2. The custom `IDataObject` must be marshallable into the drop target's
 //!    process. We aggregate the system's Free-Threaded Marshaler (FTM) so OLE can
@@ -389,86 +390,86 @@ fn dup_hglobal(h: HGLOBAL) -> HGLOBAL {
 
 /// Start a native OS drag carrying the given paths as `CF_HDROP`.
 ///
-/// This is an `async` command on purpose: the drag loop blocks for the whole
-/// drag. If it ran as a *synchronous* command, Tauri would execute it on the
-/// main UI thread and freeze the window (and WebView2's input handling) for the
-/// entire drag — which can itself break the drag. `spawn_blocking` keeps the
-/// blocking `DoDragDrop` off both the main thread and the async runtime's
-/// worker threads.
+/// `DoDragDrop` MUST run on the main thread: it is a modal loop that needs the
+/// foreground thread's message pump to receive mouse-move/button-up events.
+/// Running it on a background thread (as we tried before) makes it block forever
+/// waiting for input it never receives. Tauri commands run on the async runtime's
+/// worker threads, so we hop onto the main thread via `run_on_main_thread` and
+/// wait for the drag to finish with a channel.
 #[tauri::command]
-pub async fn start_os_drag(paths: Vec<String>) -> Result<(), String> {
+pub async fn start_os_drag(app: tauri::AppHandle, paths: Vec<String>) -> Result<(), String> {
     if paths.is_empty() {
         return Err("没有可拖拽的项目".into());
     }
     trace("enter", &format!("paths={} first={}", paths.len(), paths[0]));
 
-    let paths_for_thread = paths.clone();
-    tauri::async_runtime::spawn_blocking(move || run_drag_thread(&paths_for_thread))
-        .await
-        .map_err(|e| format!("拖拽任务执行失败：{e}"))?
+    let paths_for_main = paths.clone();
+    tauri::async_runtime::spawn_blocking(move || {
+        let (tx, rx) = std::sync::mpsc::channel::<Result<(), String>>();
+        app.run_on_main_thread(move || {
+            let result = run_drag_on_main_thread(&paths_for_main);
+            let _ = tx.send(result);
+        })
+        .map_err(|e| format!("无法调度拖拽到主线程：{e}"))?;
+        rx.recv().map_err(|e| format!("等待拖拽结果失败：{e}"))?
+    })
+    .await
+    .map_err(|e| format!("拖拽任务执行失败：{e}"))?
 }
 
-/// Run `DoDragDrop` on a dedicated STA thread and block until the drag ends.
-fn run_drag_thread(paths: &[String]) -> Result<(), String> {
-    let paths = paths.to_vec();
-    let handle = std::thread::Builder::new()
-        .name("lepton-os-drag".into())
-        .spawn(move || -> Result<(), String> {
-            unsafe {
-                // DoDragDrop is an OLE drag-drop API: the calling thread MUST be
-                // initialized with OleInitialize (NOT just CoInitializeEx(STA)).
-                let ole = OleInitialize(None);
-                trace("ole", &format!("OleInitialize={ole:?}"));
+/// Run `DoDragDrop` on the *current* (main) thread and block until the drag ends.
+fn run_drag_on_main_thread(paths: &[String]) -> Result<(), String> {
+    unsafe {
+        // DoDragDrop is an OLE drag-drop API: the calling thread MUST be
+        // initialized with OleInitialize (NOT just CoInitializeEx(STA)). The main
+        // thread may already be initialized — S_FALSE is fine too.
+        let ole = OleInitialize(None);
+        trace("ole", &format!("OleInitialize={ole:?}"));
 
-                let hdrop = build_hdrop(&paths);
-                let drop = Box::into_raw(Box::new(DropState {
-                    vtbl: &DROP_VTBL,
-                    refs: 1,
-                }));
-                let data = Box::into_raw(Box::new(DataState {
-                    vtbl: &DATA_VTBL,
-                    refs: 1,
-                    hdrop,
-                    marshaler: std::ptr::null_mut(),
-                }));
+        let hdrop = build_hdrop(paths);
+        let drop = Box::into_raw(Box::new(DropState {
+            vtbl: &DROP_VTBL,
+            refs: 1,
+        }));
+        let data = Box::into_raw(Box::new(DataState {
+            vtbl: &DATA_VTBL,
+            refs: 1,
+            hdrop,
+            marshaler: std::ptr::null_mut(),
+        }));
 
-                // Aggregate the Free-Threaded Marshaler so the data object can be
-                // marshalled into another process (e.g. Beyond Compare).
-                let outer = IUnknown::from_raw(data as *mut std::ffi::c_void);
-                if let Ok(m) = CoCreateFreeThreadedMarshaler(&outer) {
-                    // Move the raw pointer out of `m` without running its destructor
-                    // (which would otherwise Release our data object).
-                    let raw = std::mem::transmute::<IUnknown, *mut std::ffi::c_void>(m);
-                    (*data).marshaler = raw;
-                }
-                // `outer` was created with from_raw; forget it so its destructor does
-                // not Release our data object (the FTM does not hold a ref either).
-                std::mem::forget(outer);
+        // Aggregate the Free-Threaded Marshaler so the data object can be
+        // marshalled into another process (e.g. Beyond Compare).
+        let outer = IUnknown::from_raw(data as *mut std::ffi::c_void);
+        if let Ok(m) = CoCreateFreeThreadedMarshaler(&outer) {
+            // Move the raw pointer out of `m` without running its destructor
+            // (which would otherwise Release our data object).
+            let raw = std::mem::transmute::<IUnknown, *mut std::ffi::c_void>(m);
+            (*data).marshaler = raw;
+        }
+        // `outer` was created with from_raw; forget it so its destructor does
+        // not Release our data object (the FTM does not hold a ref either).
+        std::mem::forget(outer);
 
-                let data_obj = IDataObject::from_raw(data as *mut std::ffi::c_void);
-                let drop_src = IDropSource::from_raw(drop as *mut std::ffi::c_void);
+        let data_obj = IDataObject::from_raw(data as *mut std::ffi::c_void);
+        let drop_src = IDropSource::from_raw(drop as *mut std::ffi::c_void);
 
-                let mut effect = DROPEFFECT(0);
-                trace("dodragdrop", "calling DoDragDrop");
-                let hr = DoDragDrop(&data_obj, &drop_src, DROPEFFECT(1 | 2), &mut effect);
-                trace(
-                    "dodragdrop",
-                    &format!("returned hr=0x{:08x} effect={}", hr.0 as u32, effect.0),
-                );
-                OleUninitialize();
+        let mut effect = DROPEFFECT(0);
+        trace("dodragdrop", "calling DoDragDrop (main thread)");
+        let hr = DoDragDrop(&data_obj, &drop_src, DROPEFFECT(1 | 2), &mut effect);
+        trace(
+            "dodragdrop",
+            &format!("returned hr=0x{:08x} effect={}", hr.0 as u32, effect.0),
+        );
 
-                if hr.is_err() {
-                    return Err(format!("DoDragDrop 失败：0x{:08x}", hr.0 as u32));
-                }
-                Ok(())
-            }
-        })
-        .map_err(|e| format!("无法启动拖拽线程：{e}"))?;
+        // Release our data object / drop source before uninitializing OLE.
+        std::mem::drop(data_obj);
+        std::mem::drop(drop_src);
+        OleUninitialize();
 
-    // Block until the drag completes so the JS `invoke` resolves afterwards.
-    match handle.join() {
-        Ok(Ok(())) => Ok(()),
-        Ok(Err(e)) => Err(e),
-        Err(_) => Err("拖拽线程异常退出".into()),
+        if hr.is_err() {
+            return Err(format!("DoDragDrop 失败：0x{:08x}", hr.0 as u32));
+        }
+        Ok(())
     }
 }
