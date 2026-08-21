@@ -22,9 +22,11 @@ type Tile2ItemProps = {
   showExtensions: boolean;
   isSelected: boolean;
   allInOrder: Entry[];
+  renamingPath: string | null;
+  onRenameCommit?: (n: string) => void;
 };
 
-const Tile2Item = memo(function Tile2Item({ item, showExtensions, isSelected, allInOrder }: Tile2ItemProps) {
+const Tile2Item = memo(function Tile2Item({ item, showExtensions, isSelected, allInOrder, renamingPath, onRenameCommit }: Tile2ItemProps) {
   const navigate = useLocationStore((s) => s.navigate);
   const selPaths = useSelectionStore.getState().selected;
   const paths = selPaths.includes(item.path) ? selPaths : [item.path];
@@ -45,7 +47,33 @@ const Tile2Item = memo(function Tile2Item({ item, showExtensions, isSelected, al
     >
       <span><Thumbnail entry={item} size={40} /></span>
       <span style={{ display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-        <span className="tile2-name" style={{ fontSize: 13 }}>{displayName(item, showExtensions)}</span>
+        {renamingPath === item.path ? (
+          <input
+            className="rename-input"
+            style={{ fontSize: 13 }}
+            autoFocus
+            defaultValue={item.name}
+            onClick={(e) => e.stopPropagation()}
+            onFocus={(e) => e.currentTarget.select()}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') {
+                e.preventDefault();
+                (e.currentTarget as HTMLInputElement).dataset.committed = '1';
+                onRenameCommit?.(e.currentTarget.value);
+              }
+              if (e.key === 'Escape') {
+                e.preventDefault();
+                (e.currentTarget as HTMLInputElement).dataset.committed = '1';
+                onRenameCommit?.(item.name);
+              }
+            }}
+            onBlur={(e) => {
+              if (!e.currentTarget.dataset.committed) onRenameCommit?.(e.currentTarget.value);
+            }}
+          />
+        ) : (
+          <span className="tile2-name" style={{ fontSize: 13 }}>{displayName(item, showExtensions)}</span>
+        )}
         <span style={{ fontSize: 12, color: 'var(--text-sub)' }}>{item.isDir ? '文件夹' : `${formatSize(item.size)} · ${item.typeLabel}`}</span>
       </span>
     </div>
@@ -58,11 +86,12 @@ const Tile2Item = memo(function Tile2Item({ item, showExtensions, isSelected, al
     prev.item.isDir === next.item.isDir &&
     prev.isSelected === next.isSelected &&
     prev.showExtensions === next.showExtensions &&
+    prev.renamingPath === next.renamingPath &&
     prev.allInOrder === next.allInOrder
   );
 });
 
-export function TilesView({ entries }: { entries: Entry[] }) {
+export function TilesView({ entries, renamingPath, onRenameCommit }: { entries: Entry[]; renamingPath?: string | null; onRenameCommit?: (n: string) => void }) {
   const parentRef = useRef<HTMLDivElement>(null);
   const showExtensions = useViewStore((s) => s.showExtensions);
   const selected = useSelectionStore((s) => s.selected);
@@ -110,6 +139,8 @@ export function TilesView({ entries }: { entries: Entry[] }) {
                   showExtensions={showExtensions}
                   isSelected={selectedSet.has(item.path)}
                   allInOrder={entries}
+                  renamingPath={renamingPath ?? null}
+                  onRenameCommit={onRenameCommit}
                 />
               ))}
             </div>

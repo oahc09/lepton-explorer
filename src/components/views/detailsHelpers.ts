@@ -37,6 +37,12 @@ export function icon(item: Entry): string {
 export function handleClick(ev: MouseEvent, item: Entry, allInOrder: Entry[], sel: SelectionApi) {
   if (ev.ctrlKey) sel.toggle(item);
   else if (ev.shiftKey && sel.anchor) sel.selectRange(allInOrder, item.path);
+  else if (ev.detail === 1 && sel.selected.length === 1 && sel.selected[0] === item.path) {
+    // Single-click on an already-selected single item → re-enter inline rename
+    // (Explorer's slow-click-to-rename, simplified). `detail === 1` excludes the
+    // second click of a double-click so open-by-double-click still works.
+    window.dispatchEvent(new CustomEvent('lepton:rename', { detail: item.path }));
+  }
   else sel.select([item]);
 }
 

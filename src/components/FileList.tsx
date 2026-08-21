@@ -13,8 +13,8 @@ export function FileList({ entries, renamingPath, onRenameCommit }: { entries: E
   // active sort — previously only DetailsView sorted.
   const sorted = useSorted(entries);
   if (viewMode === 'details') return <DetailsView entries={sorted} renamingPath={renamingPath} onRenameCommit={onRenameCommit} />;
-  if (viewMode === 'list') return <ListView entries={sorted} />;
-  if (viewMode === 'tiles') return <TilesView entries={sorted} />;
-  if (viewMode === 'content') return <ContentView entries={sorted} />;
+  if (viewMode === 'list') return <ListView entries={sorted} renamingPath={renamingPath} onRenameCommit={onRenameCommit} />;
+  if (viewMode === 'tiles') return <TilesView entries={sorted} renamingPath={renamingPath} onRenameCommit={onRenameCommit} />;
+  if (viewMode === 'content') return <ContentView entries={sorted} renamingPath={renamingPath} onRenameCommit={onRenameCommit} />;
   return <IconsView entries={sorted} size={viewMode as IconSize} renamingPath={renamingPath} onRenameCommit={onRenameCommit} />;
 }

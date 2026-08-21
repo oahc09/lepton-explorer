@@ -20,9 +20,11 @@ type ListItemProps = {
   showExtensions: boolean;
   isSelected: boolean;
   allInOrder: Entry[];
+  renamingPath: string | null;
+  onRenameCommit?: (n: string) => void;
 };
 
-const ListItem = memo(function ListItem({ item, showExtensions, isSelected, allInOrder }: ListItemProps) {
+const ListItem = memo(function ListItem({ item, showExtensions, isSelected, allInOrder, renamingPath, onRenameCommit }: ListItemProps) {
   const navigate = useLocationStore((s) => s.navigate);
   const selPaths = useSelectionStore.getState().selected;
   const paths = selPaths.includes(item.path) ? selPaths : [item.path];
@@ -42,7 +44,33 @@ const ListItem = memo(function ListItem({ item, showExtensions, isSelected, allI
       onAuxClick={(e) => { if (e.button === 1 && item.isDir) { e.preventDefault(); useLocationStore.getState().addTab(item.path); } }}
     >
       <span className="list-icon"><Thumbnail entry={item} size={16} /></span>
-      <span className="list-name">{displayName(item, showExtensions)}</span>
+      {renamingPath === item.path ? (
+        <input
+          className="rename-input"
+          style={{ flex: 1 }}
+          autoFocus
+          defaultValue={item.name}
+          onClick={(e) => e.stopPropagation()}
+          onFocus={(e) => e.currentTarget.select()}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') {
+              e.preventDefault();
+              (e.currentTarget as HTMLInputElement).dataset.committed = '1';
+              onRenameCommit?.(e.currentTarget.value);
+            }
+            if (e.key === 'Escape') {
+              e.preventDefault();
+              (e.currentTarget as HTMLInputElement).dataset.committed = '1';
+              onRenameCommit?.(item.name);
+            }
+          }}
+          onBlur={(e) => {
+            if (!e.currentTarget.dataset.committed) onRenameCommit?.(e.currentTarget.value);
+          }}
+        />
+      ) : (
+        <span className="list-name">{displayName(item, showExtensions)}</span>
+      )}
     </div>
   );
 }, (prev, next) => {
@@ -52,10 +80,11 @@ const ListItem = memo(function ListItem({ item, showExtensions, isSelected, allI
     && prev.item.isDir === next.item.isDir
     && prev.isSelected === next.isSelected
     && prev.showExtensions === next.showExtensions
+    && prev.renamingPath === next.renamingPath
     && prev.allInOrder === next.allInOrder;
 });
 
-export function ListView({ entries }: { entries: Entry[] }) {
+export function ListView({ entries, renamingPath, onRenameCommit }: { entries: Entry[]; renamingPath?: string | null; onRenameCommit?: (n: string) => void }) {
   const parentRef = useRef<HTMLDivElement>(null);
   const showExtensions = useViewStore((s) => s.showExtensions);
   const selected = useSelectionStore((s) => s.selected);
@@ -93,7 +122,7 @@ export function ListView({ entries }: { entries: Entry[] }) {
               key={item.path}
               style={{ position: 'absolute', top: 0, left: 0, width: '100%', transform: `translateY(${vi.start}px)`, height: ROW_H }}
             >
-              <ListItem item={item} showExtensions={showExtensions} isSelected={selectedSet.has(item.path)} allInOrder={entries} />
+              <ListItem item={item} showExtensions={showExtensions} isSelected={selectedSet.has(item.path)} allInOrder={entries} renamingPath={renamingPath ?? null} onRenameCommit={onRenameCommit} />
             </div>
           );
         })}
