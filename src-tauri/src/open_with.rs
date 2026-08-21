@@ -41,6 +41,17 @@ fn wide(s: &str) -> Vec<u16> {
         .collect()
 }
 
+/// Parent directory of `path` (empty string if it has none). Used as the
+/// `lpDirectory` (working directory) when launching a file, so batch scripts
+/// and other programs resolve relative paths against their own folder instead
+/// of the app's current directory.
+fn parent_dir(path: &str) -> String {
+    Path::new(path)
+        .parent()
+        .map(|p| p.to_string_lossy().to_string())
+        .unwrap_or_default()
+}
+
 // ---------------------------------------------------------------------------
 // Registry helpers
 // ---------------------------------------------------------------------------
@@ -312,14 +323,18 @@ pub fn get_open_with(path: &str) -> OpenWithInfo {
     OpenWithInfo { default, apps }
 }
 
-fn shell_execute(exe: &str, params: &str) -> Result<()> {
+fn shell_execute(exe: &str, params: &str, cwd: &str) -> Result<()> {
     let exe_w = wide(exe);
     let params_w = wide(params);
+    let cwd_w = wide(cwd);
     let mut info = SHELLEXECUTEINFOW::default();
     info.cbSize = std::mem::size_of::<SHELLEXECUTEINFOW>() as u32;
     info.hwnd = unsafe { GetForegroundWindow() };
     info.lpFile = PCWSTR(exe_w.as_ptr());
     info.lpParameters = PCWSTR(params_w.as_ptr());
+    if !cwd.is_empty() {
+        info.lpDirectory = PCWSTR(cwd_w.as_ptr());
+    }
     info.nShow = SW_SHOWNORMAL.0 as i32;
     let ok = unsafe { ShellExecuteExW(&mut info) };
     if ok.is_ok() {
@@ -331,7 +346,8 @@ fn shell_execute(exe: &str, params: &str) -> Result<()> {
 
 /// Open `path` with a specific application executable.
 pub fn open_with_path(path: &str, exe: &str) -> Result<()> {
-    shell_execute(exe, &format!("\"{}\"", path))
+    let cwd = parent_dir(path);
+    shell_execute(exe, &format!("\"{}\"", path), &cwd)
 }
 
 /// Open `path` with the system's default program for its file type.
@@ -356,11 +372,16 @@ pub fn open_file(path: &str) -> Result<()> {
 fn shell_execute_open(path: &str) -> Result<()> {
     let file_w = wide(path);
     let verb_w = wide("open");
+    let cwd = parent_dir(path);
+    let cwd_w = wide(&cwd);
     let mut info = SHELLEXECUTEINFOW::default();
     info.cbSize = std::mem::size_of::<SHELLEXECUTEINFOW>() as u32;
     info.hwnd = unsafe { GetForegroundWindow() };
     info.lpFile = PCWSTR(file_w.as_ptr());
     info.lpVerb = PCWSTR(verb_w.as_ptr());
+    if !cwd.is_empty() {
+        info.lpDirectory = PCWSTR(cwd_w.as_ptr());
+    }
     info.nShow = SW_SHOWNORMAL.0 as i32;
     let ok = unsafe { ShellExecuteExW(&mut info) };
     if ok.is_ok() {
