@@ -36,6 +36,7 @@ use std::process;
 
 use windows::core::PCSTR;
 use windows::core::PCWSTR;
+use windows::core::PSTR;
 use windows::Win32::Foundation::{HINSTANCE, HWND, LPARAM, LRESULT, WPARAM};
 use windows::Win32::System::Com::{CoTaskMemAlloc, CoTaskMemFree};
 use windows::Win32::System::LibraryLoader::GetModuleHandleW;
@@ -48,10 +49,10 @@ use windows::Win32::UI::Shell::{
 use windows::Win32::Graphics::Gdi::{GetDC, GetDeviceCaps, LOGPIXELSX, ReleaseDC};
 use windows::Win32::UI::WindowsAndMessaging::{
     AllowSetForegroundWindow, BringWindowToTop, CreatePopupMenu, CreateWindowExW, DefWindowProcW,
-    DestroyMenu, DestroyWindow, GetForegroundWindow, GetWindowThreadProcessId,
-    RegisterClassW, SetForegroundWindow, SetWindowLongPtrW, TrackPopupMenuEx, ASFW_ANY,
-    CS_HREDRAW, CS_VREDRAW, GWLP_HWNDPARENT, HMENU, TPM_LEFTALIGN, TPM_RETURNCMD, TPM_TOPALIGN,
-    WNDCLASSW, WS_OVERLAPPED,
+    DestroyMenu, DestroyWindow, DispatchMessageW, GetForegroundWindow, GetWindowThreadProcessId,
+    PeekMessageW, PM_REMOVE, RegisterClassW, SetForegroundWindow, SetWindowLongPtrW,
+    TrackPopupMenuEx, TranslateMessage, ASFW_ANY, CS_HREDRAW, CS_VREDRAW, GWLP_HWNDPARENT,
+    HMENU, MSG, TPM_LEFTALIGN, TPM_RETURNCMD, TPM_TOPALIGN, WNDCLASSW, WS_OVERLAPPED,
 };
 
 /// Command-line sentinel: when present, this process is a transient menu host
@@ -109,6 +110,51 @@ fn trace(step: &str, detail: &str) {
             step,
             detail
         );
+    }
+}
+
+/// Run a message pump for up to `timeout_ms`, keeping this process alive so that
+/// dialogs spawned by an asynchronous verb (e.g. "properties") can display and
+/// stay interactive. The pump exits early on WM_QUIT (modal dialogs post it when
+/// they close) or when the timeout elapses (safety net against indefinite hangs).
+fn pump_messages(timeout_ms: u32) {
+    let mut msg = MSG::default();
+    let start = std::time::Instant::now();
+    loop {
+        while unsafe { PeekMessageW(&mut msg, None, 0, 0, PM_REMOVE) }.as_bool() {
+            if msg.message == 0x0012 {
+                // WM_QUIT
+                return;
+            }
+            let _ = unsafe { TranslateMessage(&msg) };
+            unsafe { DispatchMessageW(&msg) };
+        }
+        if start.elapsed().as_millis() as u32 > timeout_ms {
+            return;
+        }
+        std::thread::sleep(std::time::Duration::from_millis(10));
+    }
+}
+
+/// Resolve the verb string for a menu command id (diagnostic). Returns the
+/// canonical verb (e.g. "properties") or an error tag when unavailable.
+fn get_verb_string(cm: &IContextMenu, idcmd: usize) -> String {
+    const GCS_VERBW: u32 = 0x00000004;
+    let mut buf = vec![0u16; 64];
+    let hr = unsafe {
+        cm.GetCommandString(
+            idcmd,
+            GCS_VERBW,
+            None,
+            PSTR(buf.as_mut_ptr() as *mut u8),
+            buf.len() as u32,
+        )
+    };
+    if hr.is_ok() {
+        let len = buf.iter().position(|&c| c == 0).unwrap_or(buf.len());
+        String::from_utf16_lossy(&buf[..len])
+    } else {
+        format!("<err:{hr:?}>")
     }
 }
 
@@ -477,19 +523,40 @@ fn show_menu_inner(paths: &[String], x: i32, y: i32) -> Result<(), String> {
     // 10. Invoke selected command. Use the real foreground window as hwnd so any
     //     spawned dialogs inherit the correct owner.
     if cmd.0 > 0 {
+        let verb = get_verb_string(&context_menu, cmd.0 as usize);
+        // Prefer the canonical verb string over the raw command id: several
+        // handlers (notably the shell's "properties" verb) reject a bare
+        // MAKEINTRESOURCE command id with E_INVALIDARG but accept the verb
+        // string. Fall back to the command id when the verb is unavailable.
+        let verb_c = if verb.is_empty() || verb.starts_with('<') {
+            None
+        } else {
+            std::ffi::CString::new(verb.as_str()).ok()
+        };
         let info = CMINVOKECOMMANDINFO {
             cbSize: std::mem::size_of::<CMINVOKECOMMANDINFO>() as u32,
             fMask: 0,
-            hwnd: if fg.0.is_null() { owner } else { fg },
-            lpVerb: PCSTR(cmd.0 as usize as *const u8),
+            hwnd: owner,
+            lpVerb: match &verb_c {
+                Some(v) => PCSTR(v.as_ptr() as *const u8),
+                None => PCSTR(cmd.0 as usize as *const u8),
+            },
             lpParameters: PCSTR::null(),
             lpDirectory: PCSTR::null(),
             nShow: 1, // SW_SHOWNORMAL
             dwHotKey: 0,
             hIcon: Default::default(),
         };
-        trace("invoke", &format!("InvokeCommand cmd={}", cmd.0));
-        let _ = unsafe { context_menu.InvokeCommand(&info) };
+        let hr = unsafe { context_menu.InvokeCommand(&info) };
+        trace("invoke", &format!("cmd={} verb={} hr={:?}", cmd.0, verb, hr));
+        // Dialog-bearing verbs (e.g. "properties") may return S_OK without
+        // blocking — the shell spawns the dialog on a helper thread. If the
+        // child exits immediately (std::process::exit below), the dialog is
+        // never seen. Pump messages for a while so it can show and be used;
+        // the modal loop posts WM_QUIT on close, which exits the pump early.
+        if hr.is_ok() {
+            pump_messages(120_000);
+        }
     }
 
     // 11. Cleanup.

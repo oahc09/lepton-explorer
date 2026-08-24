@@ -1,6 +1,6 @@
 {
-  "version": "1.1.7",
-  "notes": "Lepton Explorer 1.1.7 更新内容：\n- 修复「拖拽文件夹/文件无反应」：上一版用指针手势检测拖拽，但缺少指针捕获（setPointerCapture），在部分 WebView2 环境下 pointerdown 的 preventDefault 会抑制后续 pointermove，导致 start_os_drag 根本未被调用、系统级拖拽从未启动。本版在 pointerdown 时捕获指针、跨过阈值后再释放，保证移动事件稳定送达，文件夹与文件均可正常拖到任意程序\n- 应用内拖放（文件夹间移动 / 复制）保持可用\n\n点击「下载并安装」后将自动运行安装程序完成升级。",
-  "download_url": "https://raw.githubusercontent.com/oahc09/lepton-explorer/main/binary-release/nsis/Lepton%20Explorer_1.1.7_x64-setup.exe",
-  "pub_date": "2026-08-15"
+  "version": "1.1.8",
+  "notes": "Lepton Explorer 1.1.8 更新内容：\n- 修复「显示更多选项 → 属性」点击无反应：shell 经典菜单的 InvokeCommand 用跨进程 HWND 导致属性对话框创建失败；改用同进程 owner 窗口作父窗口，并加消息泵兜底防异步销毁。同时回退 idCmdFirst 偏移、改用 verb 字符串执行命令（避免 E_INVALIDARG）\n- 压缩/解压支持扩展：ZIP + 7z 压缩，zip/7z/RAR 解压；修复前端 invoke 参数 camelCase 导致压缩无反应\n- 个性化系统：Mica/Acrylic 窗口效果可切换、每日图片（Bing 壁纸）、每日名言、本地图片背景\n- 文件元数据：色彩编码、状态图标、星级评分、标签、描述（后端 metadata.json 持久化）\n- 鼠标框选多个文件（橡皮筋选择，全视图支持，Ctrl 追加）\n- 修复新建文件/文件夹后重命名输入框不出现（列表/平铺/内容视图补齐）+ 单击已选中项触发重命名\n- 修复双击执行 .bat 文件时工作目录错误（ShellExecuteExW 未设 lpDirectory）\n\n点击「下载并安装」后将自动运行安装程序完成升级。",
+  "download_url": "https://raw.githubusercontent.com/oahc09/lepton-explorer/main/binary-release/nsis/Lepton%20Explorer_1.1.8_x64-setup.exe",
+  "pub_date": "2026-08-23"
 }
