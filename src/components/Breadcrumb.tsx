@@ -3,6 +3,7 @@ import { invoke } from '@tauri-apps/api/core';
 import { useLocationStore } from '../state/locationStore';
 import { pathSegments } from '../utils/paths';
 import type { PathSuggestion } from '../types';
+import { dropInto } from '../utils/drop';
 
 export function Breadcrumb() {
   const path = useLocationStore((s) => s.path);
@@ -11,6 +12,9 @@ export function Breadcrumb() {
   const [draft, setDraft] = useState(path);
   const [suggestions, setSuggestions] = useState<PathSuggestion[]>([]);
   const [selIdx, setSelIdx] = useState(-1);
+  // Crumb currently hovered by an active drag (Win11: dropping on a breadcrumb
+  // segment moves/copies into that folder).
+  const [dragOver, setDragOver] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const tRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -81,7 +85,14 @@ export function Breadcrumb() {
       {segs.map((s, i) => (
         <span key={s.path} className="crumb-group">
           {i > 0 && <span className="chevron">›</span>}
-          <button className="crumb" onClick={() => navigate(s.path)}>{s.name}</button>
+          <button
+            className={`crumb${dragOver === s.path ? ' drag-over' : ''}`}
+            onClick={() => navigate(s.path)}
+            onDragEnter={(e) => { e.preventDefault(); setDragOver(s.path); }}
+            onDragOver={(e) => { e.preventDefault(); e.dataTransfer.dropEffect = e.ctrlKey ? 'copy' : 'move'; }}
+            onDragLeave={() => { if (dragOver === s.path) setDragOver(null); }}
+            onDrop={(e) => { e.preventDefault(); setDragOver(null); void dropInto(s.path, e.ctrlKey); }}
+          >{s.name}</button>
         </span>
       ))}
     </div>

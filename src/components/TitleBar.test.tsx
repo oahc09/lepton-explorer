@@ -43,6 +43,7 @@ describe('TitleBar', () => {
   it('reflects the maximized state in the maximize button glyph', async () => {
     winMock.isMaximized.mockResolvedValueOnce(true);
     render(<TitleBar />);
-    await waitFor(() => expect(screen.getByTitle('最大化').textContent).toBe('🗗'));
+    // When maximized the button becomes "restore" (title + glyph both change).
+    await waitFor(() => expect(screen.getByTitle('还原').textContent).toBe('\uE923'));
   });
 });

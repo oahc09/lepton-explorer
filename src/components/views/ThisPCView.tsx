@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import type { DriveInfo } from '../../types';
+import { ICON_USB, ICON_NETWORK, ICON_STORAGE_OPTICAL } from '../../utils/icons';
 
 function formatBytes(bytes: number): string {
   const TB = 1024 ** 4;
@@ -14,12 +15,17 @@ function formatBytes(bytes: number): string {
   return `${bytes} B`;
 }
 
-function driveIcon(kind: string): string {
+/**
+ * Returns the Fluent glyph for a drive kind, or null for a plain hard drive —
+ * Segoe Fluent Icons has no bare hard-drive glyph, so those are drawn in CSS
+ * (`.thispc-drive-icon`) to avoid falling back to an Emoji that clashes.
+ */
+function driveIcon(kind: string): string | null {
   switch (kind) {
-    case 'removable': return '💾';
-    case 'network': return '🌐';
-    case 'cdrom': return '💿';
-    default: return '💽';
+    case 'removable': return ICON_USB;
+    case 'network': return ICON_NETWORK;
+    case 'cdrom': return ICON_STORAGE_OPTICAL;
+    default: return null;
   }
 }
 
@@ -48,9 +54,14 @@ export function ThisPCView({ onOpen }: { onOpen: (path: string) => void }) {
       <div className="thispc-grid">
         {drives.map((d) => {
           const pct = d.total > 0 ? Math.min(100, (d.used / d.total) * 100) : 0;
+          const glyph = driveIcon(d.kind);
           return (
             <button key={d.letter} className="thispc-card" onClick={() => onOpen(d.path)} title={d.path}>
-              <span className="thispc-icon">{driveIcon(d.kind)}</span>
+              <span className="thispc-icon">
+                {glyph
+                  ? <span aria-hidden className="fi">{glyph}</span>
+                  : <span aria-hidden className="thispc-drive-icon" />}
+              </span>
               <div className="thispc-body">
                 <span className="thispc-name">{d.label} ({d.letter})</span>
                 <div className="thispc-bar">

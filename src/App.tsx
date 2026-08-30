@@ -38,6 +38,7 @@ import { VIEW_SHORTCUTS } from './shortcuts';
 import { openItem } from './utils/open';
 import { newWindow } from './utils/window';
 import { cycleIconSize } from './utils/viewCycle';
+import { ICON_SETTINGS } from './utils/icons';
 
 export default function App() {
   const path = useLocationStore((s) => s.path);
@@ -55,6 +56,8 @@ export default function App() {
   const shownEntries = searchResults ?? visibleEntries;
   const previewPane = useViewStore((s) => s.previewPane);
   const detailsPane = useViewStore((s) => s.detailsPane);
+  const navPaneVisible = useViewStore((s) => s.navPaneVisible);
+  const compactMode = useViewStore((s) => s.compactMode);
   const sel = useSelectionStore((s) => s.selected);
   const previewEntry = useMemo(() => sel.length === 1 ? shownEntries.find((e) => e.path === sel[0]) ?? null : null, [sel, shownEntries]);
   const entryRef = useRef(entries);
@@ -314,10 +317,14 @@ export default function App() {
       }
       const tag = (e.target as HTMLElement)?.tagName;
       if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
+      // F3 → focus the search box (Win11 uses F3 for search).
+      if (e.key === 'F3') { e.preventDefault(); window.dispatchEvent(new CustomEvent('lepton:focus-search')); return; }
       if (e.key === 'Backspace') { e.preventDefault(); useLocationStore.getState().back(); return; }
       if (e.altKey && !e.ctrlKey && !e.shiftKey && e.key === 'ArrowLeft') { e.preventDefault(); useLocationStore.getState().back(); return; }
       if (e.altKey && !e.ctrlKey && !e.shiftKey && e.key === 'ArrowRight') { e.preventDefault(); useLocationStore.getState().forward(); return; }
       if (e.altKey && !e.ctrlKey && !e.shiftKey && e.key === 'ArrowUp') { e.preventDefault(); useLocationStore.getState().up(); return; }
+      // Alt+Home → Home. In this app Home is represented by the empty path root.
+      if (e.altKey && !e.ctrlKey && !e.shiftKey && e.key === 'Home') { e.preventDefault(); useLocationStore.getState().navigate(''); return; }
       if (e.ctrlKey && !e.shiftKey && (e.key === 't' || e.key === 'T')) {
         e.preventDefault();
         useLocationStore.getState().addTab('');
@@ -417,6 +424,12 @@ export default function App() {
         useClipboardStore.getState().copy(selEntries);
         return;
       }
+      // Ctrl+Shift+C → copy the selected paths as text (Win11 "Copy as path").
+      if (e.ctrlKey && e.shiftKey && (e.key === 'c' || e.key === 'C')) {
+        e.preventDefault();
+        if (selected.length) opsRef.current.copyPath(selected.join('\n'));
+        return;
+      }
       if (e.ctrlKey && !e.shiftKey && (e.key === 'x' || e.key === 'X')) {
         e.preventDefault();
         useClipboardStore.getState().cut(selEntries);
@@ -506,12 +519,12 @@ export default function App() {
         <Toolbar onRefresh={() => setRefreshKey((k) => k + 1)} />
         <Breadcrumb />
         {path !== '' && <SearchBox />}
-        <button className="cmd settings-btn" onClick={() => window.dispatchEvent(new CustomEvent('lepton:settings'))} title="设置">⚙</button>
+        <button className="cmd settings-btn fi" onClick={() => window.dispatchEvent(new CustomEvent('lepton:settings'))} title="设置">{ICON_SETTINGS}</button>
       </div>
       <div className="body">
-        <NavPane />
-        <div className="nav-splitter" onMouseDown={startNavResize} />
-        <main className="main-view" key={path} ref={mainRef} tabIndex={0}>
+        {navPaneVisible && <NavPane />}
+        {navPaneVisible && <div className="nav-splitter" onMouseDown={startNavResize} />}
+        <main className={`main-view${compactMode ? ' compact' : ''}`} key={path} ref={mainRef} tabIndex={0}>
           {path === '' ? (
             <HomeView onOpen={(p) => navigate(p)} />
           ) : path === THISPC_ROOT ? (

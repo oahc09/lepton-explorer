@@ -17,9 +17,9 @@ export function TitleBar() {
     <header className="title-bar" data-tauri-drag-region>
       <TabBar />
       <div className="window-controls">
-        <button className="wc wc-min" onClick={() => win.minimize()} title="最小化">—</button>
-        <button className="wc wc-max" onClick={() => win.toggleMaximize()} title="最大化">{maximized ? '🗗' : '🗖'}</button>
-        <button className="wc wc-close" onClick={() => win.close()} title="关闭">✕</button>
+        <button className="wc wc-min" onClick={() => win.minimize()} title="最小化">{'\uE921'}</button>
+        <button className="wc wc-max" onClick={() => win.toggleMaximize()} title={maximized ? '还原' : '最大化'}>{maximized ? '\uE923' : '\uE922'}</button>
+        <button className="wc wc-close" onClick={() => win.close()} title="关闭">{'\uE8BB'}</button>
       </div>
     </header>
   );

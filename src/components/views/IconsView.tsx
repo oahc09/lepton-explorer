@@ -13,6 +13,7 @@ import { useMetadataStore, TAG_HEX, STATUS_ICON } from '../../state/metadataStor
 import { useMarquee } from '../../hooks/useMarquee';
 import { MarqueeBox } from '../MarqueeBox';
 import { Thumbnail } from '../Thumbnail';
+import { ItemCheckBox } from './ItemCheckBox';
 
 const SIZES: Record<IconSize, { tileW: number; tileH: number; font: number; perRow: number; nameMax: number }> = {
   'extra-large': { tileW: 160, tileH: 136, font: 72, perRow: 4, nameMax: 150 },
@@ -38,6 +39,7 @@ type IconTileProps = {
 
 const IconTile = memo(function IconTile({ item, tileW, tileH, font, nameMax, showExtensions, renamingPath, onRenameCommit, isSelected, isDragOver, onDragOverChange, allInOrder }: IconTileProps) {
   const navigate = useLocationStore((s) => s.navigate);
+  const showCheckBoxes = useViewStore((s) => s.itemCheckBoxes);
   const meta = useMetadataStore((s) => s.cache[item.path]);
   const selPaths = useSelectionStore.getState().selected;
   const paths = selPaths.includes(item.path) ? selPaths : [item.path];
@@ -77,6 +79,7 @@ const IconTile = memo(function IconTile({ item, tileW, tileH, font, nameMax, sho
         }
       }}
     >
+      {showCheckBoxes && <ItemCheckBox item={item} />}
       <div className="tile-icon">
         {meta?.color && (
           <span className="tag-dot" style={{ background: TAG_HEX[meta.color as keyof typeof TAG_HEX] || '#888', position: 'absolute' }} />

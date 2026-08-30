@@ -42,6 +42,11 @@ export function CommandBar({ entries }: { entries: Entry[] }) {
   const groupBy = useViewStore((s) => s.groupBy);
   const showExtensionsFlag = useViewStore((s) => s.showExtensions);
   const showHiddenFlag = useViewStore((s) => s.showHidden);
+  const navPaneVisible = useViewStore((s) => s.navPaneVisible);
+  const previewPane = useViewStore((s) => s.previewPane);
+  const detailsPane = useViewStore((s) => s.detailsPane);
+  const itemCheckBoxes = useViewStore((s) => s.itemCheckBoxes);
+  const compactMode = useViewStore((s) => s.compactMode);
 
   // Measure buttons and compute overflow. Runs on mount + resize.
   // On first pass all buttons are visible → cache their real widths.
@@ -114,8 +119,15 @@ export function CommandBar({ entries }: { entries: Entry[] }) {
           <li key={v.mode} className={`flyout-item${viewMode === v.mode ? ' checked' : ''}`} onClick={() => { useViewStore.getState().setViewMode(v.mode); setOpen(null); }}>{v.label}</li>
         ))}
         <li className="flyout-sep" />
+        <li className="flyout-item flyout-static" aria-hidden>显示/隐藏</li>
+        <li className={`flyout-item${navPaneVisible ? ' checked' : ''}`} onClick={() => { useViewStore.getState().toggleNavPane(); }}>导航窗格</li>
+        <li className={`flyout-item${previewPane ? ' checked' : ''}`} onClick={() => { useViewStore.getState().togglePreview(); }}>预览窗格</li>
+        <li className={`flyout-item${detailsPane ? ' checked' : ''}`} onClick={() => { useViewStore.getState().toggleDetails(); }}>详细信息窗格</li>
+        <li className={`flyout-item${itemCheckBoxes ? ' checked' : ''}`} onClick={() => { useViewStore.getState().toggleItemCheckBoxes(); }}>项目复选框</li>
         <li className={`flyout-item${showExtensionsFlag ? ' checked' : ''}`} onClick={() => { useViewStore.getState().toggleExtensions(); }}>文件扩展名</li>
         <li className={`flyout-item${showHiddenFlag ? ' checked' : ''}`} onClick={() => { useViewStore.getState().toggleHidden(); }}>隐藏的项目</li>
+        <li className="flyout-sep" />
+        <li className={`flyout-item${compactMode ? ' checked' : ''}`} onClick={() => { useViewStore.getState().toggleCompactMode(); }}>紧凑视图</li>
       </ul>
     );
     if (id === 'sort') return (

@@ -12,6 +12,7 @@ import { useItemDrag } from '../../utils/fileDrag';
 import { useMarquee } from '../../hooks/useMarquee';
 import { MarqueeBox } from '../MarqueeBox';
 import { Thumbnail } from '../Thumbnail';
+import { ItemCheckBox } from './ItemCheckBox';
 
 const ROW_H = 22;
 
@@ -29,6 +30,7 @@ const ListItem = memo(function ListItem({ item, showExtensions, isSelected, allI
   const selPaths = useSelectionStore.getState().selected;
   const paths = selPaths.includes(item.path) ? selPaths : [item.path];
   const drag = useItemDrag(paths);
+  const showCheckBoxes = useViewStore((s) => s.itemCheckBoxes);
   return (
     <div
       data-path={item.path}
@@ -43,6 +45,7 @@ const ListItem = memo(function ListItem({ item, showExtensions, isSelected, allI
       onDoubleClick={() => { if (item.isDir) navigate(item.path); else openItem(item.path); }}
       onAuxClick={(e) => { if (e.button === 1 && item.isDir) { e.preventDefault(); useLocationStore.getState().addTab(item.path); } }}
     >
+      {showCheckBoxes && <ItemCheckBox item={item} />}
       <span className="list-icon"><Thumbnail entry={item} size={16} /></span>
       {renamingPath === item.path ? (
         <input

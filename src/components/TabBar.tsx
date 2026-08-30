@@ -30,7 +30,7 @@ export function TabBar() {
           onClick={() => setActive(t.id)}
           onAuxClick={(e) => { if (e.button === 1) { e.preventDefault(); void onClose(t.id); } }}
         >
-          <span className="tab-title">📁 {t.title}</span>
+          <span className="tab-title"><span aria-hidden className="fi">{'\uE8B7'}</span> {t.title}</span>
           <button
             className="tab-close"
             onClick={(e) => {
@@ -38,8 +38,7 @@ export function TabBar() {
               onClose(t.id);
             }}
           >
-            ✕
-          </button>
+            {'\uE711'}</button>
         </div>
       ))}
       <button
@@ -47,7 +46,7 @@ export function TabBar() {
         onClick={() => addTab('')}
         title="新标签页 (Ctrl+T)"
       >
-        ＋
+        {'\uE710'}
       </button>
     </div>
   );

@@ -226,16 +226,16 @@ export function useFileOps() {
     try { await invoke('open_in_terminal', { path }); } catch { /* ignore */ }
   }
 
-  /** Compress `sources` into a single archive (`.zip` or `.7z`) placed in
-   * `destDir`. Undoable-free (the archive is a new file); shows a progress
-   * dialog while compressing. */
-  async function compress(sources: string[], destDir: string, format: 'zip' | '7z' = 'zip') {
+  /** Compress `sources` into a single archive (`.zip` / `.7z` / `.tar.gz`)
+   * placed in `destDir`. Undoable-free (the archive is a new file); shows a
+   * progress dialog while compressing. */
+  async function compress(sources: string[], destDir: string, format: 'zip' | '7z' | 'tar.gz' = 'zip') {
     if (!sources.length) return;
     // Archive name derives from the first selected item (Explorer behavior).
     const first = sources[0].replace(/[\\/]+$/, '');
     const base = first.split(/[\\/]/).pop() || 'Archive';
     const stem = base.includes('.') ? base.slice(0, base.lastIndexOf('.')) : base;
-    const ext = format === '7z' ? '.7z' : '.zip';
+    const ext = format === '7z' ? '.7z' : format === 'tar.gz' ? '.tar.gz' : '.zip';
     const destZip = await invoke<string>('unique_target', { dir: destDir, name: `${stem}${ext}` });
     useProgressStore.getState().open('compress');
     try {
@@ -251,12 +251,13 @@ export function useFileOps() {
 
   const zip = (sources: string[], destDir: string) => compress(sources, destDir, 'zip');
   const zip7z = (sources: string[], destDir: string) => compress(sources, destDir, '7z');
+  const zipTarGz = (sources: string[], destDir: string) => compress(sources, destDir, 'tar.gz');
 
   /** Extract the archive at `zipPath` into a sibling folder (auto-suffixed on
    * collision) under `destDir`. Shows a progress dialog while extracting. */
   async function unzip(zipPath: string, destDir: string) {
     const name = zipPath.split(/[\\/]/).pop() || 'Archive';
-    const stem = name.replace(/\.(zip|7z|rar)$/i, '') || name;
+    const stem = name.replace(/\.(tar\.gz|tgz|tar|zip|7z|rar)$/i, '') || name;
     const dest = await invoke<string>('unique_target', { dir: destDir, name: stem });
     await invoke('create_dir', { path: dest });
     useProgressStore.getState().open('extract');
@@ -269,5 +270,5 @@ export function useFileOps() {
     refresh();
   }
 
-  return { newFolder, newFile, newTypedFile, renameEntry, paste, remove, copyPath, openTerminal, zip, zip7z, unzip };
+  return { newFolder, newFile, newTypedFile, renameEntry, paste, remove, copyPath, openTerminal, zip, zip7z, zipTarGz, unzip };
 }

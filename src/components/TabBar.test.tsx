@@ -39,14 +39,14 @@ describe('TabBar', () => {
 
   it('closing the last tab closes the window', async () => {
     render(<TabBar />);
-    fireEvent.click(screen.getByText('✕'));
+    fireEvent.click(document.querySelector('.tab-close')!);
     await waitFor(() => expect(closeMock).toHaveBeenCalled());
   });
 
   it('closing a non-last tab removes it without closing the window', async () => {
     useLocationStore.setState({ tabs: [tab('t1', 'A'), tab('t2', 'B')], activeId: 't1' });
     render(<TabBar />);
-    fireEvent.click(screen.getAllByText('✕')[1]); // close t2
+    fireEvent.click(document.querySelectorAll('.tab-close')[1]); // close t2
     await waitFor(() => expect(useLocationStore.getState().tabs.length).toBe(1));
     expect(closeMock).not.toHaveBeenCalled();
   });

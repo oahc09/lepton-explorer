@@ -17,6 +17,12 @@ interface ViewState {
   detailsPane: boolean;
   themeMode: 'auto' | 'light' | 'dark';
   navPaneWidth: number;
+  /** Show/hide the navigation pane (Win11 View ▸ Show/hide ▸ Navigation pane). */
+  navPaneVisible: boolean;
+  /** Show check boxes next to items for touch-friendly multi-select (Win11: Item check boxes). */
+  itemCheckBoxes: boolean;
+  /** Compact spacing: tighter rows and tiles (Win11 compact view). */
+  compactMode: boolean;
   /** Custom app background color (any CSS color). null = use the theme default. */
   bgColor: string | null;
   /** Window material effect: 'mica' | 'acrylic' | 'none'. */
@@ -38,6 +44,9 @@ interface ViewState {
   togglePreview: () => void;
   toggleDetails: () => void;
   setNavPaneWidth: (w: number) => void;
+  toggleNavPane: () => void;
+  toggleItemCheckBoxes: () => void;
+  toggleCompactMode: () => void;
   setBgColor: (c: string | null) => void;
   setWindowEffect: (e: 'mica' | 'acrylic' | 'none') => void;
   setDailyImage: (b: boolean) => void;
@@ -61,6 +70,9 @@ export const useViewStore = create<ViewState>()(
       detailsPane: false,
       themeMode: 'auto',
       navPaneWidth: 240,
+      navPaneVisible: true,
+      itemCheckBoxes: false,
+      compactMode: false,
       bgColor: null,
       windowEffect: 'mica',
       dailyImage: false,
@@ -89,6 +101,9 @@ export const useViewStore = create<ViewState>()(
       togglePreview: () => set((s) => ({ previewPane: !s.previewPane, detailsPane: false })),
       toggleDetails: () => set((s) => ({ detailsPane: !s.detailsPane, previewPane: false })),
       setNavPaneWidth: (w) => set({ navPaneWidth: Math.max(160, Math.min(480, w)) }),
+      toggleNavPane: () => set((s) => ({ navPaneVisible: !s.navPaneVisible })),
+      toggleItemCheckBoxes: () => set((s) => ({ itemCheckBoxes: !s.itemCheckBoxes })),
+      toggleCompactMode: () => set((s) => ({ compactMode: !s.compactMode })),
       setBgColor: (c) => set({ bgColor: c }),
       setWindowEffect: (e) => set({ windowEffect: e }),
       setDailyImage: (b) => set({ dailyImage: b }),
@@ -110,6 +125,9 @@ export const useViewStore = create<ViewState>()(
       name: 'lepton-view',
       partialize: (s) => ({
         navPaneWidth: s.navPaneWidth,
+        navPaneVisible: s.navPaneVisible,
+        itemCheckBoxes: s.itemCheckBoxes,
+        compactMode: s.compactMode,
         themeMode: s.themeMode,
         showHidden: s.showHidden,
         showExtensions: s.showExtensions,

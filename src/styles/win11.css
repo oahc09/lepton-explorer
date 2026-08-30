@@ -42,22 +42,34 @@
 
 * { box-sizing: border-box; margin: 0; padding: 0; }
 html, body, #root { height: 100%; }
-body { font-family: var(--font); font-size: 14px; background-color: var(--app-bg, var(--bg)); background-image: var(--app-bg-image, none); background-size: cover; background-position: center; background-attachment: fixed; color: var(--text); user-select: none; overflow: hidden; }
+body { font-family: var(--font); font-size: 14px; background: transparent; color: var(--text); user-select: none; overflow: hidden; }
 
-.app { display: flex; flex-direction: column; height: 100vh; }
+/* The app shell hosts the opaque/gradient background so the window material
+   (Mica/Acrylic) shows through `body` when `.panel-translucent` is active. */
+.app { display: flex; flex-direction: column; height: 100vh; background: var(--app-bg, var(--bg)); background-image: var(--app-bg-image, none); background-size: cover; background-position: center; background-attachment: fixed; }
+.panel-translucent .app { background: transparent; }
 
-.title-bar { height: var(--titlebar-h); display: flex; align-items: stretch; }
+/* Segoe Fluent Icons — the icon font Windows 11 ships with. Apply `class="fi"`
+   to any element rendering a glyph from utils/icons.ts, otherwise the browser
+   falls back to a text font and the glyph renders as a missing-character box. */
+.fi { font-family: "Segoe Fluent Icons", "Segoe MDL2 Assets", "Segoe UI Symbol", sans-serif; font-style: normal; font-weight: normal; line-height: 1; -webkit-font-smoothing: antialiased; }
+
+.title-bar { height: var(--titlebar-h); display: flex; align-items: stretch; background: var(--pane-bg); border-bottom: 1px solid var(--border); }
+.panel-translucent .title-bar { background: var(--pane-bg-translucent); border-bottom-color: transparent; }
 .title-tabs { flex: 1; display: flex; align-items: center; padding: 0 8px; gap: 4px; }
-.title-tabs .tab { background: rgba(255,255,255,0.06); border-radius: 6px; padding: 5px 12px; font-size: 12px; }
-.window-controls { display: flex; }
-.wc { width: 46px; height: var(--titlebar-h); border: 0; background: transparent; color: var(--text); font-size: 12px; cursor: pointer; }
-.wc:hover { background: rgba(0,0,0,0.08); }
-.theme-dark .wc:hover { background: rgba(255,255,255,0.10); }
+.title-tabs .tab { background: transparent; border: 1px solid transparent; border-radius: 6px; padding: 5px 12px; font-size: 12px; transition: background 0.12s ease, border-color 0.12s ease; }
+.title-tabs .tab:hover { background: var(--hover-bg); }
+.title-tabs .tab.active { background: var(--accent-fill); border-color: var(--accent-fill); }
+.window-controls { display: flex; align-items: stretch; }
+.wc { width: 46px; height: 100%; border: 0; background: transparent; color: var(--text); font-family: "Segoe Fluent Icons", "Segoe MDL2 Assets", sans-serif; font-size: 10px; cursor: pointer; transition: background 0.12s ease; }
+.wc:hover { background: var(--hover-bg); }
+.theme-dark .wc:hover { background: var(--hover-bg); }
 .wc-close:hover { background: #c42b1c; color: #fff; }
 
 .address-row { height: var(--toolbar-h); display: flex; align-items: center; gap: 8px; padding: 0 12px; }
 .toolbar { display: flex; gap: 4px; }
-.toolbar button { width: 36px; height: 36px; border: 0; background: transparent; color: var(--text); border-radius: 4px; font-size: 16px; cursor: pointer; }
+.toolbar button { width: 36px; height: 36px; border: 0; background: transparent; color: var(--text); border-radius: 4px; font-size: 16px; cursor: pointer; transition: background 0.12s ease, opacity 0.12s ease; }
+.toolbar button.fi { font-size: 14px; }
 .toolbar button:hover:not(:disabled) { background: var(--hover-bg); }
 .toolbar button:disabled { color: var(--text-sub); opacity: 0.5; cursor: default; }
 
@@ -68,6 +80,8 @@ body { font-family: var(--font); font-size: 14px; background-color: var(--app-bg
 .breadcrumb .crumb-group:last-child { flex-shrink: 0; }
 .breadcrumb .crumb { background: transparent; border: 0; color: var(--text); cursor: pointer; font-size: 13px; padding: 2px 4px; border-radius: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
 .breadcrumb .crumb:hover { background: var(--hover-bg); }
+/* Drop-target highlight for breadcrumb segments (matches .nav-item.drag-over). */
+.breadcrumb .crumb.drag-over { background: var(--select-bg); outline: 1px solid var(--accent); outline-offset: -1px; }
 .breadcrumb .chevron { color: var(--text-sub); flex-shrink: 0; }
 .breadcrumb-input { flex: 1; height: 32px; border: 1px solid var(--accent); border-radius: 6px; padding: 0 8px; font-family: var(--font); color: var(--text); background: var(--main-bg); }
 .breadcrumb-edit { position: relative; flex: 1; }
@@ -80,15 +94,40 @@ body { font-family: var(--font); font-size: 14px; background-color: var(--app-bg
 .nav-pane { width: var(--navpane-w); background: var(--pane-bg); border-right: 1px solid var(--border); overflow: auto; padding: 4px; flex-shrink: 0; }
 .nav-splitter { width: 4px; cursor: col-resize; background: transparent; flex-shrink: 0; position: relative; z-index: 5; }
 .nav-splitter:hover, .nav-splitter:active { background: var(--accent); opacity: 0.5; }
-.nav-item { display: block; width: 100%; text-align: left; background: transparent; border: 0; color: var(--text); padding: 6px 10px; border-radius: 4px; cursor: pointer; font-size: 13px; }
+.nav-item { display: flex; align-items: center; gap: 8px; width: 100%; text-align: left; background: transparent; border: 0; color: var(--text); padding: 6px 10px; border-radius: 4px; cursor: pointer; font-size: 13px; transition: background 0.12s ease; }
+.nav-item .fi { flex: none; width: 16px; text-align: center; font-size: 14px; color: var(--accent); }
+.nav-item.active { background: var(--accent-fill); font-weight: 600; }
+.nav-item.active .fi { color: var(--accent); }
 .nav-pane:focus-visible, .main-view:focus-visible { outline: 1px solid var(--accent); outline-offset: -2px; }
 .nav-item.drag-over { background: var(--select-bg); outline: 1px solid var(--accent); outline-offset: -1px; }
 .details-row.drag-over, .tile.drag-over { background: var(--select-bg); outline: 1px solid var(--accent); outline-offset: -1px; }
+/* Item check boxes (Win11 View ▸ Show/hide ▸ Item check boxes).
+   Hidden until the row is hovered; always visible once checked. */
+.tile, .tile2, .list-item, .content-row, .details-row { position: relative; }
+.item-checkbox { position: absolute; top: 2px; left: 2px; width: 14px; height: 14px; margin: 0; cursor: pointer; z-index: 2; opacity: 0; }
+.tile:hover .item-checkbox, .tile2:hover .item-checkbox, .list-item:hover .item-checkbox,
+.content-row:hover .item-checkbox, .details-row:hover .item-checkbox { opacity: 1; }
+.item-checkbox:checked, .item-checkbox:focus-visible { opacity: 1; }
+/* Compact view (Win11 compact mode). Only padding/gaps are tightened — row
+   heights stay as-is because the virtualizer sizes rows from JS constants, and
+   shrinking them in CSS alone would desync item positions from scroll offsets. */
+.main-view.compact .details-row span { padding: 0 6px; }
+.main-view.compact .tile { padding: 4px 2px; }
+.main-view.compact .tile2 { padding: 3px 6px; }
+.main-view.compact .content-row { padding: 0 10px; gap: 8px; }
+.main-view.compact .list-item { padding: 0 4px; gap: 4px; }
 .nav-item:hover { background: var(--hover-bg); }
 .nav-child { padding-left: 28px; }
 .nav-group-label { display: flex; align-items: center; gap: 2px; }
 .nav-caret { display: inline-block; width: 16px; text-align: center; cursor: pointer; color: var(--text-sub); flex: none; }
 .nav-group-title { cursor: pointer; }
+/* Minimal hard-drive glyph drawn in CSS — Segoe Fluent Icons has no plain
+   hard-drive glyph and the Emoji fallback looked out of place. */
+.nav-drive-icon { flex: none; width: 16px; height: 14px; border: 1.5px solid var(--text-sub); border-radius: 3px; position: relative; opacity: 0.9; }
+.nav-drive-icon::after { content: ''; position: absolute; right: 2px; bottom: 2px; width: 3px; height: 3px; border-radius: 50%; background: var(--accent); }
+/* Same glyph at This PC card size (see driveIcon() in ThisPCView.tsx). */
+.thispc-drive-icon { display: inline-block; width: 34px; height: 28px; border: 2.5px solid var(--text-sub); border-radius: 6px; position: relative; opacity: 0.9; }
+.thispc-drive-icon::after { content: ''; position: absolute; right: 4px; bottom: 4px; width: 6px; height: 6px; border-radius: 50%; background: var(--accent); }
 
 .main-view { flex: 1; background: var(--app-bg, var(--main-bg)); overflow: hidden; position: relative; }
 .empty { padding: 24px; color: var(--text-sub); }
@@ -148,17 +187,32 @@ body { font-family: var(--font); font-size: 14px; background-color: var(--app-bg
 .content-row:hover { background: var(--hover-bg); }
 .content-row.selected { background: var(--select-bg); }
 
-.command-bar { display: flex; gap: 6px; padding: 6px 12px; border-bottom: 1px solid var(--border); background: var(--main-bg); overflow: visible; white-space: nowrap; align-items: center; }
-.cmd { height: 32px; padding: 0 12px; border: 1px solid var(--border); background: var(--main-bg); color: var(--text); border-radius: 4px; cursor: pointer; font-size: 13px; }
+.command-bar { display: flex; gap: 6px; padding: 6px 12px; border-bottom: 1px solid var(--border); background: var(--pane-bg); overflow: visible; white-space: nowrap; align-items: center; }
+.panel-translucent .command-bar { background: var(--pane-bg-translucent); border-bottom-color: transparent; }
+.cmd { position: relative; height: 32px; padding: 0 12px; border: 0; background: transparent; color: var(--text); border-radius: 4px; cursor: pointer; font-size: 13px; transition: background 0.12s ease, filter 0.12s ease; }
 .cmd:hover:not(:disabled) { background: var(--hover-bg); }
+.cmd:active:not(:disabled) { background: var(--accent-fill); }
 .cmd:disabled { opacity: 0.5; cursor: default; }
+/* Primary action: 新建 */
+.cmd[data-cmd-id="new"] { background: var(--accent); color: var(--accent-text); }
+.cmd[data-cmd-id="new"]:hover:not(:disabled) { filter: brightness(1.06); }
+.cmd[data-cmd-id="new"]:active:not(:disabled) { filter: brightness(0.94); }
+/* Vertical separators between command groups */
+.cmd[data-cmd-id="new"]::after,
+.cmd[data-cmd-id="paste"]::after,
+.cmd[data-cmd-id="delete"]::after {
+  content: ''; position: absolute; right: -4px; top: 6px; bottom: 6px; width: 1px; background: var(--border); pointer-events: none;
+}
 
-.flyout { position: absolute; top: 100%; left: 0; margin-top: 4px; list-style: none; background: var(--main-bg); border: 1px solid var(--border); border-radius: 8px; padding: 6px; min-width: 180px; box-shadow: 0 8px 24px rgba(0,0,0,0.18); z-index: 1500; }
-.flyout-item { padding: 8px 12px; border-radius: 4px; cursor: pointer; font-size: 13px; white-space: nowrap; }
+.flyout { position: absolute; top: 100%; left: 0; margin-top: 4px; list-style: none; background: var(--main-bg); border: 1px solid var(--border); border-radius: 8px; padding: 4px; min-width: 180px; box-shadow: 0 12px 40px rgba(0,0,0,0.22); z-index: 1500; }
+.panel-translucent .flyout { background: var(--main-bg-translucent); backdrop-filter: blur(20px); }
+.flyout-item { position: relative; padding: 8px 12px; border-radius: 4px; cursor: pointer; font-size: 13px; white-space: nowrap; transition: background 0.12s ease; }
 .flyout-item:hover { background: var(--hover-bg); }
-.flyout-static { color: var(--text-sub); font-size: 12px; cursor: default; }
+.flyout-item:hover::after { content: ''; position: absolute; left: 0; top: 6px; bottom: 6px; width: 3px; border-radius: 2px; background: var(--accent); opacity: 0.7; }
+.flyout-static { color: var(--text-sub); font-size: 12px; cursor: default; padding: 6px 12px; }
 .flyout-static:hover { background: transparent; }
-.flyout-item.checked::before { content: '✓  '; color: var(--accent); }
+.flyout-static:hover::after { display: none; }
+.flyout-item.checked::before { content: '\e73e'; font-family: "Segoe Fluent Icons", "Segoe MDL2 Assets", sans-serif; margin-right: 8px; color: var(--accent); font-size: 12px; }
 .flyout-sep { height: 1px; background: var(--border); margin: 4px 0; list-style: none; }
 
 .context-menu { position: fixed; z-index: 1000; list-style: none; background: var(--main-bg); border: 1px solid var(--border); border-radius: 8px; padding: 6px; min-width: 200px; box-shadow: 0 8px 24px rgba(0,0,0,0.18); font-size: 13px; }
@@ -325,7 +379,7 @@ body { font-family: var(--font); font-size: 14px; background-color: var(--app-bg
 .tab { display: flex; align-items: center; gap: 6px; height: 32px; padding: 0 8px 0 12px; border-radius: 6px; background: rgba(255,255,255,0.05); color: var(--text); cursor: pointer; font-size: 12px; max-width: 200px; }
 .tab.active { background: rgba(255,255,255,0.12); }
 .tab-title { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.tab-close { background: transparent; border: 0; color: var(--text-sub); cursor: pointer; font-size: 11px; border-radius: 4px; width: 18px; height: 18px; }
-.tab-close:hover { background: rgba(0,0,0,0.15); color: var(--text); }
-.tab-add { background: transparent; border: 0; color: var(--text); cursor: pointer; font-size: 16px; width: 30px; height: 30px; border-radius: 6px; }
+.tab-close { background: transparent; border: 0; color: var(--text-sub); cursor: pointer; font-family: "Segoe Fluent Icons", "Segoe MDL2 Assets", sans-serif; font-size: 10px; border-radius: 4px; width: 18px; height: 18px; transition: background 0.12s ease, color 0.12s ease; }
+.tab-close:hover { background: var(--hover-bg); color: var(--text); }
+.tab-add { background: transparent; border: 0; color: var(--text); cursor: pointer; font-family: "Segoe Fluent Icons", "Segoe MDL2 Assets", sans-serif; font-size: 12px; width: 30px; height: 30px; border-radius: 6px; transition: background 0.12s ease; }
 .tab-add:hover { background: var(--hover-bg); }

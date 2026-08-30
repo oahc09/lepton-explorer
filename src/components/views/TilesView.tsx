@@ -13,6 +13,7 @@ import { useItemDrag } from '../../utils/fileDrag';
 import { useMarquee } from '../../hooks/useMarquee';
 import { MarqueeBox } from '../MarqueeBox';
 import { Thumbnail } from '../Thumbnail';
+import { ItemCheckBox } from './ItemCheckBox';
 
 const TILE_H = 76;
 const perRow = 4;
@@ -31,6 +32,7 @@ const Tile2Item = memo(function Tile2Item({ item, showExtensions, isSelected, al
   const selPaths = useSelectionStore.getState().selected;
   const paths = selPaths.includes(item.path) ? selPaths : [item.path];
   const drag = useItemDrag(paths);
+  const showCheckBoxes = useViewStore((s) => s.itemCheckBoxes);
   return (
     <div
       data-path={item.path}
@@ -45,6 +47,7 @@ const Tile2Item = memo(function Tile2Item({ item, showExtensions, isSelected, al
       onDoubleClick={() => { if (item.isDir) navigate(item.path); else openItem(item.path); }}
       onAuxClick={(e) => { if (e.button === 1 && item.isDir) { e.preventDefault(); useLocationStore.getState().addTab(item.path); } }}
     >
+      {showCheckBoxes && <ItemCheckBox item={item} />}
       <span><Thumbnail entry={item} size={40} /></span>
       <span style={{ display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
         {renamingPath === item.path ? (

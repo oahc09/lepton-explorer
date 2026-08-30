@@ -3,6 +3,7 @@ import { invoke } from '@tauri-apps/api/core';
 import { useRecentStore } from '../../state/recentStore';
 import { openItem } from '../../utils/open';
 import type { SpecialFolder } from '../../types';
+import { ICON_DOCUMENT, iconForFolderKey } from '../../utils/icons';
 
 export function HomeView({ onOpen }: { onOpen: (path: string) => void }) {
   const [folders, setFolders] = useState<SpecialFolder[]>([]);
@@ -15,7 +16,7 @@ export function HomeView({ onOpen }: { onOpen: (path: string) => void }) {
       <div className="home-grid">
         {cards.map((f) => (
           <button key={f.key} className="home-card" onClick={() => onOpen(f.path)}>
-            <span className="home-icon">{iconFor(f.key)}</span>
+            <span className="home-icon fi">{iconForFolderKey(f.key)}</span>
             <span className="home-label">{f.name}</span>
           </button>
         ))}
@@ -26,7 +27,7 @@ export function HomeView({ onOpen }: { onOpen: (path: string) => void }) {
           <div className="home-recent">
             {recent.map((r) => (
               <button key={r.path} className="home-recent-item" onClick={() => openItem(r.path)}>
-                <span aria-hidden>📄</span><span>{r.name}</span>
+                <span aria-hidden className="fi">{ICON_DOCUMENT}</span><span>{r.name}</span>
               </button>
             ))}
           </div>
@@ -34,16 +35,4 @@ export function HomeView({ onOpen }: { onOpen: (path: string) => void }) {
       )}
     </div>
   );
-}
-
-function iconFor(key: string): string {
-  switch (key) {
-    case 'desktop': return '🖥️';
-    case 'documents': return '📄';
-    case 'downloads': return '⬇️';
-    case 'pictures': return '🖼️';
-    case 'music': return '🎵';
-    case 'videos': return '🎬';
-    default: return '📁';
-  }
 }

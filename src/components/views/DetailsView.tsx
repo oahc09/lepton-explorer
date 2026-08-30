@@ -15,6 +15,7 @@ import { useMetadataStore, TAG_HEX, STATUS_ICON } from '../../state/metadataStor
 import { useMarquee } from '../../hooks/useMarquee';
 import { MarqueeBox } from '../MarqueeBox';
 import { Thumbnail } from '../Thumbnail';
+import { ItemCheckBox } from './ItemCheckBox';
 
 const ROW_H = 32;
 
@@ -46,6 +47,7 @@ const DetailsRow = memo(function DetailsRow({ item, cols, visibleColKeys, showEx
   const selPaths = useSelectionStore.getState().selected;
   const paths = selPaths.includes(item.path) ? selPaths : [item.path];
   const drag = useItemDrag(paths);
+  const showCheckBoxes = useViewStore((s) => s.itemCheckBoxes);
 
   const renderCells = (it: Entry) =>
     COLS.filter((c) => visibleColKeys.includes(c.key)).map((c) => {
@@ -131,6 +133,7 @@ const DetailsRow = memo(function DetailsRow({ item, cols, visibleColKeys, showEx
         }
       }}
     >
+      {showCheckBoxes && <ItemCheckBox item={item} />}
       {renderCells(item)}
     </div>
   );
